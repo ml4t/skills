@@ -54,8 +54,6 @@ def find_optimal_horizon(
 
 ## IC Decay Profile
 
-A well-behaved signal shows a clear IC peak and then decays:
-
 | Horizon | Typical IC | Interpretation |
 |---------|-----------|----------------|
 | 1d | 0.01 | Too noisy, costs dominate |
@@ -69,8 +67,6 @@ A well-behaved signal shows a clear IC peak and then decays:
 ```python
 def min_viable_horizon(cost_per_trade: float, annual_alpha: float) -> int:
     """Shortest horizon where alpha covers costs."""
-    # Trades per year = 252 / holding_period
-    # Required: alpha_per_trade > cost_per_trade * safety_margin
     for h in [1, 2, 5, 10, 20, 40, 60]:
         trades_per_year = 252 / h
         alpha_per_trade = annual_alpha / trades_per_year
@@ -81,30 +77,23 @@ def min_viable_horizon(cost_per_trade: float, annual_alpha: float) -> int:
 
 ## Feature-Horizon Alignment
 
-Feature lookback should roughly match the prediction horizon:
-
 ```python
 # Misaligned: 5-day feature predicting 60-day returns
-feature = returns_5d  # Short lookback
-label = fwd_returns_60d  # Long horizon — feature has decayed
+feature = returns_5d
+label = fwd_returns_60d
 
 # Aligned: 60-day feature predicting 60-day returns
-feature = returns_60d  # Matching lookback
-label = fwd_returns_60d  # Aligned horizon
+feature = returns_60d
+label = fwd_returns_60d
 ```
-
-Short features + long horizon = noise. Long features + short horizon = stale signal.
 
 ## Guardrails
 
 - **Never default to 1-day** without IC decay analysis — most alpha signals peak at 5-20 days
 - **Transaction costs are the binding constraint** — a 5-day signal with 10 bps costs beats a 1-day signal with the same IC
 - **Feature lookback should match horizon** within a factor of 2-3x
-- **Multi-horizon models** are valid when IC is comparable across several horizons
 
 ## Production Implementation
-
-`ml4t-diagnostic` provides a helper for multi-horizon IC analysis:
 
 ```python
 from ml4t.diagnostic.evaluation.metrics import compute_ic_by_horizon

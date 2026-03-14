@@ -13,7 +13,9 @@ Rewriting strategy logic for live trading introduces bugs and invalidates your b
 
 ## The Problem
 
-Teams build a strategy in a backtest framework, validate it, then rewrite the logic in a separate live trading system. The rewrite introduces subtle differences: rounding, order timing, position tracking. The live system silently diverges from the validated backtest. Performance degrades and nobody can tell if it is the market or the code.
+Teams often validate a strategy in backtest, then rewrite it for live trading.
+That rewrite changes rounding, timing, or position tracking and silently breaks
+the link to the validated backtest.
 
 ## The Pattern
 
@@ -70,7 +72,7 @@ class Momentum(Strategy):
 4. **Live with limits** — small size, tight kill switch, full monitoring
 5. **Scale up** — increase size only after live metrics match paper
 
-Never skip paper trading. If paper results diverge from backtest by more than one standard deviation, diagnose before going live.
+Never skip paper trading. If paper diverges materially from backtest, diagnose before going live.
 
 ## Data Feed Differences
 
@@ -80,8 +82,6 @@ Never skip paper trading. If paper results diverge from backtest by more than on
 | Bars | All present | Build incrementally |
 | Fills | Simulated, next-bar | Real, partial, rejected |
 | Clock | Jump bar to bar | Real-time wall clock |
-
-Handle partial fills: the broker may fill 80 of 100 shares. Your strategy must track actual vs intended position.
 
 ## Guardrails
 
@@ -93,15 +93,12 @@ Handle partial fills: the broker may fill 80 of 100 shares. Your strategy must t
 
 ## Production Implementation
 
-`ml4t-live` reuses Strategy from `ml4t-backtest` with zero changes:
-
 ```python
 import asyncio
 
 from ml4t.backtest import Strategy
 from ml4t.live import LiveEngine, AlpacaBroker, AlpacaDataFeed, SafeBroker, LiveRiskConfig
 
-# Same Momentum class from backtest — no changes
 broker = SafeBroker(AlpacaBroker(api_key, secret_key), LiveRiskConfig(max_drawdown=0.10))
 feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"])
 

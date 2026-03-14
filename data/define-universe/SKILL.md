@@ -13,7 +13,9 @@ Using today's index constituents for a historical backtest introduces survivorsh
 
 ## The Problem
 
-The S&P 500 today contains companies that survived and grew. The S&P 500 in 2010 contained Lehman Brothers, Enron's successors, and hundreds of firms since acquired, delisted, or bankrupt. A strategy backtested on current members never sees these failures, systematically overstating performance. Beyond survivorship, illiquid assets that pass no real-world execution test can dominate signal if you skip liquidity filters.
+The S&P 500 today contains companies that survived and grew. The 2010 index
+contained firms since acquired, delisted, or bankrupt. A backtest on current
+members never sees these failures and overstates performance.
 
 ## The Pattern
 
@@ -63,14 +65,11 @@ def get_universe(
     )
     return candidates["symbol"].to_list()
 
-# Recompute universe at each rebalance date — never use a static list
 universe_2015 = get_universe(all_prices, as_of="2015-01-02")
 universe_2020 = get_universe(all_prices, as_of="2020-01-02")
 ```
 
 ## Handling Delistings
-
-Ignoring delistings biases returns upward. When an asset leaves the universe, assign its terminal return.
 
 ```python
 DELISTING_RETURNS = {
@@ -89,17 +88,6 @@ def apply_delisting_returns(returns: pl.DataFrame, delistings: pl.DataFrame):
     )
 ```
 
-## Rebalance Hysteresis
-
-Avoid excessive turnover from assets entering and leaving near filter thresholds.
-
-```python
-# Buffer: asset must exceed threshold by 5% to enter,
-# but only drops out if it falls 5% below threshold
-ENTRY_THRESHOLD = 5_250_000   # $5M * 1.05
-EXIT_THRESHOLD  = 4_750_000   # $5M * 0.95
-```
-
 ## Guardrails
 
 - Free data sources (Yahoo Finance, etc.) almost always have survivorship bias — they only cover current tickers
@@ -108,8 +96,6 @@ EXIT_THRESHOLD  = 4_750_000   # $5M * 0.95
 - Penny stocks and micro-caps pass through if you skip liquidity filters, dominating signals with noise
 
 ## Production Implementation
-
-`ml4t-data` provides maintained symbol universes plus batch loading:
 
 ```python
 from ml4t.data import DataManager
@@ -121,7 +107,6 @@ panel = dm.batch_load_universe(
     end="2024-12-31",
     provider="yahoo",
 )
-# Apply PIT membership and liquidity filters explicitly in research code
 ```
 
 ## Checklist
@@ -130,5 +115,4 @@ panel = dm.batch_load_universe(
 - [ ] Liquidity filter applied (price, volume, history)
 - [ ] Delistings handled with terminal returns
 - [ ] Rebalance schedule defined (quarterly typical)
-- [ ] Hysteresis buffer prevents churn at thresholds
 - [ ] Data source is survivorship-free or bias is documented

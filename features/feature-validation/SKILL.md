@@ -13,7 +13,8 @@ A feature with IC of 0.05 on the full sample may have IC of 0.12 in one year and
 
 ## The Problem
 
-Skipping feature validation leads to three failure modes: (1) features with high IC from lookahead contamination, (2) features that are predictive in one regime but useless overall, (3) redundant features that waste model capacity. All three inflate backtest performance and fail live.
+Skipping feature validation leads to three failures: lookahead contamination,
+regime-specific features that fail live, and redundant features that waste model capacity.
 
 ## The Pattern
 
@@ -34,10 +35,7 @@ import polars as pl
 
 def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray) -> dict:
     """Screen a single feature for predictive quality."""
-    # 1. Overall IC
     ic, p_value = spearmanr(feature[~np.isnan(feature)], target[~np.isnan(feature)])
-
-    # 2. Rolling IC stability (quarterly windows)
     unique_quarters = np.unique(dates.astype("datetime64[Q]"))
     quarterly_ics = []
     for q in unique_quarters:
@@ -49,8 +47,6 @@ def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray)
     ic_mean = np.nanmean(quarterly_ics)
     ic_std = np.nanstd(quarterly_ics)
     ic_ir = ic_mean / ic_std if ic_std > 0 else 0  # IC information ratio
-
-    # 3. Leakage flag
     leakage_flag = abs(ic) > 0.10
 
     return {
@@ -61,8 +57,6 @@ def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray)
 ```
 
 ## Validation Checklist Sequence
-
-Run these in order before adding any feature to a model:
 
 | Step | Check | Pass Criteria |
 |------|-------|---------------|
@@ -95,8 +89,6 @@ def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> d
 - **Always validate on expanding windows** — never compute IC on the full sample at once
 
 ## Production Implementation
-
-`ml4t-diagnostic` provides a validated feature evaluation pipeline:
 
 ```python
 from ml4t.diagnostic.api import compute_ic_hac_stats, compute_ic_series

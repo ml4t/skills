@@ -13,7 +13,10 @@ The most common ML4T failure. A model uses future information during training â€
 
 ## The Problem
 
-Lookahead bias means using information that would not have been available at the time of the prediction. It inflates backtest Sharpe ratios by 0.5-2.0 and is the #1 reason strategies fail in live trading. The bias is insidious because the code runs without errors and the results look plausible. Common sources: normalizing with full-sample mean/std, computing label thresholds from the entire dataset, fitting a scaler on train+test, and using shuffled k-fold CV on time series.
+Lookahead bias means using information that would not have been available at
+prediction time. It inflates backtest Sharpe and is the #1 reason strategies
+fail live. Common sources: full-sample normalization, future-based thresholds,
+train+test preprocessing, and shuffled CV on time series.
 
 ## The Pattern
 
@@ -57,28 +60,21 @@ cv = TimeSeriesSplit(n_splits=5)
 
 ## Preprocessing Pipeline
 
-Scikit-learn pipelines prevent the most common leak â€” fitting the scaler on the full dataset:
-
 ```python
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Ridge
 
-# WRONG: fit scaler on all data, then split
 scaler = StandardScaler().fit(X)
 X_train, X_test = X_scaled[:split], X_scaled[split:]
 
-# CORRECT: scaler inside pipeline, fit only on train folds
 pipe = Pipeline([
     ("scaler", StandardScaler()),
     ("model", Ridge()),
 ])
-# cross_val_predict calls fit (including scaler) only on training folds
 ```
 
 ## Detection
-
-Suspect lookahead bias when:
 
 - In-sample and out-of-sample performance are suspiciously similar (gap < 5%)
 - Sharpe ratio > 2.0 on daily data with a simple model
@@ -95,19 +91,14 @@ Suspect lookahead bias when:
 
 ## Production Implementation
 
-`ml4t-diagnostic` provides leakage-safe cross-validation and evaluation:
-
 ```python
 from ml4t.diagnostic.splitters import CombinatorialCV
 from ml4t.engineer import create_dataset_builder
 
-# Leakage-safe dataset builder + purged CV
 builder = create_dataset_builder(features, labels, dates=timestamps, scaler="standard")
 cv = CombinatorialCV(n_groups=8, n_test_groups=2, embargo_pct=0.01)
 fold = next(builder.split(cv))
 X_train, y_train = fold.X_train, fold.y_train
-
-# Test fold is transformed with train-only statistics
 X_test, y_test = fold.X_test, fold.y_test
 ```
 

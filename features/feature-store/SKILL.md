@@ -61,24 +61,6 @@ def load_features(
     return df
 ```
 
-## Directory Layout
-
-```
-feature_store/
-├── mom/
-│   ├── v1.0/
-│   │   ├── data.parquet
-│   │   └── metadata.json    # params, computed_at, row count
-│   └── v1.1/
-│       ├── data.parquet
-│       └── metadata.json
-├── realized_volatility/
-│   └── v1.0/
-│       ├── data.parquet
-│       └── metadata.json
-└── registry.json             # Index of all features and versions
-```
-
 ## Schema Enforcement
 
 ```python
@@ -95,11 +77,9 @@ def validate_schema(df: pl.DataFrame, name: str) -> None:
 
 ## Point-in-Time Correctness
 
-Any serious feature store needs point-in-time-safe retrieval semantics. In a
-simple file-based design that may be an `as_of` filter; in a database-backed
-design it is often implemented as a point-in-time join. The core requirement is
-the same: a feature recomputed in March 2024 must not appear in a January 2024
-training set.
+Any serious feature store needs PIT-safe retrieval semantics. In a file-based
+design that may be an `as_of` filter; in a database-backed design it is usually
+a point-in-time join. March recomputations must never leak into January training.
 
 ## Guardrails
 
@@ -124,7 +104,6 @@ print(feature_catalog.list(category="momentum"))
 features = compute_features(prices, ["mom", "realized_volatility"])
 with OfflineFeatureStore("features.duckdb") as store:
     store.save_features(features, "daily_features", mode="replace")
-    snapshot = store.load_features("daily_features", columns=["timestamp", "symbol", "mom"])
     train_set = store.point_in_time_join(labels, "daily_features", join_keys=["symbol"])
 ```
 

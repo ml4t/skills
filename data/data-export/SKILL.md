@@ -64,12 +64,9 @@ df = (
 
 ## Partitioning Large Datasets
 
-For datasets spanning many years or thousands of symbols, partition by date to enable efficient range scans.
-
 ```python
 import polars as pl
 
-# Write partitioned dataset
 df = df.with_columns(
     year=pl.col("timestamp").dt.year(),
 )
@@ -77,10 +74,8 @@ for (year,), group in df.group_by("year"):
     path = f"data/prices/year={year}/data.parquet"
     group.drop("year").write_parquet(path, compression="zstd")
 
-# Read specific partition (only touches one file)
 df_2024 = pl.read_parquet("data/prices/year=2024/data.parquet")
 
-# Or scan all with automatic partition filtering
 df = pl.scan_parquet("data/prices/**/data.parquet", hive_partitioning=True).filter(
     pl.col("year") >= 2020
 ).collect()
@@ -88,7 +83,8 @@ df = pl.scan_parquet("data/prices/**/data.parquet", hive_partitioning=True).filt
 
 ## Schema Versioning
 
-When schema evolves, write a sidecar `.schema.json` alongside the Parquet file containing the version number, column names/types, and row count. Readers assert the expected version before loading — a version mismatch raises immediately instead of failing silently downstream.
+When schema evolves, write a sidecar `.schema.json` with the version, column
+types, and row count. Readers assert the expected version before loading.
 
 ## Guardrails
 
@@ -99,8 +95,6 @@ When schema evolves, write a sidecar `.schema.json` alongside the Parquet file c
 - Schema changes must be explicit — a silently added column breaks downstream notebooks that assert schema
 
 ## Production Implementation
-
-`ml4t-data` writes typed, compressed Parquet when paired with a storage backend:
 
 ```python
 from ml4t.data import DataManager

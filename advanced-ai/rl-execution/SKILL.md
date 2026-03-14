@@ -73,19 +73,6 @@ class ExecutionEnv(gym.Env):
         ], dtype=np.float32)
 ```
 
-## State and Reward Design
-
-**State features** (all normalized to [0, 1]):
-
-| Feature | Purpose |
-|---|---|
-| Remaining fraction | Urgency — must finish before deadline |
-| Time fraction | Deadline proximity |
-| Spread | Cost signal — wide spread means wait |
-| Volume ratio | Liquidity — high volume means execute more |
-
-**Reward**: `-shortfall - inventory_penalty`. Non-completion penalty is critical; without it, the agent learns to never trade.
-
 ## Guardrails
 
 - **Non-completion penalty is mandatory** — without it the agent learns zero-trade is optimal

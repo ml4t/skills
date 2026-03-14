@@ -9,11 +9,13 @@ metadata:
 
 # Canonical Schema
 
-When every dataset uses different column names — `date` vs `ts_event` vs `timestamp`, `asset` vs `ticker` vs `symbol` — every downstream notebook needs special-case handling. One canonical schema eliminates this class of bugs entirely.
+When every dataset uses different column names — `date` vs `ts_event` vs `timestamp`, `asset` vs `ticker` vs `symbol` — every downstream notebook needs special-case handling.
 
 ## The Problem
 
-Provider A delivers data with columns `date`, `ticker`, `close`. Provider B uses `ts_event`, `symbol`, `price`. Provider C uses `timestamp`, `asset`, `adj_close`. Every notebook that consumes data must know which provider it came from and map columns accordingly. Someone forgets, and a `ColumnNotFoundError` surfaces deep in a modeling pipeline. This is not a data problem — it is a naming problem, and it is entirely preventable.
+Provider A delivers `date`, `ticker`, `close`; Provider B uses `ts_event`,
+`symbol`, `price`; Provider C uses `timestamp`, `asset`, `adj_close`. Without a
+canonical schema, every downstream notebook needs provider-specific renames.
 
 ## The Pattern
 
@@ -72,13 +74,8 @@ assert "symbol" in etfs.columns
 | Entity | `symbol` | `Utf8` | All datasets except CME futures |
 | Entity (futures) | `product` | `Utf8` | CME futures only (contract identifier) |
 
-Why `timestamp` for daily data? Because the same code works for daily, hourly, and minute data without branching. A `Date` is a valid timestamp.
-
-Why `product` for futures? Because a futures "symbol" is ambiguous (ES vs ESH24 vs the continuous contract). `product` identifies the commodity, which is what you group by.
-
 ## OHLCV Columns
-
-Lowercase, no prefix: `open`, `high`, `low`, `close`, `volume`. If adjustments exist: `adj_close`. Never `Close`, `CLOSE`, `Adj Close`, or `adjclose`.
+Lowercase, no prefix: `open`, `high`, `low`, `close`, `volume`. If adjustments exist: `adj_close`.
 
 ## Enforcement Point
 
