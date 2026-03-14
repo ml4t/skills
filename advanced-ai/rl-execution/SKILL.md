@@ -100,11 +100,11 @@ class ExecutionEnv(gym.Env):
 
 ```python
 from ml4t.backtest import Engine, BacktestConfig
-from ml4t.backtest import VolumeShareSlippage, PerShareCommission
+from ml4t.backtest.models import PerShareCommission, VolumeShareSlippage
 
 config = BacktestConfig(
-    slippage=VolumeShareSlippage(volume_limit=0.05, price_impact=0.1),
-    commission=PerShareCommission(cost=0.005),
+    slippage=VolumeShareSlippage(impact_factor=0.1),
+    commission=PerShareCommission(per_share=0.005),
 )
 # Use engine's execution model as the RL environment's simulator
 ```

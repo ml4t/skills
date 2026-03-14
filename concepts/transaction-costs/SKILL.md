@@ -99,14 +99,11 @@ print(f"Estimated capacity: ${capacity/1e6:.0f}M")
 
 ```python
 from ml4t.backtest import BacktestConfig, run_backtest
-from ml4t.backtest import PercentageCommission, VolumeShareSlippage
+from ml4t.backtest.models import PercentageCommission, VolumeShareSlippage
 
 config = BacktestConfig(
-    commission=PercentageCommission(rate_bps=1.0),
-    slippage=VolumeShareSlippage(
-        coefficient=0.1,              # square-root impact
-        max_participation=0.05,       # cap at 5% of ADV
-    ),
+    commission=PercentageCommission(rate=0.0001),  # 1 bp
+    slippage=VolumeShareSlippage(impact_factor=0.1),
 )
 result = run_backtest(strategy, data, config=config)
 ```

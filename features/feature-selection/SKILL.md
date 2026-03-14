@@ -101,11 +101,12 @@ stable = [f for f, count in fold_selections.items() if count >= len(list(tscv.sp
 `ml4t-diagnostic` provides a validated feature selection pipeline:
 
 ```python
-from ml4t.diagnostic import FeatureSelector, SelectionReport
+from ml4t.diagnostic.selection import FeatureSelector, SelectionReport
 
-selector = FeatureSelector(method="ic", k=20, min_stability=0.5)
-report: SelectionReport = selector.fit(X, y, cv=tscv)  # Selection inside CV
-selected_features = report.stable_features
+selector = FeatureSelector(outcome_results, correlation_matrix)
+selector.filter_by_ic(threshold=0.02).filter_by_correlation(threshold=0.8)
+report: SelectionReport = selector.get_selection_report()
+selected_features = report.final_features
 ```
 
 ## Checklist

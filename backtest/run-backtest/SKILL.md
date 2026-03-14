@@ -75,8 +75,8 @@ def event_backtest(prices: np.ndarray, signal_fn, cost_bps: float = 10):
 ```python
 from ml4t.backtest import (
     Strategy, Engine, DataFeed, BacktestConfig,
-    PercentageCommission, PercentageSlippage,
 )
+from ml4t.backtest.models import PercentageCommission, PercentageSlippage
 
 class Momentum(Strategy):
     def on_data(self, timestamp, data, context, broker):

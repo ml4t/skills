@@ -100,14 +100,14 @@ If your source uses `asset`, `date`, `ticker`, or `pair`, rename at load time, n
 
 ## Production Implementation
 
-`ml4t-data` provides validated loading with automatic schema enforcement:
+`ml4t-data` provides validated fetch and batch-loading primitives:
 
 ```python
 from ml4t.data import DataManager
 
 dm = DataManager()
-etfs = dm.load("etfs")  # Schema-validated, gap-checked, typed
-futures = dm.load("cme_futures", products=["ES", "CL", "GC"])
+spy = dm.fetch("SPY", start="2015-01-01", end="2024-12-31", frequency="daily")
+panel = dm.batch_load(["SPY", "QQQ", "IWM"], start="2015-01-01", end="2024-12-31")
 ```
 
 ## Checklist

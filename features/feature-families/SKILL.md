@@ -82,12 +82,11 @@ avg_cross_family = corr.abs().mean().mean()  # Target: < 0.3
 `ml4t-engineer` provides a catalog of 120+ features organized by family:
 
 ```python
-from ml4t.engineer.api import compute_features
-from ml4t.engineer.core.registry import feature_catalog
+from ml4t.engineer import compute_features, feature_catalog
 
 # Browse by family
-feature_catalog.list_features(family="momentum")
-feature_catalog.list_features(family="volatility")
+feature_catalog.list(category="momentum")
+feature_catalog.list(category="volatility")
 
 # Compute a diversified set
 features = compute_features(data, [

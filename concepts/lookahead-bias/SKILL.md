@@ -50,9 +50,9 @@ X_normalized = (X - X.expanding().mean().shift(1)) / X.expanding().std().shift(1
 threshold = returns.expanding().quantile(0.75).shift(1)
 y = (forward_returns > threshold).astype(int)
 
-# Time-series CV with purging and embargo
-from ml4t.diagnostic.splitters import CombinatorialCV
-cv = CombinatorialCV(n_groups=8, n_test_groups=2, embargo_pct=0.01)
+# Time-series CV that preserves order
+from sklearn.model_selection import TimeSeriesSplit
+cv = TimeSeriesSplit(n_splits=5)
 ```
 
 ## Preprocessing Pipeline
@@ -98,15 +98,17 @@ Suspect lookahead bias when:
 `ml4t-diagnostic` provides leakage-safe cross-validation and evaluation:
 
 ```python
-from ml4t.diagnostic.splitters import CombinatorialCV, WalkForwardCV
+from ml4t.diagnostic.splitters import CombinatorialCV
 from ml4t.engineer import create_dataset_builder
 
-# Leakage-safe dataset builder
-builder = create_dataset_builder(features, labels, embargo_days=5)
-X_train, y_train = builder.get_train(fold=0)
-
-# Combinatorial Purged CV — correct temporal splitting
+# Leakage-safe dataset builder + purged CV
+builder = create_dataset_builder(features, labels, dates=timestamps, scaler="standard")
 cv = CombinatorialCV(n_groups=8, n_test_groups=2, embargo_pct=0.01)
+fold = next(builder.split(cv))
+X_train, y_train = fold.X_train, fold.y_train
+
+# Test fold is transformed with train-only statistics
+X_test, y_test = fold.X_test, fold.y_test
 ```
 
 ## Checklist

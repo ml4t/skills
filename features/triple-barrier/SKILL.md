@@ -76,15 +76,22 @@ The ATR multiplier controls barrier width relative to current volatility. Typica
 `ml4t-engineer` provides a validated, vectorized implementation:
 
 ```python
-from ml4t.engineer.labeling import triple_barrier
-from ml4t.engineer.labeling.barriers import ATRBarrierConfig
+from ml4t.engineer.config import LabelingConfig
+from ml4t.engineer.labeling import atr_triple_barrier_labels
 
-config = ATRBarrierConfig(
-    upper_multiplier=2.0, lower_multiplier=1.5,
-    atr_period=14, max_holding_period=10,
+config = LabelingConfig.atr_barrier(
+    atr_tp_multiple=2.0,
+    atr_sl_multiple=1.5,
+    atr_period=14,
+    max_holding_period=10,
 )
-labels = triple_barrier(prices=df, config=config, price_col="close")
-# Returns: label, exit_time, holding_period, return
+labels = atr_triple_barrier_labels(
+    df,
+    config=config,
+    price_col="close",
+    timestamp_col="timestamp",
+)
+# Returns: label, label_time, label_bars, label_return
 ```
 
 ## Checklist

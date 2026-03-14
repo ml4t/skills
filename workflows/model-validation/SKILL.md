@@ -91,14 +91,16 @@ Gates are sequential. Do not skip to Gate 5 hoping a good holdout compensates fo
 `ml4t-diagnostic` provides validated CPCV splitting and PBO computation:
 
 ```python
-from ml4t.diagnostic.splitters import CombinatorialCV
-from ml4t.diagnostic.evaluation.stats import compute_pbo
-from ml4t.diagnostic import Evaluator
+import numpy as np
 
-cv = CombinatorialCV(n_groups=10, n_test_groups=2, embargo_periods=5)
-evaluator = Evaluator(cv=cv, metrics=["sharpe", "ic"])
-result = evaluator.evaluate(model=model, X=X, y=y)
-pbo = compute_pbo(result.path_sharpes)
+from ml4t.diagnostic.api import ValidatedCrossValidation
+from ml4t.diagnostic.config import ValidatedCrossValidationConfig
+from ml4t.diagnostic.evaluation.stats import compute_pbo
+
+config = ValidatedCrossValidationConfig(n_groups=10, n_test_groups=2, embargo_pct=0.01)
+vcv = ValidatedCrossValidation(config)
+result = vcv.fit_evaluate(X, y, model, times=timestamps)
+pbo = compute_pbo(np.array(is_sharpes), np.array(oos_sharpes))
 ```
 
 ## Checklist

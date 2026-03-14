@@ -94,13 +94,15 @@ carry = front.join(back, on=["product", "timestamp"], suffix="_back").with_colum
 
 ## Production Implementation
 
-`ml4t-data` provides pre-rolled continuous series with configurable roll logic:
+`ml4t-data` provides futures download managers plus configurable continuous-contract builders:
 
 ```python
-from ml4t.data import DataManager, ContractSpec, FUTURES_REGISTRY
+from ml4t.data import FUTURES_REGISTRY
+from ml4t.data.futures import ContinuousContractBuilder, FuturesDataManager
 
-dm = DataManager()
-futures = dm.load("cme_futures", products=["ES", "CL", "GC"])
+manager = FuturesDataManager.from_config("configs/ml4t_futures.yaml")
+futures = manager.load_ohlcv("ES")
+continuous = ContinuousContractBuilder().build("ES", data_source="databento")
 
 # Access roll specifications
 es_spec = FUTURES_REGISTRY["ES"]  # Roll days, expiry rules, margin

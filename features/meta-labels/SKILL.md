@@ -91,14 +91,19 @@ position_size = base_size * np.clip(edge, 0, 1)
 `ml4t-engineer` provides integrated meta-labeling with triple-barrier outcomes:
 
 ```python
-from ml4t.engineer.labeling import generate_meta_labels, triple_barrier
-from ml4t.engineer.labeling.barriers import ATRBarrierConfig
+from ml4t.engineer.config import LabelingConfig
+from ml4t.engineer.labeling import atr_triple_barrier_labels, meta_labels
 
-config = ATRBarrierConfig(upper_multiplier=2.0, lower_multiplier=1.5, atr_period=14)
-meta_labels = generate_meta_labels(
-    signal=primary_signal, returns=forward_returns, barrier_config=config,
+config = LabelingConfig.atr_barrier(
+    atr_tp_multiple=2.0,
+    atr_sl_multiple=1.5,
+    atr_period=14,
+    max_holding_period=10,
 )
-# Returns: side (from signal), outcome (1 if profitable, 0 if not)
+labeled = atr_triple_barrier_labels(df, config=config, price_col="close")
+labeled = labeled.with_columns(primary_signal.alias("signal"))
+meta = meta_labels(labeled, signal_col="signal", return_col="label_return")
+# Returns: original signal plus binary meta_label for trade filtering/sizing
 ```
 
 ## Checklist

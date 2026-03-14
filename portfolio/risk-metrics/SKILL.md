@@ -89,10 +89,11 @@ var_param = returns.mean() + norm.ppf(0.05) * returns.std()
 `ml4t-diagnostic` provides validated risk computation:
 
 ```python
-from ml4t.diagnostic import PortfolioAnalysis
+from ml4t.diagnostic.api import PortfolioAnalysis
 
 pa = PortfolioAnalysis(returns=equity_curve, benchmark=benchmark_curve)
-report = pa.summary()  # Sharpe, Sortino, max_dd, Calmar, VaR, CVaR, etc.
+metrics = pa.compute_summary_stats()
+report = metrics.summary()  # Sharpe, Sortino, max_dd, Calmar, VaR, CVaR, etc.
 ```
 
 ## Checklist

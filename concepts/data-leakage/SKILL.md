@@ -79,16 +79,18 @@ print(pipe.score(X_test, y_test))             # honest R^2
 
 ```python
 from ml4t.engineer import create_dataset_builder
+from ml4t.diagnostic.splitters import WalkForwardCV
 
 builder = create_dataset_builder(
-    features=["momentum_21d", "volatility_63d", "volume_rank"],
-    label="fwd_ret_21d",
-    n_folds=8,
-    embargo_days=5,
+    features=feature_frame,
+    labels=label_series,
+    dates=feature_frame["timestamp"],
+    scaler="standard",
 )
-for fold in builder.walk_forward():
-    X_train, y_train = fold.train
-    X_test, y_test = fold.test       # scaler fit on train only
+cv = WalkForwardCV(n_splits=8, test_size=63, embargo_size=5)
+for fold in builder.split(cv):
+    X_train, y_train = fold.X_train, fold.y_train
+    X_test, y_test = fold.X_test, fold.y_test  # scaler fit on train only
 ```
 
 ## Checklist

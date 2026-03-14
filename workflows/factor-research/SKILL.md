@@ -94,17 +94,31 @@ A factor must pass all five gates. Passing three out of five is not enough — a
 
 ## Production Implementation
 
-`ml4t-diagnostic` provides HAC-adjusted IC statistics and factor evaluation:
+`ml4t-diagnostic` provides HAC-adjusted IC statistics and factor diagnostics:
 
 ```python
-from ml4t.diagnostic.evaluation import compute_ic_series, compute_ic_hac_stats
-from ml4t.diagnostic import Evaluator
+from ml4t.diagnostic.api import compute_ic_hac_stats, compute_ic_series
+from ml4t.diagnostic.evaluation.metrics import analyze_feature_outcome
 
-ic = compute_ic_series(factor=factor_values, forward_returns=fwd_returns)
+ic = compute_ic_series(
+    factor_frame,
+    return_frame,
+    pred_col="factor",
+    ret_col="forward_return",
+    date_col="date",
+    entity_col="symbol",
+)
 stats = compute_ic_hac_stats(ic)  # Newey-West adjusted t-stat
 
-evaluator = Evaluator(config={"quantiles": 5, "periods": [1, 5, 21]})
-report = evaluator.evaluate(features=features, labels=labels)
+report = analyze_feature_outcome(
+    predictions=factor_frame,
+    prices=price_frame,
+    pred_col="factor",
+    price_col="close",
+    date_col="date",
+    group_col="symbol",
+    horizons=[1, 5, 21],
+)
 ```
 
 ## Checklist

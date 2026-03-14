@@ -99,14 +99,20 @@ def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> d
 `ml4t-diagnostic` provides a validated feature evaluation pipeline:
 
 ```python
-from ml4t.diagnostic.metrics import compute_ic_series, compute_ic_hac_stats
-from ml4t.diagnostic import FeatureSelector
+from ml4t.diagnostic.api import compute_ic_hac_stats, compute_ic_series
+from ml4t.diagnostic.evaluation.metrics import analyze_feature_outcome
 
-ic_series = compute_ic_series(features, forward_returns, method="spearman")
+ic_series = compute_ic_series(features, forward_returns, entity_col="symbol", method="spearman")
 stats = compute_ic_hac_stats(ic_series)  # HAC-corrected t-stats
 
-selector = FeatureSelector(method="ic", k=20, min_stability=0.5)
-report = selector.fit(X, y, cv=tscv)
+analysis = analyze_feature_outcome(
+    predictions=features,
+    prices=prices,
+    pred_col="prediction",
+    price_col="close",
+    date_col="date",
+    group_col="symbol",
+)
 ```
 
 ## Checklist

@@ -106,16 +106,20 @@ The `as_of` filter ensures you only see features that were available at a given 
 
 ## Production Implementation
 
-`ml4t-engineer` provides a feature catalog with versioning:
+`ml4t-engineer` provides catalog-driven computation plus an offline feature store:
 
 ```python
-from ml4t.engineer import FeatureCatalog, feature_catalog
+from ml4t.engineer import compute_features, feature_catalog
+from ml4t.engineer.store import OfflineFeatureStore
 
 # Browse available features
-print(feature_catalog.list_features())  # 120+ built-in features
+print(feature_catalog.list(category="momentum"))
 
-# Compute and store with automatic versioning
-features = feature_catalog.compute(["momentum_63d", "volatility_21d"], data=prices)
+# Compute, persist, and join point-in-time safely
+features = compute_features(prices, ["momentum_63d", "realized_vol_21d"])
+with OfflineFeatureStore("features.duckdb") as store:
+    store.save_features(features, "daily_features", mode="replace")
+    train_set = store.point_in_time_join(labels, "daily_features", join_keys=["symbol"])
 ```
 
 ## Checklist

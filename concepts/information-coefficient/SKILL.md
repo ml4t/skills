@@ -95,11 +95,19 @@ Low IC strategies can still be highly profitable if breadth is large enough.
 `ml4t-diagnostic` provides IC computation with proper statistical testing:
 
 ```python
-from ml4t.diagnostic import compute_ic_series, compute_ic_hac_stats
+from ml4t.diagnostic.api import compute_ic_hac_stats, compute_ic_series
 
-ic = compute_ic_series(predictions, returns, method="spearman")
-stats = compute_ic_hac_stats(ic, max_lags=5)
-# stats.ic_mean, stats.ic_ir, stats.t_stat, stats.p_value
+ic = compute_ic_series(
+    predictions,
+    returns,
+    pred_col="prediction",
+    ret_col="forward_return",
+    date_col="date",
+    entity_col="symbol",
+    method="spearman",
+)
+stats = compute_ic_hac_stats(ic, maxlags=5)
+# stats["mean_ic"], stats["t_stat"], stats["p_value"]
 ```
 
 ## Checklist

@@ -89,14 +89,18 @@ for horizon in [1, 5, 10, 21, 63]:
 `ml4t-diagnostic` provides validated IC computation with HAC corrections:
 
 ```python
-from ml4t.diagnostic.evaluation.metrics import (
-    compute_ic_series,
-    compute_ic_hac_stats,
-)
+from ml4t.diagnostic.api import compute_ic_hac_stats, compute_ic_series
 
-ic_series = compute_ic_series(signal, forward_returns, timestamps)
+ic_series = compute_ic_series(
+    signal_frame,
+    return_frame,
+    pred_col="signal",
+    ret_col="forward_return",
+    date_col="date",
+    entity_col="symbol",
+)
 ic_stats = compute_ic_hac_stats(ic_series)  # Newey-West corrected
-print(f"IC: {ic_stats['mean']:.4f} (t={ic_stats['t_stat']:.2f})")
+print(f"IC: {ic_stats['mean_ic']:.4f} (t={ic_stats['t_stat']:.2f})")
 ```
 
 ## Checklist

@@ -85,11 +85,11 @@ stationary = (adf_pval < 0.05) and (kpss_pval > 0.05)  # both agree
 `ml4t-diagnostic` provides stationarity testing utilities:
 
 ```python
-from ml4t.diagnostic import Evaluator
+from ml4t.diagnostic.evaluation.stationarity import analyze_stationarity
 
-evaluator = Evaluator(predictions=preds, returns=returns)
-stationarity = evaluator.test_stationarity(method="adf_kpss")
-# Returns per-feature stationarity verdicts and p-values
+stationarity = analyze_stationarity(feature_series, include_tests=["adf", "kpss"])
+print(stationarity.consensus)
+print(stationarity.summary_df)
 ```
 
 ## Checklist

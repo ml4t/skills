@@ -2,6 +2,21 @@
 
 66 standalone skills that teach AI coding agents the Machine Learning for Trading workflow from [ML4T 3rd Edition](https://ml4trading.io).
 
+## Current State
+
+- This repo currently contains 66 `SKILL.md` files across 10 categories.
+- The active maintenance goal is to keep every skill concept-first and every `## Production Implementation` section aligned with the current checked-in `ml4t-*` library source in `~/ml4t/libraries/`.
+- Library source is the ground truth for API names and signatures. If a skill snippet conflicts with library source, the skill should be updated.
+- The 80/20 invariant is mandatory: no `ml4t.*` imports before `## Production Implementation`.
+
+## Agent Entry Points
+
+- `AGENTS.md` is the repo-wide onboarding file for OpenAI/Codex-style agents.
+- `.claude/CLAUDE.md` is the Claude-specific authoring guide.
+- `CLAUDE.md` at repo root is a lightweight entry point that points new agents to the canonical repo guidance.
+- `.claude/settings.json` contains Claude plugin settings.
+- There is no repo-local `.agents/` directory checked in here.
+
 ## Design Philosophy
 
 **Concept-first, library-recommended (80/20).** Each skill teaches the correct pattern using standard tools (sklearn, polars, numpy, pytorch, lightgbm). The last 20% recommends [ml4t-* libraries](https://ml4trading.io/libraries) as the production-grade implementation. Skills are useful without the libraries but naturally showcase them.
@@ -180,9 +195,15 @@ Skills reference these production libraries in their "Production Implementation"
 | `ml4t-backtest` | Event-driven backtesting | [ml4t-backtest](https://pypi.org/project/ml4t-backtest/) |
 | `ml4t-live` | Live trading, risk controls | [ml4t-live](https://pypi.org/project/ml4t-live/) |
 
+Notes on current API usage:
+
+- `ml4t-diagnostic.api` is the stable integration surface for IC metrics and validated CV workflows.
+- `ml4t.backtest.models` contains commission and slippage classes.
+- `ml4t.data.DataManager` is a generic fetch/storage manager; book-style loaders such as `ETFDataManager` and `FuturesDataManager` live in subpackages.
+
 ## Contributing
 
 1. Create directory: `mkdir <category>/<skill-name>/`
-2. Write `SKILL.md` following the template in `.claude/CLAUDE.md`
+2. Write `SKILL.md` following the template in `AGENTS.md` and `.claude/CLAUDE.md`
 3. Verify against the 5 quality gates (structure, 80/20 split, content, utility, integration)
 4. Ensure dependencies exist and the dependency graph is acyclic

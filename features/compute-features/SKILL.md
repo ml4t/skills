@@ -80,11 +80,10 @@ features = df.sort("symbol", "timestamp").with_columns(
 `ml4t-engineer` provides config-driven computation with dependency resolution:
 
 ```python
-from ml4t.engineer.api import compute_features
-from ml4t.engineer.core.registry import feature_catalog
+from ml4t.engineer import compute_features, feature_catalog
 
 # Discover available features
-print(feature_catalog.list_features())
+print(feature_catalog.list())
 
 # Compute from names, dicts, or YAML config
 features = compute_features(data, ["rsi", "macd", "bollinger_bands"])

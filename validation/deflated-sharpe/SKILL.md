@@ -96,15 +96,15 @@ print(f"DSR p-value: {dsr:.3f}")  # > 0.95 = credible
 
 ## Production Implementation
 
-`ml4t-diagnostic` provides multiple-testing correction utilities:
+`ml4t-diagnostic` provides a direct deflated Sharpe implementation:
 
 ```python
-from ml4t.diagnostic.evaluation.stats import benjamini_hochberg_fdr
+from ml4t.diagnostic.evaluation.stats import deflated_sharpe_ratio
 
-# FDR-controlled p-values across all tested strategies
-adjusted_pvalues = benjamini_hochberg_fdr(raw_pvalues, alpha=0.05)
-significant = adjusted_pvalues < 0.05
-print(f"{significant.sum()} / {len(raw_pvalues)} strategies pass FDR")
+# Single strategy -> PSR; list of return series -> DSR with multiple-testing correction
+result = deflated_sharpe_ratio(strategy_returns, frequency="daily")
+print(f"Prob(true SR > 0): {result.probability:.3f}")
+print(f"Deflated Sharpe: {result.deflated_sharpe:.3f}")
 ```
 
 ## Checklist

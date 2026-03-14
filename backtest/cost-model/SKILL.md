@@ -86,13 +86,12 @@ def estimate_capacity(gross_sharpe, turnover, cost_bps_per_turn):
 `ml4t-backtest` provides composable cost models:
 
 ```python
-from ml4t.backtest import (
-    BacktestConfig, PercentageCommission, VolumeShareSlippage,
-)
+from ml4t.backtest import BacktestConfig
+from ml4t.backtest.models import PercentageCommission, VolumeShareSlippage
 
 config = BacktestConfig(
     commission=PercentageCommission(0.001),       # 10 bps
-    slippage=VolumeShareSlippage(0.1, 0.1),       # volume-dependent
+    slippage=VolumeShareSlippage(0.1),            # volume-dependent
 )
 # Engine deducts costs per fill automatically
 ```
