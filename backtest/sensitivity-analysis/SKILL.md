@@ -1,116 +1,100 @@
 ---
 name: ml4t-sensitivity-analysis
-description: Test strategy robustness to parameter changes
-category: backtest
-type: operational
+description: Test strategy robustness to parameter variation and detect overfitting cliffs. Use when validating that performance is not fragile to exact parameter choices.
 dependencies: [run-backtest]
-book_chapters: [17]
+metadata:
+  book_chapters: "16"
+  library: ""
 ---
 
-# Sensitivity Analysis
+# Parameter Sensitivity Analysis
 
-Measure how performance changes with parameter variations.
+A strategy optimized to Sharpe 2.0 at lookback=21 that drops to 0.3 at lookback=20 or lookback=22 is not a strategy — it is a curve fit. Sensitivity analysis sweeps parameters to verify that performance is stable across a neighborhood, not balanced on a knife edge.
 
-## Parameter Sweep
+## The Problem
 
+Single-parameter backtests find the best setting. But the best setting may be a statistical fluke — one data point away from failure. If small perturbations in entry threshold, lookback period, or position sizing cause large performance swings, the parameters are overfit. You need to see the performance surface, not just its peak.
+
+## The Pattern
+
+### WRONG
 ```python
-def parameter_sweep(
-    strategy_fn: callable,
-    param_grid: dict,
-    data: pl.DataFrame
-) -> pl.DataFrame:
-    """Sweep over parameter combinations."""
-    results = []
+import numpy as np
 
-    for params in itertools.product(*param_grid.values()):
-        param_dict = dict(zip(param_grid.keys(), params))
-        returns = strategy_fn(data, **param_dict)
-
-        results.append({
-            **param_dict,
-            'sharpe': returns.mean() / returns.std() * np.sqrt(252),
-            'return': returns.sum(),
-            'volatility': returns.std() * np.sqrt(252),
-            'max_dd': calculate_max_drawdown(returns)
-        })
-
-    return pl.DataFrame(results)
+# Optimize one parameter, report the best — classic overfitting
+best_sharpe, best_lookback = -np.inf, None
+for lookback in range(5, 60):
+    ret = run_strategy(prices, lookback=lookback)
+    sr = ret.mean() / ret.std() * np.sqrt(252)
+    if sr > best_sharpe:
+        best_sharpe, best_lookback = sr, lookback
+print(f"Best: lookback={best_lookback}, Sharpe={best_sharpe:.2f}")  # overstated
 ```
 
-## One-at-a-Time Analysis
-
+### CORRECT
 ```python
-def oat_analysis(
-    strategy_fn: callable,
-    base_params: dict,
-    variations: dict,  # param -> [values]
-    data: pl.DataFrame
-) -> dict:
-    """Vary one parameter at a time from baseline."""
-    results = {'baseline': strategy_fn(data, **base_params)}
+import itertools
+import numpy as np
+import polars as pl
+import matplotlib.pyplot as plt
 
-    for param, values in variations.items():
-        results[param] = []
-        for val in values:
-            test_params = base_params.copy()
-            test_params[param] = val
-            returns = strategy_fn(data, **test_params)
-            results[param].append({
-                'value': val,
-                'sharpe': returns.mean() / returns.std() * np.sqrt(252)
-            })
+def parameter_sweep(prices, param_grid: dict, strategy_fn) -> pl.DataFrame:
+    """Sweep all parameter combinations, return full results table."""
+    rows = []
+    for combo in itertools.product(*param_grid.values()):
+        params = dict(zip(param_grid.keys(), combo))
+        ret = strategy_fn(prices, **params)
+        sr = ret.mean() / ret.std() * np.sqrt(252)
+        max_dd = (np.maximum.accumulate(np.cumsum(ret)) - np.cumsum(ret)).max()
+        rows.append({**params, "sharpe": sr, "max_dd": max_dd})
+    return pl.DataFrame(rows)
 
-    return results
+grid = {"lookback": range(10, 50, 5), "threshold": [0.01, 0.02, 0.03, 0.05]}
+results = parameter_sweep(prices, grid, my_strategy)
+
+# Robustness = fraction of combinations with Sharpe > 0
+robustness = (results.get_column("sharpe") > 0).mean()
+print(f"Robustness: {robustness:.0%} of {len(results)} combos are profitable")
+
+# Cliff detection: large Sharpe change between adjacent parameter values
+for param in grid:
+    sorted_df = results.sort(param)
+    diffs = sorted_df.get_column("sharpe").diff().abs()
+    if diffs.max() > 2 * diffs.std():
+        print(f"WARNING: performance cliff detected in {param}")
 ```
 
-## Robustness Score
+## Reading the Sensitivity Surface
 
 ```python
-def robustness_score(sweep_results: pl.DataFrame) -> float:
-    """Fraction of parameter combinations that are profitable."""
-    positive = (sweep_results['sharpe'] > 0).sum()
-    total = len(sweep_results)
-    return positive / total
-
-# Good strategy: robustness > 0.7
-# Fragile strategy: robustness < 0.3
+# 2D heatmap: lookback vs threshold
+pivot = results.pivot(on="threshold", index="lookback", values="sharpe")
+fig, ax = plt.subplots(figsize=(8, 5))
+im = ax.imshow(pivot.drop("lookback").to_numpy(), aspect="auto", cmap="RdYlGn")
+ax.set_xlabel("Threshold")
+ax.set_ylabel("Lookback")
+ax.set_title("Sharpe Ratio Sensitivity Surface")
+plt.colorbar(im, ax=ax)
 ```
 
-## Cliff Detection
-
-```python
-def detect_cliffs(sweep_results: pl.DataFrame, param: str) -> list:
-    """Find where small param changes cause large metric changes."""
-    sorted_results = sweep_results.sort(param)
-    sharpe_changes = sorted_results['sharpe'].diff().abs()
-
-    # Identify large changes
-    threshold = sharpe_changes.std() * 2
-    cliff_idx = sharpe_changes > threshold
-
-    return sorted_results.filter(cliff_idx)[param].to_list()
-```
-
-## Visualization
-
-```python
-def plot_sensitivity_heatmap(results: pl.DataFrame, x: str, y: str):
-    """2D heatmap of Sharpe ratio vs two parameters."""
-    pivot = results.pivot(values='sharpe', index=y, columns=x)
-    # Create heatmap
-```
+A healthy strategy shows a broad plateau (many green cells). A fragile strategy shows a single bright cell surrounded by red.
 
 ## Guardrails
 
-- Results should be stable near optimal parameters
-- Performance cliffs suggest overfitting
-- Optimal shouldn't be at parameter boundary
-- Test different metrics (Sharpe, Sortino, Calmar)
+- Robustness score below 50% means the strategy is fragile — most parameter settings lose money
+- Performance cliffs (Sharpe drops > 2 std between adjacent parameters) suggest overfitting to a boundary
+- Optimal parameters at the edge of the grid suggest the true optimum is outside your search range — extend it
+- Always check multiple metrics (Sharpe, max drawdown, Calmar) — a parameter set that maximizes Sharpe but doubles drawdown is not robust
+
+## Production Implementation
+
+For structured sweeps, combine with `ml4t-backtest`'s engine to run each parameter set through realistic execution. Use `BacktestConfig` variants in the grid instead of a simplified strategy function.
 
 ## Checklist
 
-- [ ] Parameter ranges span reasonable values
-- [ ] Robustness score calculated
-- [ ] Cliffs identified and avoided
-- [ ] Chosen parameters not at boundary
-- [ ] Multiple metrics checked
+- [ ] At least 2 parameters varied simultaneously (not one-at-a-time only)
+- [ ] Robustness score computed (fraction of grid with Sharpe > 0)
+- [ ] Performance cliffs identified and flagged
+- [ ] Optimal parameters not at grid boundary
+- [ ] Multiple metrics checked (Sharpe, max drawdown, Calmar)
+- [ ] Sensitivity heatmap or surface plotted

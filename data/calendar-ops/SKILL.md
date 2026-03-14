@@ -1,100 +1,108 @@
 ---
 name: ml4t-calendar-ops
-description: Handle trading calendars and market hours
-category: data
-type: operational
+description: Trading calendar awareness for correct date alignment and rolling windows. Use when computing rolling statistics, aligning multi-market data, or handling holidays.
 dependencies: []
-book_chapters: [3, 4]
+metadata:
+  book_chapters: "2, 3"
+  library: ""
 ---
 
 # Calendar Operations
 
-Trading calendars define valid trading times and align data correctly.
+Using calendar days instead of trading days for a 20-day rolling window includes weekends and holidays, producing a window that covers 28 calendar days but only 20 observations — silently misaligning your features with your labels.
 
-## API
+## The Problem
+
+Markets are closed on weekends and holidays. A "20-day momentum" signal should use 20 trading days (~4 weeks), not 20 calendar days (~2.8 weeks). When you mix calendar-day math with trading-day data, rolling windows span wrong periods, cross-market joins misalign (NYSE is closed on Presidents Day but LSE is open), and date arithmetic produces gaps your model interprets as missing data. These errors are invisible until you compare strategy behavior across markets or time zones.
+
+## The Pattern
+
+### WRONG
+```python
+import polars as pl
+from datetime import timedelta
+
+# Calendar days for rolling window — includes weekends, holidays
+df = df.with_columns(
+    momentum=pl.col("close") / pl.col("close").shift(20) - 1  # shift(20) = 20 rows
+)
+# If data has gaps (holidays), shift(20) is NOT 20 trading days — it skips over them unevenly
+
+# Date arithmetic for label alignment
+df = df.with_columns(
+    target_date=(pl.col("timestamp") + timedelta(days=21))  # 21 calendar days != 21 trading days
+)
+```
+
+### CORRECT
+```python
+import polars as pl
+import exchange_calendars as xcals
+
+def get_trading_sessions(
+    calendar_code: str, start: str, end: str,
+) -> pl.Series:
+    """Get valid trading sessions for an exchange."""
+    cal = xcals.get_calendar(calendar_code)
+    sessions = cal.sessions_in_range(start, end)
+    return pl.Series("timestamp", sessions.to_list())
+
+def add_trading_day_offset(
+    df: pl.DataFrame, calendar_code: str, offset: int,
+) -> pl.DataFrame:
+    """Shift dates by N trading days (not calendar days)."""
+    cal = xcals.get_calendar(calendar_code)
+    sessions = sorted(cal.sessions_in_range(
+        df["timestamp"].min(), df["timestamp"].max() + pl.duration(days=offset * 2)
+    ).to_list())
+    idx = {d: i for i, d in enumerate(sessions)}
+    return df.with_columns(
+        pl.col("timestamp").map_elements(
+            lambda d: sessions[idx[d] + offset] if d in idx else None,
+            return_dtype=pl.Date,
+        ).alias(f"timestamp_offset_{offset}d")
+    )
+
+# Align data to NYSE trading calendar
+nyse_sessions = get_trading_sessions("XNYS", "2020-01-01", "2024-12-31")
+df = df.filter(pl.col("timestamp").is_in(nyse_sessions))
+```
+
+## Multi-Market Alignment
+
+When combining data from different exchanges, find common trading days.
 
 ```python
 import exchange_calendars as xcals
 
-# Get calendar
-nyse = xcals.get_calendar('XNYS')  # NYSE
-cme = xcals.get_calendar('CMES')   # CME
+def common_trading_days(*calendar_codes: str, start: str, end: str) -> list:
+    """Find dates when ALL specified exchanges are open."""
+    session_sets = []
+    for code in calendar_codes:
+        cal = xcals.get_calendar(code)
+        session_sets.append(set(cal.sessions_in_range(start, end).to_list()))
+    common = sorted(set.intersection(*session_sets))
+    return common
 
-# Trading sessions
-sessions = nyse.sessions_in_range('2020-01-01', '2024-12-31')
-
-# Check if trading day
-is_trading = nyse.is_session('2024-12-25')  # False (Christmas)
+# US + Europe common trading days (excludes US-only and EU-only holidays)
+common = common_trading_days("XNYS", "XLON", "XETR", start="2020-01-01", end="2024-12-31")
 ```
 
-## Common Calendars
+## Holiday Forward-Fill
 
-| Exchange | Code | Hours (ET) |
-|----------|------|------------|
-| NYSE | XNYS | 9:30-16:00 |
-| CME Equity | CMES | 17:00-16:00 |
-| CME FX | CMES | 17:00-16:00 |
-| LSE | XLON | 8:00-16:30 GMT |
-
-## Alignment
-
-```python
-# Align data to trading calendar
-def align_to_calendar(
-    data: pl.DataFrame,
-    calendar_code: str = 'XNYS'
-) -> pl.DataFrame:
-    cal = xcals.get_calendar(calendar_code)
-    sessions = cal.sessions_in_range(
-        data['date'].min(),
-        data['date'].max()
-    )
-    return data.filter(pl.col('date').is_in(sessions))
-```
-
-## Holiday Handling
-
-```python
-# Forward fill for holidays
-def ffill_holidays(df: pl.DataFrame, calendar_code: str) -> pl.DataFrame:
-    cal = xcals.get_calendar(calendar_code)
-    all_sessions = cal.sessions_in_range(
-        df['date'].min(),
-        df['date'].max()
-    )
-
-    return (
-        pl.DataFrame({'date': all_sessions})
-        .join(df, on='date', how='left')
-        .with_columns(pl.all().forward_fill())
-    )
-```
-
-## Multi-Market Sync
-
-```python
-# Find common trading days
-def common_sessions(*calendars: str) -> list:
-    cals = [xcals.get_calendar(c) for c in calendars]
-    sessions = set(cals[0].sessions)
-    for cal in cals[1:]:
-        sessions &= set(cal.sessions)
-    return sorted(sessions)
-
-# US + Europe common days
-common = common_sessions('XNYS', 'XLON', 'XETR')
-```
+For cross-market features that need a value every trading day, build a DataFrame of all sessions from the target calendar, left-join your data onto it, and forward-fill. This ensures no gaps without inventing data — each missing day carries the last known value.
 
 ## Guardrails
 
-- Always use exchange-specific calendars
-- Crypto trades 24/7 (no calendar needed)
-- Different markets have different holidays
-- Early closes are separate from holidays
+- Crypto markets trade 24/7 — no calendar needed, but be aware of exchange maintenance windows
+- Early closes (half-days) are separate from holidays — `exchange_calendars` tracks both
+- CME and ICE have different holiday schedules than NYSE — always use exchange-specific calendars
+- Timezone matters: NYSE closes at 16:00 ET, which is 21:00 UTC — a "daily" bar's date depends on the timezone
 
 ## Checklist
 
-- [ ] Calendar matches instrument exchange
-- [ ] Holidays handled (fill or exclude)
-- [ ] Multi-market alignment if needed
-- [ ] Timezone specified explicitly
+- [ ] Exchange-specific calendar used (not generic business day)
+- [ ] Rolling windows count trading days, not calendar days
+- [ ] Multi-market data aligned to common sessions
+- [ ] Holidays forward-filled or excluded (not left as gaps)
+- [ ] Timezones explicit throughout the pipeline

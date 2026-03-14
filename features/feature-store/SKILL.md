@@ -1,90 +1,127 @@
 ---
 name: ml4t-feature-store
-description: Version and serve features consistently
-category: features
-type: operational
-dependencies: [data-export]
-book_chapters: [7, 26]
+description: Organize computed features in versioned parquet files with schema enforcement and point-in-time retrieval. Use when features are shared across models or need reproducible reconstruction.
+dependencies: []
+metadata:
+  book_chapters: "8"
+  library: "ml4t-engineer"
 ---
 
 # Feature Store
 
-Centralized storage for versioned, point-in-time correct features.
+Scattered CSV files with undocumented columns create silent schema drift — yesterday's `momentum` column used a 60-day window, today's uses 20 days, and nothing recorded the change. A structured feature store prevents this.
 
-## Core Concepts
+## The Problem
 
-| Term | Definition |
-|------|------------|
-| Feature | Named, versioned calculation |
-| Entity | What feature describes (symbol, date) |
-| Point-in-time | Value as of specific timestamp |
-| Materialization | Pre-computed storage |
+Without versioned storage, feature definitions drift silently. A researcher recomputes features with different parameters, overwrites the file, and downstream models train on inconsistent data. Point-in-time correctness is also lost: loading features "as of January 2024" returns data that was computed using information from March 2024.
 
-## Schema
+## The Pattern
 
+### WRONG
 ```python
-# Standard feature table format
-schema = {
-    'timestamp': pl.Datetime,    # When feature was known
-    'entity_id': pl.Utf8,        # e.g., symbol
-    'feature_name': pl.Utf8,     # Feature identifier
-    'value': pl.Float64,         # Feature value
-    'version': pl.Utf8           # Feature definition version
-}
+import polars as pl
+
+# Unversioned, unstructured, no metadata — silent drift guaranteed
+features.write_csv("features.csv")  # What version? What parameters? When computed?
+# Later: someone overwrites with different parameters
+features_v2.write_csv("features.csv")  # Old version gone forever
 ```
 
-## Simple Implementation
-
+### CORRECT
 ```python
-class FeatureStore:
-    def __init__(self, path: str):
-        self.path = Path(path)
+import polars as pl
+import json
+from pathlib import Path
+from datetime import datetime
 
-    def write(self, name: str, df: pl.DataFrame, version: str):
-        """Store feature with version."""
-        path = self.path / name / f"v{version}.parquet"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        df.write_parquet(path)
+def save_features(
+    df: pl.DataFrame, name: str, version: str,
+    store_path: Path, params: dict,
+) -> Path:
+    """Save features with version and metadata."""
+    dest = store_path / name / f"v{version}"
+    dest.mkdir(parents=True, exist_ok=True)
 
-    def read(self, name: str, version: str = 'latest',
-             as_of: str = None) -> pl.DataFrame:
-        """Read feature, optionally point-in-time."""
-        df = pl.read_parquet(self.path / name / f"v{version}.parquet")
-        if as_of:
-            df = df.filter(pl.col('timestamp') <= as_of)
-        return df
-```
-
-## Feature Registry
-
-```python
-FEATURE_REGISTRY = {
-    'momentum_12m': {
-        'version': '1.0',
-        'formula': 'close.pct_change(252)',
-        'frequency': 'daily',
-        'dependencies': ['close'],
-        'author': 'team@example.com'
-    },
-    'volatility_20d': {
-        'version': '2.1',
-        'formula': 'returns.rolling(20).std() * sqrt(252)',
-        'frequency': 'daily',
-        'dependencies': ['returns']
+    df.write_parquet(dest / "data.parquet")
+    metadata = {
+        "name": name, "version": version,
+        "params": params, "columns": df.columns,
+        "rows": len(df), "computed_at": datetime.now().isoformat(),
     }
-}
+    (dest / "metadata.json").write_text(json.dumps(metadata, indent=2))
+    return dest
+
+def load_features(
+    name: str, version: str, store_path: Path, as_of: str | None = None,
+) -> pl.DataFrame:
+    """Load features, optionally point-in-time filtered."""
+    df = pl.read_parquet(store_path / name / f"v{version}" / "data.parquet")
+    if as_of:
+        df = df.filter(pl.col("timestamp") <= as_of)
+    return df
 ```
+
+## Directory Layout
+
+```
+feature_store/
+├── momentum_63d/
+│   ├── v1.0/
+│   │   ├── data.parquet
+│   │   └── metadata.json    # params, computed_at, row count
+│   └── v1.1/
+│       ├── data.parquet
+│       └── metadata.json
+├── realized_vol_21d/
+│   └── v1.0/
+│       ├── data.parquet
+│       └── metadata.json
+└── registry.json             # Index of all features and versions
+```
+
+## Schema Enforcement
+
+```python
+REQUIRED_COLUMNS = {"timestamp", "symbol"}
+
+def validate_schema(df: pl.DataFrame, name: str) -> None:
+    """Enforce minimum schema before saving."""
+    missing = REQUIRED_COLUMNS - set(df.columns)
+    if missing:
+        raise ValueError(f"Feature '{name}' missing required columns: {missing}")
+    if df.select("timestamp").null_count().item() > 0:
+        raise ValueError(f"Feature '{name}' has null timestamps")
+```
+
+## Point-in-Time Correctness
+
+The `as_of` filter ensures you only see features that were available at a given date. This prevents lookahead: a feature recomputed in March 2024 with a bug fix must not appear when loading "as of January 2024."
 
 ## Guardrails
 
-- Always version feature definitions
-- Store computation timestamp, not just data date
-- Point-in-time retrieval prevents lookahead
-- Document feature formulas
+- **Never overwrite** — create a new version, never modify an existing one
+- **Metadata is mandatory** — every version records parameters, computation date, and row count
+- **Schema enforcement** — every feature DataFrame must have `timestamp` and `symbol` columns
+- **Point-in-time retrieval** — `as_of` filtering must be available for any downstream consumer
+
+## Production Implementation
+
+`ml4t-engineer` provides a feature catalog with versioning:
+
+```python
+from ml4t.engineer import FeatureCatalog, feature_catalog
+
+# Browse available features
+print(feature_catalog.list_features())  # 120+ built-in features
+
+# Compute and store with automatic versioning
+features = feature_catalog.compute(["momentum_63d", "volatility_21d"], data=prices)
+```
 
 ## Checklist
 
-- [ ] Features versioned
-- [ ] Point-in-time retrieval supported
-- [ ] Feature formulas documented
-- [ ] Dependencies tracked
+- [ ] Every feature file has a version directory and metadata.json
+- [ ] Schema validated before write (required columns present, no null timestamps)
+- [ ] Old versions never overwritten — only new versions created
+- [ ] Point-in-time retrieval works correctly with `as_of` parameter
+- [ ] Feature registry (index) lists all available features and their current versions

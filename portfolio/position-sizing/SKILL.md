@@ -1,117 +1,100 @@
 ---
 name: ml4t-position-sizing
-description: Determine position sizes from signals and risk constraints
-category: portfolio
-type: operational
+description: Convert signals to position sizes using volatility targeting and risk budgets. Use when sizing positions from model predictions or alpha signals.
 dependencies: [transaction-costs]
-book_chapters: [18, 20]
+metadata:
+  book_chapters: "17"
+  library: "ml4t-backtest"
 ---
 
 # Position Sizing
 
-Convert signals to position weights with risk control.
+Equal-weight portfolios ignore that a 1% position in a 40-vol crypto asset carries 8x the risk of a 1% position in a 5-vol bond ETF. Without volatility-aware sizing, portfolio risk is dominated by the noisiest assets.
 
-## Methods
+## The Problem
 
-| Method | Formula | Use Case |
-|--------|---------|----------|
-| Equal | 1/N | Baseline |
-| Signal | signal / sum(abs(signal)) | Alpha-weighted |
-| Volatility | 1 / vol | Risk parity lite |
-| Kelly | edge / variance | Theoretical optimal |
-| Risk budget | target_risk / expected_risk | Vol targeting |
+Signal-based strategies produce alpha scores, but scores are not position sizes. Naively allocating equal weight to every signal treats all assets as interchangeable. The result: a few high-volatility names drive total portfolio variance, drowning out the diversified signal you worked to build. Volatility targeting fixes this by scaling each position inversely to its risk.
 
-## Kelly Criterion
+## The Pattern
 
+### WRONG
 ```python
-def kelly_fraction(
-    expected_return: float,
-    volatility: float,
-    risk_free: float = 0
-) -> float:
-    """Full Kelly sizing."""
-    excess = expected_return - risk_free
-    return excess / (volatility ** 2)
+import numpy as np
 
-# Half Kelly is more common (reduces variance)
-position = kelly_fraction(mu, sigma) / 2
+# Equal weight: ignores that BTC vol >> SPY vol
+signals = np.array([0.8, 0.6, 0.3, -0.5])
+weights = signals / np.abs(signals).sum()  # [-0.36, 0.27, 0.14, -0.23]
+# BTC at 40% vol gets same weight as SPY at 15% vol
 ```
 
-## Volatility Targeting
-
+### CORRECT
 ```python
-def vol_target_weight(
-    signal: pl.Series,
-    realized_vol: pl.Series,
-    target_vol: float = 0.10
-) -> pl.Series:
-    """Scale positions to target volatility."""
-    base_weight = signal / signal.abs().sum()
-    vol_scalar = target_vol / realized_vol
-    return base_weight * vol_scalar.clip(0.5, 2.0)
+import numpy as np
+
+signals = np.array([0.8, 0.6, 0.3, -0.5])
+realized_vol = np.array([0.40, 0.25, 0.15, 0.10])  # annualized
+target_vol = 0.10  # 10% portfolio vol target
+
+# Step 1: signal-proportional base weights
+base = signals / np.abs(signals).sum()
+
+# Step 2: scale each position by inverse volatility
+vol_scalar = np.clip(target_vol / realized_vol, 0.5, 2.0)
+raw = base * vol_scalar
+
+# Step 3: enforce leverage constraint
+max_leverage = 1.5
+leverage = np.abs(raw).sum()
+weights = raw * min(1.0, max_leverage / leverage)
 ```
 
-## Risk Budget
+## Methods at a Glance
+
+| Method | Formula | When to Use |
+|--------|---------|-------------|
+| Equal weight | 1/N | Baseline only |
+| Signal-proportional | signal / sum(\|signal\|) | When signals are well-calibrated |
+| Vol-targeted | base * (target_vol / asset_vol) | Default for most strategies |
+| Kelly | excess_return / variance | Theoretical bound; use half-Kelly |
+| Risk budget | target_risk / portfolio_risk | Full portfolio vol targeting |
+
+## Half-Kelly Sizing
 
 ```python
-def risk_budget_sizing(
-    signals: pl.DataFrame,
-    covariance: np.ndarray,
-    target_risk: float = 0.10
-) -> np.ndarray:
-    """Size to target portfolio volatility."""
-    normalized = signals / signals.abs().sum()
-    weights = normalized.values
-
-    # Current portfolio risk
-    port_var = weights @ covariance @ weights
-    port_vol = np.sqrt(port_var) * np.sqrt(252)
-
-    # Scale to target
-    scale = target_risk / port_vol
-    return weights * min(scale, 2.0)  # Cap leverage
+def half_kelly(expected_excess: float, volatility: float) -> float:
+    """Half-Kelly is the practical ceiling for position size."""
+    full_kelly = expected_excess / (volatility ** 2)
+    return full_kelly / 2  # halve to reduce variance of growth rate
 ```
 
-## Constraints
-
-```python
-def apply_constraints(
-    weights: np.ndarray,
-    max_position: float = 0.10,
-    max_sector: float = 0.30,
-    max_leverage: float = 1.0,
-    sectors: np.ndarray = None
-) -> np.ndarray:
-    """Apply portfolio constraints."""
-    # Position limits
-    weights = np.clip(weights, -max_position, max_position)
-
-    # Sector limits
-    if sectors is not None:
-        for s in np.unique(sectors):
-            mask = sectors == s
-            sector_weight = weights[mask].sum()
-            if abs(sector_weight) > max_sector:
-                weights[mask] *= max_sector / abs(sector_weight)
-
-    # Leverage
-    leverage = np.abs(weights).sum()
-    if leverage > max_leverage:
-        weights *= max_leverage / leverage
-
-    return weights
-```
+Full Kelly maximizes long-run growth but has extreme variance. Half-Kelly sacrifices ~25% of growth for ~50% less variance in outcomes.
 
 ## Guardrails
 
-- Full Kelly is too aggressive; use half or quarter
-- Volatility estimates are noisy; use smoothed values
-- Constraints prevent concentration
-- Transaction costs may favor slower rebalancing
+- Never use full Kelly in production — half or quarter Kelly reduces ruin probability dramatically
+- Smooth volatility estimates with EWMA (halflife 20-60 days) — point estimates are noisy
+- Cap individual position size (e.g., 10% of NAV) regardless of signal strength
+- Recheck leverage after all position adjustments — constraint order matters
+
+## Production Implementation
+
+`ml4t-backtest` handles position sizing inside the execution loop:
+
+```python
+from ml4t.backtest import TargetWeightExecutor, RebalanceConfig
+
+executor = TargetWeightExecutor(
+    rebalance=RebalanceConfig(frequency="weekly"),
+    max_position_weight=0.10,
+    max_leverage=1.5,
+)
+# Executor clips weights, enforces leverage, and manages rebalance timing
+```
 
 ## Checklist
 
-- [ ] Sizing method documented
-- [ ] Maximum position limits set
-- [ ] Leverage constraint applied
-- [ ] Volatility targeting if appropriate
+- [ ] Positions scaled by inverse volatility (not equal-weighted)
+- [ ] Leverage cap enforced after all sizing adjustments
+- [ ] Individual position limits set (max 5-10% of NAV)
+- [ ] Volatility estimates smoothed (EWMA, not point-in-time)
+- [ ] Kelly fraction halved or quartered if used

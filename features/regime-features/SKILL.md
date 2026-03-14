@@ -1,86 +1,99 @@
 ---
 name: ml4t-regime-features
-description: Features that capture market regime state
-category: features
-type: operational
-dependencies: [regime-awareness]
-book_chapters: [7, 15]
+description: Features that capture market regime — volatility state, trend strength, liquidity — used as conditioning variables for ML models. Use when model performance varies across market environments.
+dependencies: [lookahead-bias]
+metadata:
+  book_chapters: "8, 9"
+  library: "ml4t-engineer"
 ---
 
 # Regime Features
 
-Use regime indicators as features, not for timing.
+Momentum works in trending markets, mean-reversion in range-bound ones. Instead of manually switching strategies, feed regime indicators as features and let the model learn when each signal works.
 
-## Regime Indicators
+## The Problem
 
-| Indicator | Interpretation |
-|-----------|----------------|
-| VIX | Fear/complacency |
-| VIX term structure | Stress vs calm |
-| Yield curve slope | Growth expectations |
-| Credit spreads | Risk appetite |
-| Realized volatility | Current turbulence |
-| Correlation | Diversification regime |
+Models trained on pooled data learn average relationships. If momentum has IC of +0.08 in trends and -0.04 in mean-reverting regimes, the pooled IC is near zero. Regime features let the model condition on the current environment rather than averaging across all of them.
 
-## Feature Engineering
+## The Pattern
 
+### WRONG
 ```python
-# Volatility regime
-vix_z = (vix - vix.rolling(252).mean()) / vix.rolling(252).std()
-vix_high = (vix_z > 1).astype(int)
+import polars as pl
 
-# Term structure regime
-vix_term = (vix_3m - vix) / vix  # Contango vs backwardation
-
-# Yield curve regime
-yield_slope = y10 - y2
-curve_inverted = (yield_slope < 0).astype(int)
-
-# Correlation regime
-corr_matrix = returns.rolling(63).corr()
-avg_corr = corr_matrix.mean().mean()
-high_corr = (avg_corr > 0.5).astype(int)
+# Raw VIX level — non-stationary, scale-dependent, model cannot generalize
+features = df.with_columns(regime_vix=pl.col("vix"))
 ```
 
-## HMM Regime Detection
-
+### CORRECT
 ```python
-from hmmlearn.hmm import GaussianHMM
+import polars as pl
 
-# Fit HMM on returns
-model = GaussianHMM(n_components=2, covariance_type='full')
-model.fit(returns.values.reshape(-1, 1))
-
-# Infer regime (use only past data)
-regime = model.predict(returns.values.reshape(-1, 1))
+# Percentile-ranked regime indicator — stationary, bounded [0, 1]
+features = df.sort("timestamp").with_columns(
+    regime_vix_pctl=pl.col("vix")
+    .expanding()
+    .rank()
+    .shift(1)
+    / pl.col("vix").expanding().count().shift(1),
+    regime_vol_zscore=(
+        pl.col("realized_vol") - pl.col("realized_vol").rolling_mean(252).shift(1)
+    )
+    / pl.col("realized_vol").rolling_std(252).shift(1),
+)
 ```
 
-## Usage as Feature
+## Regime Indicator Catalog
+
+| Indicator | Captures | Computation |
+|-----------|----------|-------------|
+| VIX percentile | Fear vs complacency | Expanding rank of VIX |
+| Realized vol z-score | Current turbulence vs history | Rolling z-score of 21d vol |
+| ADX level | Trend strength | 14-period ADX (0-100 scale) |
+| Yield curve slope | Growth expectations | 10Y - 2Y treasury rate |
+| Average correlation | Diversification regime | Rolling pairwise correlation |
+| Credit spread | Risk appetite | HY - IG spread |
+
+## Building Regime Features
 
 ```python
-# WRONG: Condition entry on regime
-if regime == 'bull':
-    enter_long()
+import polars as pl
+import numpy as np
 
-# CORRECT: Include regime as feature
-features['regime_vol'] = vix_z
-features['regime_corr'] = avg_corr
-features['regime_hmm'] = hmm_state
-
-# Model learns when factors work
-model.fit(X_with_regime, y)
+df = df.sort("timestamp").with_columns(
+    # Trend strength (ADX-inspired: ratio of directional move to range)
+    trend_strength=(
+        pl.col("close").pct_change(21).abs()
+        / (pl.col("close").rolling_std(21) * np.sqrt(21))
+    ),
+    # Correlation regime (requires panel data)
+    avg_corr=pl.col("returns").rolling_corr(pl.col("market_returns"), window=63),
+)
 ```
 
 ## Guardrails
 
-- Regime features inform model, don't override it
-- Use lagged values (no lookahead)
-- Multiple regime indicators for robustness
-- HMM regimes have look-ahead risk (use walk-forward)
+- **Always use lagged values** — `.shift(1)` on all expanding/rolling regime stats
+- **Rank or z-score** raw indicators — VIX at 20 means different things in 2017 vs 2020
+- **Multiple indicators** — no single regime variable captures the full environment
+- **HMM regimes have lookahead risk** — fit HMM walk-forward only, never on the full sample
+
+## Production Implementation
+
+`ml4t-engineer` includes regime features in its catalog:
+
+```python
+from ml4t.engineer.api import compute_features
+
+features = compute_features(data, [
+    "vix_percentile", "realized_vol_zscore", "adx_14", "yield_curve_slope",
+])
+```
 
 ## Checklist
 
-- [ ] Regime features use only past data
-- [ ] Multiple regime indicators included
-- [ ] Features, not conditional logic
-- [ ] HMM fitted walk-forward if used
+- [ ] Regime features are stationary (percentile-ranked or z-scored)
+- [ ] All use `.shift(1)` — no current-bar value in its own feature
+- [ ] At least 2-3 independent regime indicators included
+- [ ] Features are inputs to the model, not if/else trading rules
+- [ ] HMM or changepoint models (if used) fitted walk-forward only

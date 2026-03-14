@@ -1,106 +1,112 @@
 ---
 name: ml4t-drift-detection
-description: Detect data and model drift in production
-category: validation
-type: operational
+description: Detect when model inputs or predictions shift from the training distribution using PSI and statistical tests. Use when monitoring deployed models or diagnosing out-of-sample performance decay.
 dependencies: []
-book_chapters: [26, 27]
+metadata:
+  book_chapters: "9, 16"
+  library: "ml4t-diagnostic"
 ---
 
 # Drift Detection
 
-Monitor for distribution shifts that degrade model performance.
+A model trained on 2018-2022 data may silently fail when the 2023 distribution shifts. Systematic drift detection catches degradation before it becomes a drawdown.
 
-## Drift Types
+## The Problem
 
-| Type | What Changes | Detection |
-|------|--------------|-----------|
-| Data drift | Input distribution | PSI, KS test |
-| Concept drift | X→Y relationship | Performance decay |
-| Prior drift | Target distribution | Class balance |
+Financial distributions are non-stationary. Volatility regimes change, correlations spike during crises, and feature distributions shift as markets evolve. A model deployed without monitoring can trade on stale assumptions for months. The three drift types — data drift (input distributions change), concept drift (feature-target relationship changes), and prior drift (target distribution changes) — each require different detection strategies. By the time performance metrics visibly decay, the damage is already done.
 
-## Population Stability Index (PSI)
+## The Pattern
+
+### WRONG
 
 ```python
-def calculate_psi(expected: np.ndarray, actual: np.ndarray,
-                  n_bins: int = 10) -> float:
-    """PSI between reference and current distributions."""
-    # Bin the data
-    breakpoints = np.percentile(expected, np.linspace(0, 100, n_bins + 1))
-    expected_pct = np.histogram(expected, bins=breakpoints)[0] / len(expected)
-    actual_pct = np.histogram(actual, bins=breakpoints)[0] / len(actual)
-
-    # Avoid division by zero
-    expected_pct = np.clip(expected_pct, 0.001, None)
-    actual_pct = np.clip(actual_pct, 0.001, None)
-
-    psi = np.sum((actual_pct - expected_pct) * np.log(actual_pct / expected_pct))
-    return psi
-
-# Interpretation
-# PSI < 0.1: No drift
-# PSI 0.1-0.25: Moderate drift
-# PSI > 0.25: Significant drift
+# Deploy model and check performance monthly — too late
+model = train_model(X_train, y_train)
+# ... 3 months later ...
+print(f"Live Sharpe: {live_sharpe:.2f}")  # Already lost money
 ```
 
-## KS Test for Drift
+### CORRECT
 
 ```python
+import numpy as np
 from scipy.stats import ks_2samp
 
-def detect_drift(reference: np.ndarray, current: np.ndarray,
-                 threshold: float = 0.05) -> bool:
-    """Kolmogorov-Smirnov test for drift."""
-    stat, pval = ks_2samp(reference, current)
-    return pval < threshold  # True if drift detected
+def calculate_psi(reference, current, n_bins=10):
+    """Population Stability Index between two distributions."""
+    breakpoints = np.percentile(reference, np.linspace(0, 100, n_bins + 1))
+    ref_pct = np.histogram(reference, bins=breakpoints)[0] / len(reference)
+    cur_pct = np.histogram(current, bins=breakpoints)[0] / len(current)
+    ref_pct = np.clip(ref_pct, 1e-4, None)
+    cur_pct = np.clip(cur_pct, 1e-4, None)
+    return float(np.sum((cur_pct - ref_pct) * np.log(cur_pct / ref_pct)))
+
+# Monitor every feature at each rebalance
+ref_data = X_train  # Training period as baseline
+cur_data = X_live   # Most recent window
+
+for col_idx, col_name in enumerate(feature_names):
+    psi = calculate_psi(ref_data[:, col_idx], cur_data[:, col_idx])
+    ks_stat, ks_pval = ks_2samp(ref_data[:, col_idx], cur_data[:, col_idx])
+    flag = "DRIFT" if psi > 0.25 else "ok"
+    print(f"{col_name:>25}: PSI={psi:.3f}, KS p={ks_pval:.3f} [{flag}]")
 ```
 
-## Performance Monitoring
+## PSI Thresholds
+
+| PSI | Interpretation | Action |
+|---|---|---|
+| < 0.10 | No significant drift | Continue |
+| 0.10 - 0.25 | Moderate drift | Investigate, increase monitoring |
+| > 0.25 | Significant drift | Consider retraining |
+
+## Detecting Concept Drift
+
+Feature distributions can be stable while the feature-target relationship breaks. Track rolling IC to catch this:
 
 ```python
-def rolling_performance(predictions: pl.DataFrame,
-                        window: int = 63) -> pl.DataFrame:
-    """Track rolling IC and accuracy."""
-    return predictions.with_columns([
-        pl.corr('pred', 'actual').rolling(window).alias('rolling_ic'),
-        (pl.col('pred_class') == pl.col('actual_class'))
-          .rolling(window).mean().alias('rolling_accuracy')
-    ])
+from scipy.stats import spearmanr
 
-# Alert on significant decline
-if current_ic < baseline_ic * 0.7:
-    trigger_alert("IC declined 30%+")
-```
+def rolling_ic(predictions, actuals, window=63):
+    """Rolling rank IC to detect concept drift."""
+    ic_series = []
+    for i in range(window, len(predictions)):
+        ic, _ = spearmanr(predictions[i-window:i], actuals[i-window:i])
+        ic_series.append(ic)
+    return np.array(ic_series)
 
-## Monitoring Dashboard
-
-```python
-metrics_to_monitor = {
-    'feature_drift': lambda: max(calculate_psi(f) for f in features),
-    'rolling_sharpe': lambda: rolling_returns.mean() / rolling_returns.std(),
-    'rolling_ic': lambda: rolling_ic.mean(),
-    'max_drawdown': lambda: calculate_drawdown(portfolio)
-}
-
-# Alert thresholds
-thresholds = {
-    'feature_drift': 0.25,
-    'rolling_sharpe': 0.5,
-    'rolling_ic': 0.02,
-    'max_drawdown': 0.15
-}
+ic = rolling_ic(model_predictions, realized_returns)
+baseline_ic = np.mean(ic[:252])  # First year as baseline
+if np.mean(ic[-63:]) < baseline_ic * 0.5:
+    print("ALERT: IC declined >50% from baseline")
 ```
 
 ## Guardrails
 
-- Baseline period should be stable, representative
-- Multiple metrics catch different drift types
-- Some drift is normal; establish baselines
-- Retrain triggers should be pre-defined
+- Baseline period must be representative and stable — do not use crisis periods as reference
+- PSI and KS test catch different things: PSI is binned (better for tails), KS is continuous
+- Some drift is normal in financial data — set thresholds based on historical drift rates, not arbitrary cutoffs
+- Retrain triggers should be predefined (not decided after seeing losses)
+- Monitor prediction distribution too, not just features — a model can produce drifted outputs from stable inputs
+
+## Production Implementation
+
+`ml4t-diagnostic` provides integrated drift monitoring:
+
+```python
+from ml4t.diagnostic.evaluation.metrics import compute_ic_series
+
+# Track IC over time to detect concept drift
+ic_series = compute_ic_series(predictions, actuals, timestamps)
+recent_ic = np.mean(ic_series[-63:])
+baseline_ic = np.mean(ic_series[:252])
+print(f"Baseline IC: {baseline_ic:.4f}, Recent IC: {recent_ic:.4f}")
+```
 
 ## Checklist
 
-- [ ] PSI calculated for key features
-- [ ] Performance metrics tracked
-- [ ] Alert thresholds defined
-- [ ] Retrain triggers documented
+- [ ] PSI computed for all key features at each rebalance
+- [ ] KS test run alongside PSI for continuous distribution comparison
+- [ ] Rolling IC tracked for concept drift detection
+- [ ] Alert thresholds predefined (not set after observing losses)
+- [ ] Retrain protocol documented and triggered automatically on drift

@@ -1,102 +1,109 @@
 ---
 name: ml4t-shap-analysis
-description: Interpret model predictions with SHAP values
-category: validation
-type: operational
+description: Explain model predictions with SHAP values instead of biased built-in feature importance. Use when interpreting gradient boosting or black-box model behavior for trading decisions.
 dependencies: []
-book_chapters: [13, 27]
+metadata:
+  book_chapters: "12, 15"
+  library: "ml4t-diagnostic"
 ---
 
 # SHAP Analysis
 
-Explain model predictions with feature attributions.
+Built-in `feature_importances_` in tree models is biased toward high-cardinality and correlated features. SHAP values provide additive, consistent feature attributions grounded in game theory.
 
-## Core Concepts
+## The Problem
 
-| Term | Definition |
-|------|------------|
-| SHAP value | Feature contribution to prediction |
-| Base value | Model output with no features |
-| Additivity | sum(SHAP) + base = prediction |
+LightGBM's `feature_importances_` (gain or split-based) systematically overweights features with more unique values and features that are correlated with other predictors. Two features with identical predictive power but different cardinality will show different importance. This leads to incorrect feature selection, misleading model narratives, and poor decisions about which signals to keep or discard. SHAP values are the only feature attribution method that satisfies both local accuracy (attributions sum to prediction) and consistency (a feature that contributes more never gets lower attribution).
 
-## API
+## The Pattern
+
+### WRONG
 
 ```python
-import shap
+import lightgbm as lgb
 
-# Tree-based models (fast)
-explainer = shap.TreeExplainer(model)
-shap_values = explainer.shap_values(X)
+model = lgb.LGBMRegressor().fit(X_train, y_train)
 
-# Any model (slower)
-explainer = shap.KernelExplainer(model.predict, X_background)
-shap_values = explainer.shap_values(X)
+# Built-in importance — biased toward high-cardinality features
+importance = model.feature_importances_
+for name, imp in sorted(zip(feature_names, importance), key=lambda x: -x[1])[:5]:
+    print(f"{name}: {imp}")
+# A noisy ID-like feature may rank #1 due to many split points
 ```
 
-## Global Importance
+### CORRECT
 
 ```python
-# Feature importance across all samples
+import numpy as np
+import shap
+
+model = lgb.LGBMRegressor().fit(X_train, y_train)
+
+# TreeSHAP — exact, fast for tree-based models
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(X_test)
+
+# Global importance: mean |SHAP| per feature
 importance = np.abs(shap_values).mean(axis=0)
 sorted_idx = np.argsort(importance)[::-1]
-
 for i in sorted_idx[:10]:
-    print(f"{X.columns[i]}: {importance[i]:.4f}")
+    print(f"{feature_names[i]:>25}: {importance[i]:.4f}")
+
+# Verify additivity: base_value + sum(SHAP) = prediction
+pred = model.predict(X_test[:1])[0]
+shap_sum = explainer.expected_value + shap_values[0].sum()
+assert abs(pred - shap_sum) < 1e-6, "SHAP values must sum to prediction"
 ```
 
 ## Local Explanations
 
+Understand why the model made a specific prediction:
+
 ```python
-# Explain single prediction
-idx = 42
-print(f"Prediction: {model.predict(X.iloc[idx:idx+1])[0]:.4f}")
+# Explain a single high-conviction prediction
+idx = np.argmax(np.abs(model.predict(X_test)))
+print(f"Prediction: {model.predict(X_test[idx:idx+1])[0]:.4f}")
 print(f"Base value: {explainer.expected_value:.4f}")
-
-for i, col in enumerate(X.columns):
-    if abs(shap_values[idx, i]) > 0.01:
-        print(f"  {col}: {shap_values[idx, i]:+.4f}")
+for i in np.argsort(np.abs(shap_values[idx]))[::-1][:5]:
+    print(f"  {feature_names[i]:>25}: {shap_values[idx, i]:+.4f}")
 ```
 
-## Monitoring Feature Drift
+## SHAP for Feature Selection
 
 ```python
-def shap_drift(shap_baseline: np.ndarray, shap_current: np.ndarray,
-               feature_names: list) -> dict:
-    """Detect drift in feature importance."""
-    baseline_imp = np.abs(shap_baseline).mean(axis=0)
-    current_imp = np.abs(shap_current).mean(axis=0)
-
-    drift = {}
-    for i, name in enumerate(feature_names):
-        change = (current_imp[i] - baseline_imp[i]) / (baseline_imp[i] + 1e-6)
-        drift[name] = change
-
-    return drift
-```
-
-## Visualization
-
-```python
-# Summary plot (all features)
-shap.summary_plot(shap_values, X, feature_names=X.columns)
-
-# Dependence plot (single feature)
-shap.dependence_plot('momentum_12m', shap_values, X)
-
-# Force plot (single prediction)
-shap.force_plot(explainer.expected_value, shap_values[idx], X.iloc[idx])
+# Keep features with mean |SHAP| above threshold
+mean_shap = np.abs(shap_values).mean(axis=0)
+threshold = np.percentile(mean_shap, 50)  # Keep top 50%
+selected = [f for f, s in zip(feature_names, mean_shap) if s >= threshold]
+print(f"Selected {len(selected)} / {len(feature_names)} features")
 ```
 
 ## Guardrails
 
-- TreeExplainer is exact for trees; use it when available
-- KernelExplainer approximates; may be noisy
-- SHAP values depend on background dataset choice
-- Feature interactions can be complex
+- Use `TreeExplainer` for tree models (exact, O(TLD) per sample) — `KernelExplainer` is approximate and slow
+- SHAP values depend on the background dataset — use the training set, not a random sample
+- Feature interactions can mask individual SHAP values — check `shap.dependence_plot` for interaction effects
+- SHAP importance across folds should be stable — high variance signals model instability, not feature importance
+- For time-series models, compute SHAP on each walk-forward fold separately
+
+## Production Implementation
+
+`ml4t-diagnostic` provides SHAP-based importance with cross-validated stability:
+
+```python
+from ml4t.diagnostic.evaluation.metrics import compute_shap_importance
+
+# Cross-validated SHAP importance with stability metrics
+shap_report = compute_shap_importance(
+    model, X_test, feature_names=feature_names
+)
+# Returns DataFrame with mean_shap, std_shap, rank per feature
+```
 
 ## Checklist
 
-- [ ] Global importance ranked
-- [ ] Top features align with hypothesis
-- [ ] Local explanations spot-checked
-- [ ] SHAP drift monitored in production
+- [ ] Using SHAP values (not built-in `feature_importances_`) for interpretation
+- [ ] `TreeExplainer` used for tree-based models, `KernelExplainer` only for black-box
+- [ ] Additivity verified: `base_value + sum(shap_values) == prediction`
+- [ ] Top features checked against domain knowledge (momentum, volatility, etc.)
+- [ ] SHAP stability verified across walk-forward folds

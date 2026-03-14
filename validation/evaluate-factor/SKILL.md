@@ -1,101 +1,108 @@
 ---
 name: ml4t-evaluate-factor
-description: Evaluate alpha factors with Alphalens-style analysis
-category: validation
-type: operational
-dependencies: [information-coefficient]
-book_chapters: [9]
-quantlab_module: ml4t.diagnostic.factor_analysis
+description: Evaluate alpha factor quality with IC analysis, quantile spreads, turnover, and decay before portfolio integration. Use when assessing whether a predictive signal is worth trading.
+dependencies: []
+metadata:
+  book_chapters: "7, 8"
+  library: "ml4t-diagnostic"
 ---
 
-# Evaluate Factor
+# Factor Evaluation
 
-Comprehensive factor evaluation before portfolio integration.
+A factor that looks predictive may be untradeable due to high turnover, rapid decay, or non-monotonic quantile spreads. Comprehensive evaluation before portfolio integration prevents costly live failures.
 
-## Key Metrics
+## The Problem
 
-| Metric | What It Measures |
-|--------|------------------|
-| IC | Correlation with forward returns |
-| IC IR | Consistency of IC over time |
-| Quantile returns | Return spread by signal strength |
-| Turnover | Trading cost proxy |
-| Decay | How quickly signal loses power |
+Reporting a single backtest Sharpe ratio conflates signal quality with portfolio construction. A factor with IC 0.03 and low turnover is more valuable than one with IC 0.05 and 80% daily turnover — the second one's alpha is consumed by transaction costs. Without decomposing signal quality into IC, quantile monotonicity, turnover, and decay, you cannot diagnose why a strategy fails or how to improve it.
 
-## API
+## The Pattern
+
+### WRONG
 
 ```python
-from ml4t.diagnostic.factor_analysis import FactorAnalyzer
-
-analyzer = FactorAnalyzer(
-    factor=signal,
-    forward_returns=returns,
-    quantiles=5,
-    periods=[1, 5, 21]  # 1d, 1w, 1m
-)
-
-# Run full analysis
-results = analyzer.analyze()
-
-# Key outputs
-print(f"IC: {results.ic_mean:.3f}")
-print(f"IC IR: {results.ic_ir:.3f}")
-print(f"Top-Bottom Spread: {results.quantile_spread:.1%}")
-print(f"Turnover: {results.turnover:.1%}")
+# Evaluate only via backtest Sharpe — hides factor-level issues
+returns = run_backtest(signal)
+sharpe = returns.mean() / returns.std() * np.sqrt(252)
+print(f"Sharpe: {sharpe:.2f}")  # No idea why it works or doesn't
 ```
 
-## Quantile Analysis
+### CORRECT
 
 ```python
-def quantile_returns(signal: pl.Series, returns: pl.Series,
-                     n_quantiles: int = 5) -> pl.DataFrame:
-    """Calculate returns by signal quantile."""
-    quantiles = signal.qcut(n_quantiles, labels=False)
+import numpy as np
+from scipy import stats
 
-    return (
-        pl.DataFrame({'q': quantiles, 'ret': returns})
-        .group_by('q')
-        .agg(pl.col('ret').mean())
-        .sort('q')
-    )
+# 1. Information Coefficient: rank correlation with forward returns
+def compute_ic_series(signal, forward_returns, timestamps):
+    """Per-period rank IC between signal and forward returns."""
+    ic_by_period = []
+    for t in np.unique(timestamps):
+        mask = timestamps == t
+        if mask.sum() < 10:
+            continue
+        ic, _ = stats.spearmanr(signal[mask], forward_returns[mask])
+        ic_by_period.append(ic)
+    return np.array(ic_by_period)
 
-# Good factor: monotonic relationship
-# Q1 < Q2 < Q3 < Q4 < Q5 (or reverse)
+ic_series = compute_ic_series(signal, fwd_ret, dates)
+print(f"IC Mean: {np.mean(ic_series):.4f}")
+print(f"IC Std:  {np.std(ic_series):.4f}")
+print(f"IC IR:   {np.mean(ic_series) / np.std(ic_series):.3f}")
+print(f"IC t-stat: {np.mean(ic_series) / (np.std(ic_series) / np.sqrt(len(ic_series))):.2f}")
+
+# 2. Quantile spreads: returns by signal quintile
+n_quantiles = 5
+quantile_labels = np.ceil(stats.rankdata(signal) / len(signal) * n_quantiles)
+for q in range(1, n_quantiles + 1):
+    q_ret = fwd_ret[quantile_labels == q].mean()
+    print(f"  Q{q}: {q_ret:.4f}")
+# Good factor: monotonic Q1 < Q2 < ... < Q5 (or reverse)
+
+# 3. Turnover: how often positions change
+quantiles_today = np.ceil(stats.rankdata(signal_today) / len(signal_today) * 5)
+quantiles_yesterday = np.ceil(stats.rankdata(signal_yesterday) / len(signal_yesterday) * 5)
+turnover = (quantiles_today != quantiles_yesterday).mean()
+print(f"Turnover: {turnover:.1%}")
 ```
 
-## Turnover Analysis
+## IC Decay Analysis
+
+Signal power fades over time. Measure IC at multiple horizons to find optimal rebalance frequency:
 
 ```python
-def factor_turnover(signal: pl.Series, n_quantiles: int = 5) -> float:
-    """Measure position changes between periods."""
-    quantiles = signal.qcut(n_quantiles, labels=False)
-    changes = (quantiles != quantiles.shift(1)).mean()
-    return changes
-```
-
-## Decay Analysis
-
-```python
-# IC by forward return horizon
-for horizon in [1, 5, 10, 20, 40, 60]:
-    fwd_ret = returns.shift(-horizon)
-    ic = information_coefficient(signal, fwd_ret).mean()
-    print(f"{horizon}d IC: {ic:.3f}")
-
-# Optimal horizon where IC peaks
+for horizon in [1, 5, 10, 21, 63]:
+    fwd = returns.shift(-horizon)
+    ic = stats.spearmanr(signal[~np.isnan(fwd)], fwd[~np.isnan(fwd)])[0]
+    print(f"  {horizon:>3}d IC: {ic:.4f}")
+# IC peaks at the natural signal horizon; decays beyond it
 ```
 
 ## Guardrails
 
-- IC alone is insufficient; check quantile monotonicity
-- High turnover = high transaction costs
-- Factor decay determines rebalance frequency
-- t-stats with HAC standard errors
+- IC alone is insufficient — a factor with high IC but non-monotonic quintiles is unreliable
+- High turnover (>30% daily) signals that transaction costs may consume the alpha
+- Always compute t-statistics with HAC (Newey-West) standard errors for autocorrelated IC series
+- Decay analysis determines rebalance frequency — rebalancing faster than the peak-IC horizon wastes costs
+
+## Production Implementation
+
+`ml4t-diagnostic` provides validated IC computation with HAC corrections:
+
+```python
+from ml4t.diagnostic.evaluation.metrics import (
+    compute_ic_series,
+    compute_ic_hac_stats,
+)
+
+ic_series = compute_ic_series(signal, forward_returns, timestamps)
+ic_stats = compute_ic_hac_stats(ic_series)  # Newey-West corrected
+print(f"IC: {ic_stats['mean']:.4f} (t={ic_stats['t_stat']:.2f})")
+```
 
 ## Checklist
 
-- [ ] IC and IC IR calculated
-- [ ] Quantile returns are monotonic
-- [ ] Turnover estimated
-- [ ] Decay analysis performed
-- [ ] Statistical significance tested
+- [ ] IC mean and IC IR computed (IC IR > 0.5 is a reasonable threshold)
+- [ ] Quantile returns checked for monotonicity
+- [ ] Turnover estimated and compared against cost model
+- [ ] Decay analysis performed to determine rebalance frequency
+- [ ] t-statistics use HAC standard errors, not naive SE

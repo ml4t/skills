@@ -1,151 +1,188 @@
-# ML4T Skills for Claude Code
+# ML4T Agent Skills
 
-Skills that teach AI agents the Machine Learning for Trading workflow from the [ML4T 3rd Edition](https://ml4trading.io) book.
+66 standalone skills that teach AI coding agents the Machine Learning for Trading workflow from [ML4T 3rd Edition](https://ml4trading.io).
 
-## Overview
+## Design Philosophy
 
-This is the first "agent-first" approach to quantitative finance education. These skills enable AI coding agents to:
+**Concept-first, library-recommended (80/20).** Each skill teaches the correct pattern using standard tools (sklearn, polars, numpy, pytorch, lightgbm). The last 20% recommends [ml4t-* libraries](https://ml4trading.io/libraries) as the production-grade implementation. Skills are useful without the libraries but naturally showcase them.
 
-1. **Understand critical ML4T concepts** (lookahead bias, data leakage, regime shifts)
-2. **Use QuantLab APIs correctly** (ml4t-data, ml4t-engineer, ml4t-backtest)
-3. **Avoid common pitfalls** that trip up both humans and machines
-4. **Execute complete workflows** from strategy definition to production deployment
+Every skill includes:
+- **WRONG/CORRECT code pairs** — the single highest-value pattern for preventing agent mistakes
+- **Guardrails** — specific red flags with detection patterns
+- **Checklist** — actionable verification steps
 
 ## Skill Categories
 
-| Category | Count | Description |
-|----------|-------|-------------|
-| `concepts/` | 10 | Foundational ML4T concepts and pitfalls |
-| `data/` | 8 | Data sourcing, validation, and management |
-| `features/` | 10 | Feature engineering and labeling |
-| `validation/` | 8 | Cross-validation and evaluation metrics |
-| `backtest/` | 6 | Strategy simulation and analysis |
-| `portfolio/` | 6 | Portfolio optimization and risk management |
-| `workflows/` | 4 | End-to-end composite workflows |
+| # | Category | Skills | Description |
+|---|----------|--------|-------------|
+| 1 | [`concepts/`](concepts/) | 10 | Foundational pitfalls: lookahead bias, data leakage, survivorship, overfitting |
+| 2 | [`data/`](data/) | 8 | Data sourcing, validation, schema, bars, futures, calendars |
+| 3 | [`features/`](features/) | 10 | Labels, feature engineering, selection, validation, microstructure |
+| 4 | [`validation/`](validation/) | 8 | CPCV, walk-forward CV, IC evaluation, SHAP, deflated Sharpe |
+| 5 | [`backtest/`](backtest/) | 6 | Event-driven simulation, tearsheets, cost models, sensitivity |
+| 6 | [`portfolio/`](portfolio/) | 6 | Position sizing, optimization, risk metrics, stress testing |
+| 7 | [`advanced-ai/`](advanced-ai/) | 5 | RL execution, RAG, knowledge graphs, agent orchestration |
+| 8 | [`production/`](production/) | 4 | Live trading, MLOps, governance, monitoring |
+| 9 | [`infrastructure/`](infrastructure/) | 4 | Canonical schema, registry, Polars patterns, pipelines |
+| 10 | [`workflows/`](workflows/) | 5 | End-to-end strategy, factor research, model validation |
 
 ## Quick Start
 
-### Using a Skill
+Reference skills when working with an AI agent:
 
-In a Claude Code session:
-```
-/ml4t-lookahead-bias
-```
-
-Or reference skills when working:
 ```
 "Before computing features, review the lookahead-bias skill to avoid common mistakes"
 ```
 
-### Skill Dependencies
+Or invoke directly in Claude Code:
 
-Skills declare prerequisites. For example, `triple-barrier` depends on `lookahead-bias`:
-
-```yaml
-dependencies:
-  - lookahead-bias
 ```
-
-## Skill Types
-
-### Conceptual Skills
-Teach understanding of ML4T domain concepts. Focus on:
-- The problem: What goes wrong without this knowledge
-- The pattern: How to recognize the issue
-- The solution: How to prevent or fix it
-
-Example: `concepts/lookahead-bias/`
-
-### Operational Skills
-Wrap QuantLab library APIs with guardrails. Include:
-- API reference with parameters and returns
-- Example usage patterns
-- Common mistakes to avoid
-
-Example: `features/triple-barrier/`
-
-### Workflow Skills
-Compose atomic skills into complete workflows:
-- `strategy-workflow` - Full strategy development cycle
-- `factor-research` - Complete factor research process
-- `model-validation` - Comprehensive model validation
-- `production-readiness` - Pre-production checklist
+/ml4t-lookahead-bias
+```
 
 ## Priority Skills
 
-Start with these 5 critical skills that address the most common ML4T failures:
+Start with these 5 skills that address the most common ML4T failures:
 
-1. **`concepts/lookahead-bias`** - Prevent using future information
-2. **`concepts/data-leakage`** - Avoid feature/target/CV contamination
-3. **`features/triple-barrier`** - Core ML4T labeling method
-4. **`validation/cpcv`** - Combinatorial Purged Cross-Validation
-5. **`validation/purging-embargo`** - Time-series CV design
+1. **[`concepts/lookahead-bias`](concepts/lookahead-bias/)** — Prevent using future information
+2. **[`concepts/data-leakage`](concepts/data-leakage/)** — Avoid feature/target/CV contamination
+3. **[`features/triple-barrier`](features/triple-barrier/)** — Volatility-adaptive trade labeling
+4. **[`validation/cpcv`](validation/cpcv/)** — Combinatorial Purged Cross-Validation
+5. **[`validation/purging-embargo`](validation/purging-embargo/)** — Time-series CV with temporal separation
 
-## Directory Structure
+## Full Skill Index
 
-```
-skills/
-├── concepts/           # TIER 1: Foundational concepts
-│   ├── lookahead-bias/
-│   ├── data-leakage/
-│   └── ...
-├── data/               # TIER 2: Data operations
-│   ├── fetch-data/
-│   └── ...
-├── features/           # TIER 3: Feature engineering
-│   ├── triple-barrier/
-│   └── ...
-├── validation/         # TIER 4: Validation & evaluation
-│   ├── cpcv/
-│   └── ...
-├── backtest/           # TIER 5: Backtesting
-│   ├── run-backtest/
-│   └── ...
-├── portfolio/          # TIER 6: Portfolio & risk
-│   ├── position-sizing/
-│   └── ...
-└── workflows/          # TIER 7: Composite workflows
-    ├── strategy-workflow/
-    └── ...
-```
+### Concepts (10)
 
-## Related Resources
+| Skill | Description |
+|-------|-------------|
+| [lookahead-bias](concepts/lookahead-bias/) | Detect and prevent future information in features, labels, and evaluation |
+| [data-leakage](concepts/data-leakage/) | Prevent train-test contamination, target leakage, temporal leakage |
+| [survivorship-bias](concepts/survivorship-bias/) | Account for delisted securities in historical analysis |
+| [point-in-time](concepts/point-in-time/) | Use data as available at decision time, not revised values |
+| [non-stationarity](concepts/non-stationarity/) | Handle changing statistical properties in financial time series |
+| [backtest-overfitting](concepts/backtest-overfitting/) | Detect and prevent overfitting to historical data |
+| [information-coefficient](concepts/information-coefficient/) | Measure predictive power with IC, Rank IC, and the Fundamental Law |
+| [transaction-costs](concepts/transaction-costs/) | Model spread, slippage, and market impact for realistic backtests |
+| [regime-awareness](concepts/regime-awareness/) | Use regime-as-a-feature, not regime-switching timing |
+| [strategy-term-sheet](concepts/strategy-term-sheet/) | Pre-register strategy hypotheses before backtesting |
 
-- **Book**: `/home/stefan/ml4t/book/` - ML4T 3rd Edition manuscript
-- **Code**: `/home/stefan/ml4t/code/` - Jupyter notebooks by chapter
-- **QuantLab**: `/home/stefan/ml4t/software/` - Production libraries
-  - `ml4t-data` - Data providers
-  - `ml4t-engineer` - Feature engineering
-  - `ml4t-backtest` - Backtesting engine
-  - `ml4t-diagnostic` - Evaluation tools
+### Data (8)
 
-## The ML4T Workflow
+| Skill | Description |
+|-------|-------------|
+| [fetch-data](data/fetch-data/) | Reliable data acquisition with schema validation |
+| [validate-data](data/validate-data/) | Data quality checks: gaps, outliers, types, staleness |
+| [define-universe](data/define-universe/) | Point-in-time tradeable universe with liquidity filters |
+| [build-bars](data/build-bars/) | Aggregate trades into time, volume, and dollar bars |
+| [continuous-futures](data/continuous-futures/) | Roll futures contracts with back-adjustment |
+| [synthetic-data](data/synthetic-data/) | Generate realistic financial data preserving temporal structure |
+| [calendar-ops](data/calendar-ops/) | Trading calendar awareness and multi-frequency alignment |
+| [data-export](data/data-export/) | Efficient storage with Parquet, partitioning, and versioning |
 
-Skills are organized around the 5-stage ML4T workflow:
+### Features (10)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     ML4T WORKFLOW                                │
-├──────────┬──────────┬──────────┬──────────┬────────────────────┤
-│ HYPOTHESIS│   DATA   │ MODELING │SIMULATION│    DEPLOYMENT      │
-├──────────┼──────────┼──────────┼──────────┼────────────────────┤
-│ strategy-│ fetch-   │ compute- │ run-     │ production-        │
-│ term-    │ data     │ features │ backtest │ readiness          │
-│ sheet    │          │          │          │                    │
-│          │ validate-│ triple-  │ tearsheet│ drift-detection    │
-│          │ data     │ barrier  │          │                    │
-│          │          │          │ regime-  │ kill-switch        │
-│          │ define-  │ feature- │ backtest │                    │
-│          │ universe │ selection│          │                    │
-└──────────┴──────────┴──────────┴──────────┴────────────────────┘
-```
+| Skill | Description |
+|-------|-------------|
+| [triple-barrier](features/triple-barrier/) | Label trades using profit target, stop loss, and time barriers |
+| [compute-features](features/compute-features/) | Systematic per-symbol feature computation with window functions |
+| [feature-families](features/feature-families/) | Five families: momentum, mean-reversion, volatility, carry, value |
+| [meta-labels](features/meta-labels/) | Two-stage labeling to filter which signals to act on |
+| [regime-features](features/regime-features/) | Volatility, trend, and liquidity regime indicators |
+| [microstructure-features](features/microstructure-features/) | Order flow signals: spread, VPIN, imbalance, illiquidity |
+| [feature-selection](features/feature-selection/) | IC-based ranking and selection within CV folds |
+| [feature-store](features/feature-store/) | Versioned feature storage with schema enforcement |
+| [feature-validation](features/feature-validation/) | IC significance, stability, redundancy, and contamination tests |
+| [horizon-design](features/horizon-design/) | Choose prediction horizon via IC decay analysis |
+
+### Validation (8)
+
+| Skill | Description |
+|-------|-------------|
+| [cpcv](validation/cpcv/) | Combinatorial Purged Cross-Validation for robust evaluation |
+| [purging-embargo](validation/purging-embargo/) | Remove label overlap and add embargo buffers in time-series CV |
+| [deflated-sharpe](validation/deflated-sharpe/) | Adjust Sharpe ratio for multiple testing |
+| [walk-forward-cv](validation/walk-forward-cv/) | Rolling/expanding window validation |
+| [evaluate-factor](validation/evaluate-factor/) | IC analysis, quantile spreads, turnover, and decay |
+| [stationarity-tests](validation/stationarity-tests/) | ADF + KPSS testing before modeling |
+| [drift-detection](validation/drift-detection/) | Detect feature, prediction, and concept drift with PSI |
+| [shap-analysis](validation/shap-analysis/) | SHAP values for model interpretability |
+
+### Backtest (6)
+
+| Skill | Description |
+|-------|-------------|
+| [run-backtest](backtest/run-backtest/) | Event-driven backtesting with realistic execution |
+| [tearsheet](backtest/tearsheet/) | Standard performance report with drawdown analysis |
+| [vectorized-backtest](backtest/vectorized-backtest/) | Fast signal evaluation with matrix operations |
+| [cost-model](backtest/cost-model/) | Multi-component cost model with capacity analysis |
+| [regime-backtest](backtest/regime-backtest/) | Per-regime performance decomposition |
+| [sensitivity-analysis](backtest/sensitivity-analysis/) | Parameter robustness testing |
+
+### Portfolio (6)
+
+| Skill | Description |
+|-------|-------------|
+| [position-sizing](portfolio/position-sizing/) | Volatility-targeted sizing and Kelly criterion |
+| [portfolio-optimize](portfolio/portfolio-optimize/) | Mean-variance with shrinkage and practical constraints |
+| [risk-metrics](portfolio/risk-metrics/) | Sharpe, Sortino, VaR, CVaR, drawdown analysis |
+| [stress-test](portfolio/stress-test/) | Historical and hypothetical scenario testing |
+| [exposure-analysis](portfolio/exposure-analysis/) | Factor, sector, and concentration decomposition |
+| [kill-switch](portfolio/kill-switch/) | Automated risk limits that halt trading |
+
+### Advanced AI (5)
+
+| Skill | Description |
+|-------|-------------|
+| [rl-execution](advanced-ai/rl-execution/) | RL for adaptive trade execution |
+| [rag-financial-research](advanced-ai/rag-financial-research/) | RAG systems for financial document analysis |
+| [knowledge-graphs](advanced-ai/knowledge-graphs/) | Financial entity relationship modeling |
+| [agent-orchestration](advanced-ai/agent-orchestration/) | Multi-agent trading system design |
+| [agent-risk-controls](advanced-ai/agent-risk-controls/) | Safety controls for autonomous trading agents |
+
+### Production (4)
+
+| Skill | Description |
+|-------|-------------|
+| [live-trading](production/live-trading/) | Zero-code-change backtest-to-live deployment |
+| [mlops-pipeline](production/mlops-pipeline/) | ML model lifecycle management |
+| [model-governance](production/model-governance/) | Model risk management and compliance |
+| [monitoring-alerting](production/monitoring-alerting/) | Real-time monitoring with automated alerts |
+
+### Infrastructure (4)
+
+| Skill | Description |
+|-------|-------------|
+| [canonical-schema](infrastructure/canonical-schema/) | Standardized column names: `symbol`, `timestamp`, `product` |
+| [registry-system](infrastructure/registry-system/) | Content-addressed experiment tracking |
+| [polars-patterns](infrastructure/polars-patterns/) | Polars-first patterns for financial data processing |
+| [case-study-pipeline](infrastructure/case-study-pipeline/) | Structured ML pipeline from data to predictions |
+
+### Workflows (5)
+
+| Skill | Description |
+|-------|-------------|
+| [strategy-workflow](workflows/strategy-workflow/) | End-to-end strategy development lifecycle |
+| [factor-research](workflows/factor-research/) | Systematic multi-factor evaluation process |
+| [model-validation](workflows/model-validation/) | Multi-gate validation before deployment |
+| [production-readiness](workflows/production-readiness/) | Pre-production checklist |
+| [case-study-development](workflows/case-study-development/) | Complete case study from hypothesis to results |
+
+## Supporting Libraries
+
+Skills reference these production libraries in their "Production Implementation" sections:
+
+| Library | Purpose | PyPI |
+|---------|---------|------|
+| `ml4t-data` | Data providers, schema enforcement | [ml4t-data](https://pypi.org/project/ml4t-data/) |
+| `ml4t-engineer` | Feature engineering, labeling | [ml4t-engineer](https://pypi.org/project/ml4t-engineer/) |
+| `ml4t-diagnostic` | Cross-validation, evaluation | [ml4t-diagnostic](https://pypi.org/project/ml4t-diagnostic/) |
+| `ml4t-backtest` | Event-driven backtesting | [ml4t-backtest](https://pypi.org/project/ml4t-backtest/) |
+| `ml4t-live` | Live trading, risk controls | [ml4t-live](https://pypi.org/project/ml4t-live/) |
 
 ## Contributing
 
-When adding new skills:
-
-1. Create directory: `mkdir skills/<category>/<skill-name>/`
-2. Write `skill.md` following the template
-3. Include book chapter references
-4. Add API examples for operational skills
-5. Document dependencies on other skills
+1. Create directory: `mkdir <category>/<skill-name>/`
+2. Write `SKILL.md` following the template in `.claude/CLAUDE.md`
+3. Verify against the 5 quality gates (structure, 80/20 split, content, utility, integration)
+4. Ensure dependencies exist and the dependency graph is acyclic

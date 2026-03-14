@@ -1,87 +1,115 @@
 ---
 name: ml4t-strategy-term-sheet
-description: Document strategies before testing with falsifiable hypotheses
-category: concepts
-type: conceptual
+description: Document strategy hypotheses before backtesting with falsifiable, pre-registered specifications. Use when starting strategy research, defining a new signal, or preparing for backtest evaluation.
 dependencies: [backtest-overfitting]
-book_chapters: [2]
+metadata:
+  book_chapters: "1, 6"
+  library: ""
 ---
 
 # Strategy Term Sheet
 
-Version-controlled specification documenting strategy BEFORE backtesting.
+A version-controlled specification that documents a strategy's hypothesis, implementation, and success criteria BEFORE any backtest is run. Without pre-registration, every positive result is indistinguishable from post-hoc rationalization.
 
-## Purpose
+## The Problem
 
-| Audience | Use |
-|----------|-----|
-| You | Verify implementation matches intent |
-| Teams | Shared spec for PM, data, ML |
-| Risk | MRM audit trail |
-| Future self | "Why did I build this?" |
+The natural workflow -- explore data, find a pattern, backtest it, then write up the rationale -- guarantees overfitting. After seeing results, humans unconsciously construct narratives that explain why the strategy "should" work. A term sheet written before the backtest forces you to commit to a falsifiable hypothesis. If the hypothesis was wrong, you learn something. If you write the hypothesis after seeing results, you learn nothing.
 
-## Structure
+## The Pattern
 
-### 1. Header
-```yaml
-name: "Cross-Asset ETF Momentum v1.0"
-classification: Price-Based | Fundamental | Structural | ML-Driven
-lifecycle_stage: Discovery | Publication | Crowding | Decay
-status: Research | Backtesting | Paper Trading | Live | Retired
+### WRONG
+
+```python
+# Backtest first, rationalize later
+results = backtest(params)
+if results.sharpe > 1.5:
+    write_report(
+        title="Cross-Asset Momentum Strategy",
+        rationale="Momentum works because of behavioral underreaction...",
+        # Rationalization written AFTER seeing the results
+    )
 ```
 
-### 2. Four-Component Hypothesis
+### CORRECT
+
+```yaml
+# hypothesis.yaml -- committed to git BEFORE any backtest
+name: "Cross-Asset ETF Momentum v1.0"
+status: pre-registered
+
+hypothesis:
+  mechanism: >
+    Institutional rebalancing creates short-term momentum in ETF returns.
+    Monthly flows into winning asset classes persist for 3-12 months due
+    to allocation committee review cycles.
+  metric: "Risk-adjusted 6-month return (Sharpe-normalized momentum)"
+  outcome: "Top-quintile momentum ETFs outperform bottom quintile by 4%+ annualized"
+  durability: >
+    Institutional allocation cycles are structural, not arbitrageable by
+    fast capital because the flow is driven by policy, not information.
+
+success_criteria:
+  min_sharpe: 0.8
+  min_ic: 0.03
+  max_drawdown: -0.25
+  min_backtest_years: 10
+
+kill_conditions:
+  - "Sharpe < 0.5 over any rolling 3-year window"
+  - "IC turns negative for 6+ consecutive months"
+  - "Costs exceed 40% of gross alpha"
+```
+
+```bash
+git add hypothesis.yaml
+git commit -m "Pre-register: Cross-Asset ETF Momentum v1.0"
+# NOW run the backtest
+```
+
+## Four-Component Hypothesis
+
+Every strategy term sheet must answer four questions:
 
 | Component | Question | Requirement |
 |-----------|----------|-------------|
-| Mechanism | Why does it work? | Economic rationale (not curve fit) |
-| Metric | What data operationalizes it? | Exact formula, lookback, thresholds |
-| Outcome | What are you predicting? | Pre-defined success criteria |
-| Durability | Why will it persist? | Why not arbitraged away |
+| **Mechanism** | Why does this work? | Economic rationale, not curve fitting |
+| **Metric** | What data operationalizes it? | Exact formula, lookback, and thresholds |
+| **Outcome** | What are you predicting? | Quantitative, falsifiable success criteria |
+| **Durability** | Why will it persist? | Structural reason it is not arbitraged away |
 
-### 3. Implementation Blueprint
-- Universe definition (precise filters)
-- Feature formulas (code-ready)
-- Signal generation logic
-- Position sizing method
-- Rebalancing rules
+If you cannot fill in all four before backtesting, the idea is not ready to test.
 
-### 4. Feasibility
-- Transaction cost breakdown (bps)
-- Safety margin: gross_alpha / costs >= 2.5x
-- Maximum AUM with justification
+## Implementation Blueprint
 
-### 5. Risk Framework
-- OOS testing periods (train/test/holdout)
-- Performance thresholds (pre-committed)
-- Kill conditions (when to retire)
+The term sheet should also specify enough detail to reproduce the backtest:
 
-## Rules
-
-```python
-# WRONG: Backtest first, document later
-results = backtest(params)
-if results.sharpe > 1.5:
-    write_term_sheet(params)  # Post-hoc rationalization
-
-# CORRECT: Document first, commit, then test
-term_sheet.write("hypothesis.md")
-git.commit("Pre-registered hypothesis")
-results = backtest(params)
-term_sheet.update("results.md")
+```yaml
+implementation:
+  universe: "Top 100 US ETFs by AUM, excluding leveraged and inverse"
+  features:
+    - "6-month total return, volatility-adjusted"
+    - "3-month flow momentum (estimated from volume)"
+  rebalance: "Monthly, last trading day"
+  position_sizing: "Equal-weight top quintile long, bottom quintile short"
+  costs:
+    spread_bps: 3
+    impact_model: "square_root"
+    safety_margin: "2.5x minimum"
 ```
 
 ## Guardrails
 
-- Write success thresholds BEFORE seeing results
-- All formulas must translate directly to code
-- Kill conditions you're actually willing to enforce
-- Version control with atomic commits
+- The term sheet must be committed to version control before any code touches data.
+- Success criteria must be quantitative and falsifiable ("Sharpe > 0.8"), not vague ("good risk-adjusted returns").
+- Kill conditions must be thresholds you are actually willing to enforce.
+- Every formula in the term sheet must translate directly to code -- no ambiguous prose.
+- Update the term sheet with results after backtesting, but never change the pre-registered criteria.
 
 ## Checklist
 
-- [ ] Mechanism explains WHY (not just WHAT)
-- [ ] Hypothesis is falsifiable
-- [ ] Success criteria pre-committed
-- [ ] Term sheet committed to git before backtest
-- [ ] Safety margin >= 2.5x
+- [ ] Four-component hypothesis complete (mechanism, metric, outcome, durability)
+- [ ] Success criteria are quantitative and falsifiable
+- [ ] Kill conditions defined with specific thresholds
+- [ ] Term sheet committed to git BEFORE any backtest code runs
+- [ ] Implementation blueprint detailed enough to reproduce the backtest
+- [ ] Safety margin >= 2.5x documented in feasibility section

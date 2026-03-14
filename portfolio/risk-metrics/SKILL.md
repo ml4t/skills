@@ -1,119 +1,104 @@
 ---
 name: ml4t-risk-metrics
-description: Calculate portfolio risk measures (VaR, CVaR, drawdown)
-category: portfolio
-type: operational
+description: Compute comprehensive portfolio risk measures including drawdown, VaR, CVaR, and tail metrics. Use when evaluating strategy performance or setting risk limits.
 dependencies: []
-book_chapters: [20]
+metadata:
+  book_chapters: "19"
+  library: "ml4t-diagnostic"
 ---
 
 # Risk Metrics
 
-Measure and monitor portfolio risk.
+A strategy with Sharpe 1.5 and max drawdown -55% will get shut down before it recovers. Reporting returns without drawdowns, tail risk, and duration metrics hides the path dependency that determines whether a strategy survives.
 
-## Key Metrics
+## The Problem
 
-| Metric | Definition | Use |
-|--------|------------|-----|
-| Volatility | std(returns) * sqrt(252) | Baseline risk |
-| VaR | Quantile of loss distribution | Tail risk |
-| CVaR (ES) | Expected loss beyond VaR | Extreme risk |
-| Max DD | Largest peak-to-trough | Drawdown risk |
-| Sortino | return / downside_std | Downside-focused |
+Sharpe ratio is the default performance metric, but it treats upside and downside volatility equally and says nothing about tail losses. A strategy can have a high Sharpe while hiding a -40% drawdown that takes 18 months to recover. Fund managers and allocators care about max drawdown, time underwater, and worst-case losses — because those determine whether the strategy (and the fund) survives. Always report drawdown alongside return metrics.
 
-## Value at Risk
+## The Pattern
 
+### WRONG
 ```python
-def var(returns: np.ndarray, confidence: float = 0.95) -> float:
-    """Historical VaR."""
-    return np.percentile(returns, (1 - confidence) * 100)
+import numpy as np
 
-def var_parametric(
-    portfolio_return: float,
-    portfolio_vol: float,
-    confidence: float = 0.95
-) -> float:
-    """Parametric VaR assuming normality."""
-    from scipy.stats import norm
-    z = norm.ppf(1 - confidence)
-    return portfolio_return + z * portfolio_vol
+returns = strategy_returns  # daily
+sharpe = returns.mean() / returns.std() * np.sqrt(252)
+print(f"Sharpe: {sharpe:.2f}")  # Looks great — ships it
 ```
 
-## Conditional VaR (Expected Shortfall)
-
+### CORRECT
 ```python
-def cvar(returns: np.ndarray, confidence: float = 0.95) -> float:
-    """Expected loss beyond VaR."""
-    var_threshold = var(returns, confidence)
-    return returns[returns <= var_threshold].mean()
+import numpy as np
+from scipy.stats import norm
+
+returns = strategy_returns  # daily, numpy array
+
+# Return metrics
+sharpe = returns.mean() / returns.std() * np.sqrt(252)
+downside = returns[returns < 0]
+sortino = returns.mean() / np.sqrt((downside ** 2).mean()) * np.sqrt(252)
+
+# Drawdown
+cumulative = np.cumprod(1 + returns)
+running_max = np.maximum.accumulate(cumulative)
+drawdown = (cumulative - running_max) / running_max
+max_dd = drawdown.min()
+calmar = (returns.mean() * 252) / abs(max_dd)
+
+# Tail risk (95% confidence)
+var_95 = np.percentile(returns, 5)
+cvar_95 = returns[returns <= var_95].mean()
+
+print(f"Sharpe: {sharpe:.2f} | Sortino: {sortino:.2f} | Calmar: {calmar:.2f}")
+print(f"Max DD: {max_dd:.1%} | VaR(95): {var_95:.1%} | CVaR(95): {cvar_95:.1%}")
 ```
 
-## Maximum Drawdown
+## Metric Reference
+
+| Metric | Formula | Measures |
+|--------|---------|----------|
+| Sharpe | mean(r) / std(r) * sqrt(252) | Risk-adjusted return |
+| Sortino | mean(r) / downside_std * sqrt(252) | Downside-adjusted return |
+| Max drawdown | max peak-to-trough decline | Worst cumulative loss |
+| Calmar | ann_return / \|max_dd\| | Return per unit of drawdown |
+| VaR(95%) | 5th percentile of returns | Daily loss threshold |
+| CVaR(95%) | mean of returns below VaR | Expected loss in tail |
+
+## Parametric vs Historical VaR
 
 ```python
-def max_drawdown(returns: pl.Series) -> dict:
-    """Calculate maximum drawdown and duration."""
-    cumulative = (1 + returns).cumprod()
-    running_max = cumulative.cummax()
-    drawdown = (cumulative - running_max) / running_max
+# Historical: uses actual distribution (captures fat tails)
+var_hist = np.percentile(returns, 5)
 
-    max_dd = drawdown.min()
-    end_idx = drawdown.arg_min()
+# Parametric: assumes normal (underestimates tails)
+var_param = returns.mean() + norm.ppf(0.05) * returns.std()
 
-    # Find start (peak before trough)
-    start_idx = cumulative[:end_idx].arg_max()
-
-    # Find recovery
-    recovery = (cumulative[end_idx:] >= cumulative[start_idx]).arg_max()
-
-    return {
-        'max_drawdown': max_dd,
-        'start': start_idx,
-        'trough': end_idx,
-        'recovery': recovery,
-        'duration': end_idx - start_idx
-    }
-```
-
-## Sortino Ratio
-
-```python
-def sortino_ratio(
-    returns: np.ndarray,
-    target: float = 0,
-    annualize: bool = True
-) -> float:
-    """Return per unit of downside risk."""
-    excess = returns - target
-    downside = excess[excess < 0]
-    downside_std = np.sqrt(np.mean(downside ** 2))
-
-    ratio = returns.mean() / downside_std
-    if annualize:
-        ratio *= np.sqrt(252)
-    return ratio
-```
-
-## Calmar Ratio
-
-```python
-def calmar_ratio(returns: np.ndarray) -> float:
-    """Annualized return / max drawdown."""
-    annual_return = returns.mean() * 252
-    max_dd = max_drawdown(returns)['max_drawdown']
-    return annual_return / abs(max_dd)
+# Always prefer historical unless you need scenario-based VaR
 ```
 
 ## Guardrails
 
-- VaR underestimates tail risk (use CVaR)
-- Historical VaR assumes future like past
-- Max DD looks backwards; monitor current DD
-- Annualize consistently (sqrt(252) for daily)
+- Never report Sharpe alone — always include max drawdown and Calmar at minimum
+- VaR underestimates tail risk by design — pair it with CVaR (Expected Shortfall)
+- Historical VaR assumes the past contains the worst case — it does not
+- Annualize consistently: multiply mean by 252, std by sqrt(252) for daily data
+- Monitor current drawdown in real time, not just historical max
+
+## Production Implementation
+
+`ml4t-diagnostic` provides validated risk computation:
+
+```python
+from ml4t.diagnostic import PortfolioAnalysis
+
+pa = PortfolioAnalysis(returns=equity_curve, benchmark=benchmark_curve)
+report = pa.summary()  # Sharpe, Sortino, max_dd, Calmar, VaR, CVaR, etc.
+```
 
 ## Checklist
 
-- [ ] Multiple risk metrics calculated
-- [ ] CVaR for tail risk
-- [ ] Drawdown tracked continuously
-- [ ] Risk limits defined per metric
+- [ ] Sharpe, Sortino, and Calmar all reported (not Sharpe alone)
+- [ ] Max drawdown and drawdown duration computed
+- [ ] CVaR computed alongside VaR for tail risk
+- [ ] Metrics annualized consistently (daily * sqrt(252))
+- [ ] Current drawdown monitored in live systems (not just historical max)

@@ -1,113 +1,119 @@
 ---
 name: ml4t-factor-research
-description: Workflow for evaluating new alpha factors
-category: workflows
-type: workflow
-dependencies: [feature-families, information-coefficient, evaluate-factor, feature-validation]
-book_chapters: [7, 9]
+description: Systematic factor research process from hypothesis through IC analysis, decay profiling, and capacity assessment. Use when evaluating a new alpha factor or auditing an existing factor for deployment readiness.
+dependencies: [information-coefficient, feature-families, feature-validation, horizon-design, evaluate-factor]
+metadata:
+  book_chapters: "7, 8"
+  library: "ml4t-diagnostic"
 ---
 
 # Factor Research Workflow
 
-Systematic process for evaluating new alpha factors.
+Testing one factor on one period and deploying is data mining. Systematic factor research requires IC significance, stability across subperiods, decay profiling, and capacity estimation before any factor enters a model.
 
-## Stage Overview
+## The Problem
 
-```
-1. Hypothesis → 2. Compute → 3. Validate → 4. Evaluate → 5. Decision
-```
+A researcher computes 12-month momentum, sees a positive rank IC of 0.04, and adds it to the model. Six months later, the factor IC has collapsed. The problem: the IC was estimated on one period without significance testing, there was no check for stability or decay, and the factor's capacity was never assessed. A factor that "works" on paper but fails in production is worse than no factor at all.
 
-## Stage 1: Hypothesis
+## The Pattern
 
-```python
-factor_hypothesis = {
-    'name': 'momentum_12m',
-    'mechanism': 'Trend persistence due to slow information diffusion',
-    'expected_horizon': '1-3 months',
-    'expected_ic': '0.03-0.05',
-    'kill_criteria': 'IC < 0.01 or non-monotonic quantiles'
-}
-```
-
-## Stage 2: Compute Factor
+### WRONG
 
 ```python
-def compute_factor(prices: pl.DataFrame) -> pl.Series:
-    """12-month momentum factor."""
-    return prices['close'].pct_change(252)
+# Test one factor, one period, deploy on a single positive number
+import numpy as np
+from scipy.stats import spearmanr
 
-# Compute with no lookahead
-factor = (
-    prices
-    .group_by('symbol')
-    .apply(compute_factor)
-    .with_columns(pl.col('factor').shift(1))  # Lag
-)
+factor = prices.pct_change(252)  # 12-month momentum
+fwd_ret = prices.pct_change(21).shift(-21)  # 1-month forward return
+
+ic, _ = spearmanr(factor.dropna(), fwd_ret.dropna())
+print(f"IC: {ic:.3f}")  # 0.04 — looks good, ship it
 ```
 
-## Stage 3: Validate Quality
+### CORRECT
 
 ```python
-# 1. Check stationarity
-stationarity = test_stationarity(factor)
-assert stationarity['is_stationary'], "Factor not stationary"
+# Systematic evaluation: IC series → significance → stability → decay → capacity
+import numpy as np
+import polars as pl
+from scipy.stats import spearmanr
 
-# 2. Check coverage
-coverage = factor.null_count() / len(factor)
-assert coverage < 0.05, f"Too many nulls: {coverage:.1%}"
+# Step 1: Compute cross-sectional IC for every rebalance date
+ic_series = []
+for date in rebalance_dates:
+    cross_section = data.filter(pl.col("timestamp") == date)
+    ic, _ = spearmanr(cross_section["factor"], cross_section["fwd_ret"])
+    ic_series.append({"timestamp": date, "ic": ic})
 
-# 3. Check outliers
-outlier_pct = (factor.abs() > 5 * factor.std()).mean()
-factor = winsorize(factor, limits=(0.01, 0.99))
+ic_df = pl.DataFrame(ic_series)
+
+# Step 2: Significance with HAC standard errors (Newey-West)
+ic_mean = ic_df["ic"].mean()
+ic_std = ic_df["ic"].std()
+n = len(ic_df)
+# Newey-West adjustment for autocorrelation (see ml4t-information-coefficient)
+t_stat = ic_mean / (ic_std / np.sqrt(n))  # Simplified; use HAC for production
+
+# Step 3: Stability — split into subperiods
+midpoint = n // 2
+ic_first_half = ic_df[:midpoint]["ic"].mean()
+ic_second_half = ic_df[midpoint:]["ic"].mean()
+
+# Step 4: Decay — test multiple horizons (see ml4t-horizon-design)
+for horizon in [1, 5, 10, 21, 63]:
+    fwd = prices.pct_change(horizon).shift(-horizon)
+    ic_h, _ = spearmanr(factor.dropna(), fwd.dropna())
+    print(f"  {horizon}d IC: {ic_h:.4f}")
+
+# Step 5: Decision gate
+print(f"IC: {ic_mean:.4f} (t={t_stat:.2f})")
+print(f"Stability: {ic_first_half:.4f} / {ic_second_half:.4f}")
+assert abs(t_stat) > 2.0, "IC not statistically significant"
+assert ic_first_half * ic_second_half > 0, "IC sign flipped across subperiods"
 ```
 
-## Stage 4: Evaluate Predictive Power
+## Five-Gate Evaluation
+
+| Gate | Metric | Threshold | Skill Reference |
+|------|--------|-----------|-----------------|
+| Significance | IC t-stat (HAC) | > 2.0 | `ml4t-information-coefficient` |
+| Stability | Subperiod IC sign agreement | Same sign in all halves | `ml4t-feature-validation` |
+| Decay | Half-life vs rebalance frequency | Half-life > 2x rebalance period | `ml4t-horizon-design` |
+| Uniqueness | Correlation with existing factors | < 0.7 rank correlation | `ml4t-feature-families` |
+| Capacity | Turnover-implied trading volume | Tradeable at target AUM | `ml4t-evaluate-factor` |
+
+A factor must pass all five gates. Passing three out of five is not enough — a factor that is significant but unstable will cause regime-dependent blowups.
+
+## Guardrails
+
+- If IC > 0.10 on daily equity data, suspect lookahead bias — real equity ICs are typically 0.02-0.05
+- If factor turnover exceeds 50% monthly, capacity is likely constrained — check with `ml4t-evaluate-factor`
+- If IC is high but quantile returns are non-monotonic, the signal is noisy and may not translate to returns
+- If subperiod ICs disagree in sign, the factor is likely spurious regardless of full-period IC
+
+## Production Implementation
+
+`ml4t-diagnostic` provides HAC-adjusted IC statistics and factor evaluation:
 
 ```python
-from ml4t.diagnostic.factor_analysis import FactorAnalyzer
+from ml4t.diagnostic.evaluation import compute_ic_series, compute_ic_hac_stats
+from ml4t.diagnostic import Evaluator
 
-analyzer = FactorAnalyzer(
-    factor=factor,
-    forward_returns=returns,
-    quantiles=5,
-    periods=[1, 5, 21]
-)
+ic = compute_ic_series(factor=factor_values, forward_returns=fwd_returns)
+stats = compute_ic_hac_stats(ic)  # Newey-West adjusted t-stat
 
-results = analyzer.analyze()
-
-# Key checks
-assert results.ic_mean > 0.02, f"IC too low: {results.ic_mean:.3f}"
-assert results.ic_ir > 0.3, f"IC unstable: {results.ic_ir:.2f}"
-assert results.quantile_monotonic, "Non-monotonic quantiles"
+evaluator = Evaluator(config={"quantiles": 5, "periods": [1, 5, 21]})
+report = evaluator.evaluate(features=features, labels=labels)
 ```
 
-## Stage 5: Decision
+## Checklist
 
-```python
-def factor_decision(results: dict, hypothesis: dict) -> str:
-    """Decide whether to proceed with factor."""
-    checks = {
-        'ic_above_threshold': results.ic_mean > 0.02,
-        'quantiles_monotonic': results.quantile_monotonic,
-        'ic_stable': results.ic_ir > 0.3,
-        'turnover_acceptable': results.turnover < 0.5,
-        'decay_matches_horizon': results.optimal_horizon in [5, 21]
-    }
-
-    passed = sum(checks.values())
-    if passed >= 4:
-        return 'PROCEED'
-    elif passed >= 2:
-        return 'INVESTIGATE'
-    return 'REJECT'
-```
-
-## Checkpoints
-
-- [ ] Economic hypothesis documented
-- [ ] Factor computed with no lookahead
-- [ ] Stationarity verified
-- [ ] IC and IC IR calculated
-- [ ] Quantile returns checked for monotonicity
-- [ ] Turnover estimated
-- [ ] Decision criteria applied
+- [ ] Economic hypothesis documented with mechanism and expected IC range
+- [ ] Factor computed with no lookahead (lagged by at least one period)
+- [ ] IC series computed cross-sectionally for every rebalance date
+- [ ] IC significance tested with HAC standard errors (t > 2.0)
+- [ ] Subperiod stability verified (IC same sign in both halves)
+- [ ] Decay profile computed across multiple horizons
+- [ ] Uniqueness checked against existing factor correlation matrix
+- [ ] Capacity estimated based on turnover and universe liquidity

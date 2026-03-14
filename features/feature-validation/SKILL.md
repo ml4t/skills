@@ -1,92 +1,119 @@
 ---
 name: ml4t-feature-validation
-description: Quality checks before using features in models
-category: features
-type: operational
-dependencies: [validate-data, information-coefficient]
-book_chapters: [7, 9]
+description: Validate features before training — IC significance, stability over time, redundancy, and lookahead contamination checks. Use when adding new features to a model or auditing an existing feature set.
+dependencies: [lookahead-bias]
+metadata:
+  book_chapters: "7, 8"
+  library: "ml4t-diagnostic"
 ---
 
 # Feature Validation
 
-Verify features are clean and predictive before modeling.
+A feature with IC of 0.05 on the full sample may have IC of 0.12 in one year and -0.03 in every other year. Without validation, the model trains on noise disguised as signal.
 
-## Quality Checks
+## The Problem
 
-| Check | Method | Action |
-|-------|--------|--------|
-| Missing values | `null_count()` | Impute or drop |
-| Outliers | `abs(z) > 5` | Winsorize |
-| Stationarity | ADF test | Difference |
-| Constant | `nunique() < 10` | Drop |
-| Leakage | IC decay | Investigate |
+Skipping feature validation leads to three failure modes: (1) features with high IC from lookahead contamination, (2) features that are predictive in one regime but useless overall, (3) redundant features that waste model capacity. All three inflate backtest performance and fail live.
 
-## Validation Pipeline
+## The Pattern
 
+### WRONG
 ```python
-def validate_features(X: pl.DataFrame, y: pl.Series) -> dict:
-    """Run feature quality checks."""
-    results = {}
+from sklearn.ensemble import GradientBoostingRegressor
 
-    for col in X.columns:
-        results[col] = {
-            'null_pct': X[col].null_count() / len(X),
-            'unique_pct': X[col].n_unique() / len(X),
-            'outlier_pct': (X[col].abs() > 5 * X[col].std()).mean(),
-            'ic': information_coefficient(X[col], y).mean(),
-        }
-
-    return results
+# Train on all features without any validation — overfitting guaranteed
+model = GradientBoostingRegressor(n_estimators=200)
+model.fit(X_train, y_train)  # 50 features, no idea which are noise
 ```
 
-## Outlier Treatment
-
+### CORRECT
 ```python
-def winsorize(x: pl.Series, limits: tuple = (0.01, 0.99)) -> pl.Series:
-    """Clip extreme values."""
-    lower = x.quantile(limits[0])
-    upper = x.quantile(limits[1])
-    return x.clip(lower, upper)
+from scipy.stats import spearmanr
+import numpy as np
+import polars as pl
+
+def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray) -> dict:
+    """Screen a single feature for predictive quality."""
+    # 1. Overall IC
+    ic, p_value = spearmanr(feature[~np.isnan(feature)], target[~np.isnan(feature)])
+
+    # 2. Rolling IC stability (quarterly windows)
+    unique_quarters = np.unique(dates.astype("datetime64[Q]"))
+    quarterly_ics = []
+    for q in unique_quarters:
+        mask = dates.astype("datetime64[Q]") == q
+        if mask.sum() > 30:
+            qic, _ = spearmanr(feature[mask], target[mask])
+            quarterly_ics.append(qic)
+
+    ic_mean = np.nanmean(quarterly_ics)
+    ic_std = np.nanstd(quarterly_ics)
+    ic_ir = ic_mean / ic_std if ic_std > 0 else 0  # IC information ratio
+
+    # 3. Leakage flag
+    leakage_flag = abs(ic) > 0.10
+
+    return {
+        "ic": ic, "p_value": p_value, "ic_ir": ic_ir,
+        "pct_positive_quarters": np.mean([q > 0 for q in quarterly_ics]),
+        "leakage_flag": leakage_flag,
+    }
 ```
 
-## Leakage Detection
+## Validation Checklist Sequence
+
+Run these in order before adding any feature to a model:
+
+| Step | Check | Pass Criteria |
+|------|-------|---------------|
+| 1. Completeness | Null percentage | < 5% (or documented imputation) |
+| 2. Outliers | Values beyond 5 sigma | < 1% (winsorize if needed) |
+| 3. IC significance | Spearman rank correlation | p-value < 0.05 |
+| 4. IC stability | Quarterly IC information ratio | IC-IR > 0.5 |
+| 5. Leakage screen | Absolute IC threshold | \|IC\| < 0.10 or explained mechanism |
+| 6. Redundancy | Pairwise correlation with existing features | < 0.7 |
+
+## IC Decay Analysis
 
 ```python
-# Suspiciously high IC suggests leakage
-if ic > 0.3:
-    print(f"WARNING: {col} has IC={ic:.2f}, check for leakage")
-
-# IC should decay with horizon
-for horizon in [1, 5, 20, 60]:
-    ic = information_coefficient(X[col], returns.shift(-horizon))
-    print(f"IC at {horizon}d: {ic:.3f}")
-```
-
-## Stability Analysis
-
-```python
-# Check IC stability across time
-rolling_ic = []
-for start in pd.date_range(X.index.min(), X.index.max(), freq='Q'):
-    end = start + pd.DateOffset(months=3)
-    ic = information_coefficient(X.loc[start:end], y.loc[start:end])
-    rolling_ic.append(ic)
-
-# High variance = unstable feature
-ic_ir = np.mean(rolling_ic) / np.std(rolling_ic)
+def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> dict:
+    """IC should decay with horizon — if it doesn't, suspect leakage."""
+    decay = {}
+    for h in horizons:
+        fwd = np.roll(returns, -h)  # forward returns at horizon h
+        valid = ~np.isnan(feature) & ~np.isnan(fwd)
+        ic, _ = spearmanr(feature[valid], fwd[valid])
+        decay[h] = ic
+    return decay  # Expect: decreasing |IC| as h increases
 ```
 
 ## Guardrails
 
-- High IC (>0.1) is suspicious without clear mechanism
-- IC should decay with prediction horizon
-- Unstable features may be noise
-- Cross-sectional and time-series IC can differ
+- **IC > 0.10 is suspicious** — nearly always lookahead contamination in daily equity data
+- **IC-IR < 0.5 means unstable** — the feature works sometimes but is overall unreliable
+- **Non-decaying IC across horizons** — strong sign of information leakage
+- **Always validate on expanding windows** — never compute IC on the full sample at once
+
+## Production Implementation
+
+`ml4t-diagnostic` provides a validated feature evaluation pipeline:
+
+```python
+from ml4t.diagnostic.metrics import compute_ic_series, compute_ic_hac_stats
+from ml4t.diagnostic import FeatureSelector
+
+ic_series = compute_ic_series(features, forward_returns, method="spearman")
+stats = compute_ic_hac_stats(ic_series)  # HAC-corrected t-stats
+
+selector = FeatureSelector(method="ic", k=20, min_stability=0.5)
+report = selector.fit(X, y, cv=tscv)
+```
 
 ## Checklist
 
-- [ ] Missing values handled
-- [ ] Outliers winsorized
-- [ ] IC calculated per feature
-- [ ] Leakage check (IC too high?)
-- [ ] Stability across time assessed
+- [ ] Every feature has IC computed with p-value < 0.05
+- [ ] IC stability checked across time (IC-IR > 0.5)
+- [ ] Any feature with |IC| > 0.10 investigated for leakage
+- [ ] IC decay across horizons is monotonically decreasing
+- [ ] Pairwise correlation < 0.7 with all other selected features
+- [ ] Null percentage < 5% and outliers winsorized

@@ -1,155 +1,120 @@
 ---
 name: ml4t-production-readiness
-description: Checklist for deploying strategies to production
-category: workflows
-type: workflow
-dependencies: [model-validation, drift-detection, kill-switch, exposure-analysis]
-book_chapters: [26, 27]
+description: Pre-deployment checklist covering data pipelines, risk limits, monitoring, and governance. Use when a validated strategy is being prepared for live capital.
+dependencies: [kill-switch, drift-detection, cost-model, risk-metrics]
+metadata:
+  book_chapters: "26, 27"
+  library: "ml4t-live"
 ---
 
 # Production Readiness
 
-Final checklist before deploying a strategy to production.
+A validated backtest is not a production system. The gap between "model works" and "strategy can run unattended with real money" requires infrastructure that most teams skip until the first incident.
 
-## Stage Overview
+## The Problem
 
-```
-1. Model → 2. Data → 3. Execution → 4. Monitoring → 5. Governance
-```
+A team deploys a model that passed validation. On day three, the data vendor has an outage. The model receives stale prices, generates signals, and the execution system submits orders on bad data. There is no kill switch, no staleness check, no alert. By the time someone notices, the strategy has lost two months of expected returns in a single session. Every production failure traces back to missing infrastructure, not bad models.
 
-## Stage 1: Model Artifacts
+## The Pattern
 
-```python
-ARTIFACTS_CHECKLIST = {
-    'model_file': 'models/strategy_v1.pkl',
-    'feature_config': 'config/features.yaml',
-    'cost_model': 'config/costs.yaml',
-    'risk_limits': 'config/limits.yaml',
-    'version': 'v1.0.0'
-}
-
-# Version control
-assert all_artifacts_in_git(ARTIFACTS_CHECKLIST)
-assert model_hash_matches_training_log()
-```
-
-## Stage 2: Data Pipeline
+### WRONG
 
 ```python
-DATA_CHECKLIST = {
-    'sources_documented': True,
-    'refresh_schedule': 'daily 6:00 AM ET',
-    'fallback_configured': True,
-    'validation_enabled': True,
-    'pit_correctness_verified': True
-}
+# Model works in backtest — deploy directly
+import pickle
+from broker_api import submit_orders
 
-def verify_data_pipeline():
-    """Pre-deployment data checks."""
-    # Test data freshness
-    latest = get_latest_data_timestamp()
-    assert latest >= yesterday(), "Stale data"
-
-    # Test fallback
-    with mock_source_failure():
-        data = load_data()
-        assert data is not None, "Fallback failed"
+model = pickle.load(open("best_model.pkl", "rb"))
+data = fetch_latest_data()
+signals = model.predict(data)
+orders = signals_to_orders(signals)
+for order in orders:
+    submit_orders(order)  # No limits, no monitoring, no kill switch
 ```
 
-## Stage 3: Execution System
+### CORRECT
 
 ```python
-EXECUTION_CHECKLIST = {
-    'broker_connectivity': test_broker_connection(),
-    'order_validation': test_order_limits(),
-    'position_reconciliation': True,
-    'cost_tracking': True,
-    'audit_logging': True
+# Five infrastructure layers before any live order
+import datetime as dt
+
+# Layer 1: DATA PIPELINE — validate freshness and integrity
+latest_ts = data_store.get_latest_timestamp()
+staleness = dt.datetime.now(dt.timezone.utc) - latest_ts
+assert staleness < dt.timedelta(hours=2), f"Data stale: {staleness}"
+assert data_store.validate_schema(), "Schema mismatch — pipeline broken"
+
+# Layer 2: MODEL VERSIONING — reproducibility and audit trail
+model_hash = compute_model_hash(model_path)
+assert model_hash == registry.get_deployed_hash(), "Model hash mismatch"
+assert registry.get_training_date(model_hash) > dt.date(2025, 6, 1), "Model too old"
+
+# Layer 3: RISK LIMITS — hard limits that cannot be overridden by signals
+risk_config = {
+    "max_position_pct": 0.05,       # No single position > 5% of portfolio
+    "max_sector_pct": 0.25,         # No sector > 25%
+    "max_daily_turnover": 0.20,     # Max 20% daily turnover
+    "max_drawdown_halt": 0.10,      # Halt trading at 10% drawdown
+    "max_gross_leverage": 1.5,      # Hard leverage cap
 }
 
-def test_order_flow():
-    """Paper trade before live."""
-    order = create_test_order(size=100, symbol='SPY')
-    result = paper_trade(order)
-    assert result.status == 'FILLED'
-    assert result.slippage < 0.001
+# Layer 4: MONITORING — detect problems before they compound
+# → Use ml4t-drift-detection for feature/prediction distribution shifts
+# → Use ml4t-risk-metrics for rolling drawdown and exposure tracking
+# Alerts fire on: data staleness, drift PSI > 0.25, drawdown > threshold
+
+# Layer 5: KILL SWITCH — automated and manual halt capability
+# → Use ml4t-kill-switch for implementation
+# Kill switch triggers: max drawdown, data staleness, model drift, manual override
+# Kill switch action: flatten all positions, cancel open orders, alert team
 ```
 
-## Stage 4: Monitoring
+## Five Readiness Layers
+
+| Layer | What It Covers | Failure Without It |
+|-------|---------------|-------------------|
+| Data pipeline | Freshness, schema validation, fallback sources | Trading on stale or corrupted data |
+| Model versioning | Hash verification, training metadata, feature config | Deploying wrong model, irreproducible results |
+| Risk limits | Position, sector, leverage, drawdown hard limits | Unbounded loss from signal errors |
+| Monitoring | Drift detection, performance tracking, alerting | Problems compound for hours/days before detection |
+| Kill switch | Automated halt + manual override + flatten capability | Cannot stop bleeding when something breaks |
+
+## Paper Trading Gate
+
+No strategy goes live without minimum 4 weeks of paper trading covering at least one rebalance cycle. Paper trading validates order generation, fill assumptions, data pipeline reliability, and monitoring/alerting behavior.
+
+## Guardrails
+
+- If you cannot explain exactly which model version is running, do not trade live
+- If the kill switch has not been tested (triggered and verified), it does not work
+- If data fallback has not been tested by simulating a source outage, assume it will fail
+- If drawdown limits exist only in code you can override, they are not real limits
+- If there is no on-call rotation or incident playbook, the first production issue will be chaotic
+
+## Production Implementation
+
+`ml4t-live` provides the infrastructure for safe live deployment:
 
 ```python
-MONITORING_CONFIG = {
-    'metrics': ['sharpe_rolling', 'drawdown', 'exposure', 'psi'],
-    'alert_thresholds': {
-        'drawdown': -0.15,
-        'psi': 0.25,
-        'sharpe_rolling': 0.5
-    },
-    'check_interval': 60,  # seconds
-    'alert_channels': ['slack', 'email', 'pagerduty']
-}
+from ml4t.backtest import Strategy  # Same Strategy class as backtest
+from ml4t.live import LiveEngine, AlpacaBroker, LiveRiskConfig, SafeBroker
 
-from ml4t.monitoring import start_monitoring
-
-monitor = start_monitoring(
-    portfolio=live_portfolio,
-    config=MONITORING_CONFIG,
-    kill_switch=kill_switch
+risk = LiveRiskConfig(
+    max_position_pct=0.05, max_drawdown_halt=0.10, max_gross_leverage=1.5
 )
+broker = SafeBroker(AlpacaBroker(), risk_config=risk)  # Wraps with limits
+engine = LiveEngine(strategy=MyStrategy(), broker=broker)
+engine.run()  # Includes built-in monitoring and kill switch
 ```
 
-## Stage 5: Governance
+## Checklist
 
-```python
-GOVERNANCE_CHECKLIST = {
-    'strategy_owner': 'team@example.com',
-    'risk_approval': 'risk_committee_2024_01_15',
-    'compliance_review': 'legal_2024_01_10',
-    'documentation': 'docs/strategy_v1/',
-    'incident_playbook': 'runbooks/strategy_v1.md',
-    'review_schedule': 'quarterly'
-}
-
-def generate_deployment_report():
-    """Generate deployment sign-off document."""
-    return {
-        'strategy': ARTIFACTS_CHECKLIST['version'],
-        'deployment_date': datetime.now().isoformat(),
-        'approvers': ['risk_officer', 'tech_lead', 'portfolio_manager'],
-        'validation_results': validation_results,
-        'monitoring_config': MONITORING_CONFIG
-    }
-```
-
-## Final Checklist
-
-```
-MODEL
-- [ ] Model artifacts versioned and reproducible
-- [ ] Training code matches deployed model
-- [ ] Feature pipeline identical to training
-
-DATA
-- [ ] Data sources documented
-- [ ] Refresh schedule configured
-- [ ] Fallback sources tested
-- [ ] Point-in-time correctness verified
-
-EXECUTION
-- [ ] Broker connectivity tested
-- [ ] Paper trading completed
-- [ ] Order limits configured
-- [ ] Position reconciliation automated
-
-MONITORING
-- [ ] Kill switch configured
-- [ ] Alert thresholds set
-- [ ] Drift detection enabled
-- [ ] Dashboard operational
-
-GOVERNANCE
-- [ ] Risk approval obtained
-- [ ] Compliance review complete
-- [ ] Documentation current
-- [ ] Incident playbook written
-```
+- [ ] Data pipeline validates freshness (staleness < threshold) and schema on every run
+- [ ] Fallback data source tested by simulating primary source failure
+- [ ] Deployed model hash matches training registry entry
+- [ ] Feature pipeline is identical between training and production (no train/serve skew)
+- [ ] Hard risk limits configured: position size, sector exposure, leverage, drawdown
+- [ ] Kill switch tested: triggers correctly, flattens positions, sends alerts
+- [ ] Monitoring dashboards operational with alerts for drift, drawdown, staleness
+- [ ] Paper trading completed for minimum 4 weeks with no execution anomalies
+- [ ] Incident playbook and governance sign-off completed before go-live

@@ -1,79 +1,92 @@
 ---
 name: ml4t-regime-awareness
-description: Handle non-stationarity via regime-as-a-feature approach
-category: concepts
-type: conceptual
+description: Use market regimes as conditioning features for risk scaling, not as timing signals. Use when building features, sizing positions, or evaluating strategy robustness across market conditions.
 dependencies: []
-book_chapters: [1, 7, 17]
+metadata:
+  book_chapters: "1, 9"
+  library: ""
 ---
 
 # Regime Awareness
 
-Markets are non-stationary. Regime awareness is mandatory for risk management.
+Markets alternate between regimes (low/high volatility, trending/mean-reverting, risk-on/risk-off). Regime detection for diagnostics and risk scaling is reliable. Regime detection for market timing is not.
 
-## Key Principle
+## The Problem
 
-Use **regime-as-a-feature** (robust indicators), NOT regime-switching timing.
+Regime-switching models promise to predict when to be in or out of the market. In practice, regime transitions are identified with high confidence only after they have already occurred. A model that correctly labels the March 2020 crash as "crisis" does so 2--4 weeks late, after the drawdown has already happened. Trading on regime predictions produces whipsaw losses and underperforms a regime-conditioned but always-invested approach.
 
-Regime detection for diagnostics = reliable
-Regime detection for timing = brittle, usually fails
+The correct use of regimes is as a conditioning feature: scale risk, adjust position sizes, and evaluate strategy performance per regime -- but stay invested.
+
+## The Pattern
+
+### WRONG
+
+```python
+# Regime-timing: go to cash when model predicts "bear"
+def generate_signal(data, regime_model):
+    regime = regime_model.predict(data)
+    if regime == "bear":
+        return 0.0       # exit market entirely
+    else:
+        return model.predict(data)  # normal signal
+```
+
+### CORRECT
+
+```python
+import numpy as np
+
+# Regime-as-feature: condition risk scaling on observable regime indicator
+realized_vol = returns.rolling(21).std() * np.sqrt(252)
+vol_rank = realized_vol.rolling(252).rank(pct=True)
+
+# Tercile-based regime label (observable, no prediction needed)
+regime = np.where(vol_rank < 0.33, "low_vol",
+         np.where(vol_rank < 0.66, "mid_vol", "high_vol"))
+
+# Scale position sizes by regime (always invested, risk-adjusted)
+vol_scale = {"low_vol": 1.3, "mid_vol": 1.0, "high_vol": 0.5}
+position = base_signal * np.vectorize(vol_scale.get)(regime)
+```
 
 ## Regime Indicators
 
-| Type | Indicators | Use |
-|------|------------|-----|
-| Volatility | VIX, realized vol, ATR state | Risk scaling |
-| Trend | ADX, slope of SMA, momentum sign | Strategy selection |
-| Liquidity | Spread, volume, Amihud | Position sizing |
-| Macro | Yield curve slope, credit spreads | Regime filter |
-
-## Implementation
-
-```python
-# Regime as feature, not as timing signal
-df['vol_regime'] = (
-    df['realized_vol_20']
-    .rolling(252).rank(pct=True)
-    .cut(bins=[0, 0.33, 0.66, 1.0], labels=['low', 'mid', 'high'])
-)
-
-# Use for conditioning, not timing
-df['position_size'] = df['base_size'] * df['vol_regime'].map({
-    'low': 1.5, 'mid': 1.0, 'high': 0.5
-})
-```
+| Type | Indicators | Use case |
+|------|------------|----------|
+| Volatility | Realized vol, VIX, ATR percentile | Risk scaling |
+| Trend | ADX, SMA slope, momentum sign | Feature conditioning |
+| Liquidity | Bid-ask spread, volume ratio, Amihud | Position sizing |
+| Macro | Yield curve slope, credit spread | Regime label |
 
 ## Regime-Sliced Evaluation
 
+Always evaluate strategy performance per regime, not just in aggregate:
+
 ```python
-# Evaluate strategy BY regime, not conditionally trade
-for regime in ['low', 'mid', 'high']:
-    regime_returns = returns[df['vol_regime'] == regime]
-    print(f"{regime}: Sharpe={sharpe_ratio(regime_returns):.2f}")
+import numpy as np
+
+for label in ["low_vol", "mid_vol", "high_vol"]:
+    mask = regime == label
+    regime_ret = strategy_returns[mask]
+    sharpe = regime_ret.mean() / regime_ret.std() * np.sqrt(252)
+    max_dd = (np.maximum.accumulate(regime_ret.cumsum()) - regime_ret.cumsum()).max()
+    print(f"{label}: Sharpe={sharpe:.2f}, MaxDD={max_dd:.1%}, N={mask.sum()}")
 ```
+
+A strategy with Sharpe 1.5 that comes entirely from one regime is fragile. Robust strategies have positive (if unequal) performance across all regimes.
 
 ## Guardrails
 
-- Define regimes BEFORE backtesting (prevent regime-snooping)
-- Report metrics per regime, not just aggregate
-- Don't trade based on regime prediction (usually fails)
-- Use regime for risk scaling, not entry timing
-
-## Rules
-
-```python
-# WRONG: Trade regime timing
-if predict_regime() == 'bull':
-    go_long()
-
-# CORRECT: Regime conditions strategy
-base_signal = model.predict(X)
-position = base_signal * vol_scaling[current_regime]
-```
+- Define regime labels BEFORE backtesting -- choosing regimes after seeing results is snooping.
+- Use observable indicators (realized vol, yield curve slope), not latent model outputs, for regime classification.
+- Report strategy metrics per regime in every backtest report.
+- Never use regime prediction for binary in/out decisions -- use it for continuous risk scaling.
+- Regime labels must use expanding or rolling windows to avoid lookahead bias.
 
 ## Checklist
 
-- [ ] Regime definitions specified ex-ante (in Strategy Term Sheet)
-- [ ] Backtest shows performance by regime
-- [ ] Risk parameters vary with regime
-- [ ] Not timing entry/exit based on regime prediction
+- [ ] Regime definitions specified ex-ante (in strategy term sheet, before backtesting)
+- [ ] Regime labels use only backward-looking data (no lookahead)
+- [ ] Strategy metrics reported per regime (not just aggregate Sharpe)
+- [ ] Position sizing or risk parameters vary with regime (continuous scaling)
+- [ ] No binary market-timing signals based on regime prediction

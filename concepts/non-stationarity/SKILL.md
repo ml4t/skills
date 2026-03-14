@@ -1,82 +1,101 @@
 ---
 name: ml4t-non-stationarity
-description: Handle changing statistical properties in financial time series
-category: concepts
-type: conceptual
+description: Handle changing statistical properties in financial time series. Use when normalizing features, selecting lookback windows, or diagnosing model decay.
 dependencies: [regime-awareness]
-book_chapters: [6, 9, 15]
+metadata:
+  book_chapters: "6, 9"
+  library: "ml4t-diagnostic"
 ---
 
 # Non-Stationarity
 
-Financial time series have statistical properties that change over time.
+Financial time series have means, variances, and correlations that change over time. A model trained on 2015--2019 low-volatility data will underperform in a 2020 regime shift if it assumes fixed parameters.
 
 ## The Problem
 
+Global normalization (subtracting the full-sample mean and dividing by the full-sample standard deviation) embeds future information into every observation. It also assumes the distribution is stable, which is false for financial data. Post-2008 interest rates, COVID volatility, and factor decay are all examples of structural shifts that invalidate fixed-parameter assumptions.
+
+A model trained on globally normalized features will overfit to the training regime and degrade when the regime changes.
+
+## The Pattern
+
+### WRONG
+
 ```python
-# WRONG: Assume constant parameters
-model.fit(train_data['2010':'2020'])  # Bull market
-model.predict(test_data['2022'])       # Different regime
+import numpy as np
+
+# Global normalization: uses future data and assumes stationarity
+X_norm = (X - X.mean(axis=0)) / X.std(axis=0)
 ```
 
-## Types
+### CORRECT
 
-| Type | Description | Example |
-|------|-------------|---------|
-| Mean shift | Average changes | Post-2008 low rates |
-| Variance shift | Volatility changes | VIX spikes |
-| Structural break | Relationship changes | Factor decay |
-| Seasonality | Periodic patterns | January effect decay |
+```python
+import polars as pl
 
-## Detection
+# Expanding normalization: only uses past data, adapts to changing distribution
+features = pl.DataFrame({"feat": feat_values, "timestamp": dates})
+
+features = features.with_columns(
+    feat_norm=(
+        (pl.col("feat") - pl.col("feat").shift(1).cum_mean())
+        / pl.col("feat").shift(1).rolling_std(window_size=252)
+    )
+)
+```
+
+## Detection: ADF + KPSS Together
+
+Run both tests. They have opposite null hypotheses, so agreement is strong evidence:
 
 ```python
 from statsmodels.tsa.stattools import adfuller, kpss
 
-# ADF test: H0 = unit root (non-stationary)
 adf_stat, adf_pval, *_ = adfuller(series)
-stationary_adf = adf_pval < 0.05
+kpss_stat, kpss_pval, *_ = kpss(series, regression="c")
 
-# KPSS test: H0 = stationary
-kpss_stat, kpss_pval, *_ = kpss(series)
-stationary_kpss = kpss_pval > 0.05
-
-# Best: both tests agree
+stationary = (adf_pval < 0.05) and (kpss_pval > 0.05)  # both agree
 ```
 
-## Mitigation
+| ADF rejects? | KPSS rejects? | Conclusion |
+|--------------|---------------|------------|
+| Yes | No | Stationary |
+| No | Yes | Non-stationary |
+| Yes | Yes | Trend-stationary (difference first) |
+| No | No | Inconclusive (get more data) |
 
-| Approach | When |
-|----------|------|
-| Differencing | Remove trend |
-| Rolling normalization | Adjust for scale |
-| Regime conditioning | Split by state |
-| Expanding window | More data, slower adapt |
-| Shrinking window | Less data, faster adapt |
+## Mitigation Strategies
 
-## Rules
-
-```python
-# WRONG: Global normalization
-X = (X - X.mean()) / X.std()
-
-# CORRECT: Expanding window (no lookahead)
-X = (X - X.expanding().mean()) / X.expanding().std()
-
-# CORRECT: Rolling window with fixed lookback
-X = (X - X.rolling(252).mean()) / X.rolling(252).std()
-```
+| Approach | When to use | Trade-off |
+|----------|-------------|-----------|
+| Expanding window | Default safe choice | Slow to adapt, no lookahead |
+| Rolling window (e.g., 252d) | Faster adaptation needed | More variance, loses early data |
+| First differencing | Remove trend/unit root | Loses level information |
+| Regime conditioning | Known structural breaks | Requires regime labels |
 
 ## Guardrails
 
-- Always test stationarity before modeling
-- Use expanding/rolling statistics (not global)
-- Monitor for structural breaks in production
-- Shorter windows adapt faster but have more variance
+- `X.mean()` or `X.std()` without `.expanding()` or `.rolling()` is a red flag in any feature pipeline.
+- Shorter rolling windows adapt faster but have higher estimation variance -- 126d to 504d is the typical range.
+- Test stationarity on raw features before modeling; non-stationary inputs produce unstable coefficients.
+- Monitor feature distributions in production -- a mean shift > 2 sigma signals model retraining.
+
+## Production Implementation
+
+`ml4t-diagnostic` provides stationarity testing utilities:
+
+```python
+from ml4t.diagnostic import Evaluator
+
+evaluator = Evaluator(predictions=preds, returns=returns)
+stationarity = evaluator.test_stationarity(method="adf_kpss")
+# Returns per-feature stationarity verdicts and p-values
+```
 
 ## Checklist
 
-- [ ] Stationarity tests run (ADF + KPSS)
-- [ ] Rolling normalization used
-- [ ] No global statistics in features
-- [ ] Regime conditioning considered
+- [ ] Stationarity tests (ADF + KPSS) run on all features before modeling
+- [ ] Normalization uses expanding or rolling window, never global statistics
+- [ ] Rolling window length chosen deliberately (not default)
+- [ ] Feature distributions monitored for structural breaks in production
+- [ ] Non-stationary series differenced or transformed before use

@@ -1,93 +1,103 @@
 ---
 name: ml4t-survivorship-bias
-description: Account for delisted securities in historical backtests
-category: concepts
-type: conceptual
+description: Account for delisted and removed securities in historical backtests. Use when constructing trading universes or evaluating strategies on equity, crypto, or ETF panels.
 dependencies: []
-book_chapters: [3, 5]
+metadata:
+  book_chapters: "2, 6"
+  library: "ml4t-data"
 ---
 
 # Survivorship Bias
 
-Only testing on securities that survived to today inflates backtest returns.
+Testing a strategy only on securities that exist today removes the worst performers from history, inflating backtest returns by 1--2% per year.
 
 ## The Problem
 
+If you download today's S&P 500 constituents and run a backtest starting in 2008, you exclude Lehman Brothers, Bear Stearns, Washington Mutual, and every other company that was removed after distress. The remaining panel has a built-in upward bias because you already know these firms survived.
+
+This is worst for value and small-cap strategies, which overweight distressed names -- exactly the ones that get delisted. A long-short value backtest on a survivor-biased universe can show +3% alpha that vanishes entirely on a survivorship-free dataset.
+
+## The Pattern
+
+### WRONG
+
 ```python
-# WRONG: Use current S&P 500 for 2010 backtest
-current_sp500 = get_current_constituents('SP500')  # 2024 list
-backtest_2010 = data[data['symbol'].isin(current_sp500)]
-# Missing: Lehman, Bear Stearns, Enron, WorldCom...
+import polars as pl
+
+# Use today's index members for a historical backtest
+current_members = pl.read_csv("sp500_current.csv")  # 2024 list
+prices = pl.read_parquet("prices.parquet")
+
+backtest_universe = prices.filter(
+    pl.col("symbol").is_in(current_members["symbol"])
+)
+# Missing: every company removed between 2008 and 2024
 ```
 
-## Why It Matters
-
-- Delisted stocks often went to zero (bankruptcy, fraud)
-- Survivors have positive selection bias
-- Effect: 1-2% annual return inflation is common
-- Value/small-cap strategies most affected
-
-## Rules
-
-### Universe Construction
+### CORRECT
 
 ```python
-# WRONG
-universe = get_current_tickers()
+import polars as pl
 
-# CORRECT: Point-in-time constituents
-universe = get_historical_constituents(index='SP500', as_of=backtest_date)
+# Use point-in-time index constituents
+constituents = pl.read_parquet("sp500_constituents_history.parquet")
+prices = pl.read_parquet("prices.parquet")  # includes delisted symbols
+
+# For each date, use only the members as of that date
+backtest_universe = prices.join(
+    constituents,
+    on=["symbol", "timestamp"],
+    how="inner",
+)
 ```
 
-### Handling Delistings
+## Delisting Returns
+
+Dropping a delisted stock on its last trading day ignores the terminal return. Include delisting outcomes:
 
 ```python
-# Track delisting returns
-delisting_returns = {
-    'bankruptcy': -1.0,      # Total loss
-    'acquisition': 0.0,      # Use actual premium
-    'going_private': 0.0,    # Use tender price
-    'exchange_change': 0.0   # Continue tracking
+delisting_return = {
+    "bankruptcy":      -1.00,   # total loss
+    "acquisition":      0.00,   # use actual tender premium if available
+    "going_private":    0.00,   # use tender offer price
+    "exchange_change":  0.00,   # continue tracking on new exchange
 }
-
-# Apply delisting return on last trading day
-if is_delisted(symbol, date):
-    return delisting_returns[delisting_reason]
+# Apply the delisting return on the last traded date
 ```
 
-### Data Sources
+## Data Source Quality
 
-| Source | Survivorship-Free? |
-|--------|-------------------|
-| CRSP | Yes (includes delistings) |
-| Quandl Wiki | Yes (2007-2018) |
-| Yahoo Finance | No (current tickers only) |
-| Most free APIs | No |
-
-## Index Reconstitution
-
-```python
-# S&P 500 changes ~20-25 constituents per year
-# Must track additions AND deletions
-
-recon_events = get_index_changes('SP500', start, end)
-for event in recon_events:
-    if event.type == 'deletion':
-        # Stock often drops on deletion announcement
-        # Backtest should sell BEFORE deletion, not after
-        pass
-```
+| Source | Survivorship-free? | Notes |
+|--------|-------------------|-------|
+| CRSP | Yes | Gold standard, includes delistings |
+| NASDAQ Data Link (Wiki) | Yes | 2007--2018, has delisting codes |
+| Yahoo Finance | No | Current tickers only |
+| Most free APIs | No | Survivor-biased by default |
+| Crypto exchanges | Partial | Coins get delisted frequently |
 
 ## Guardrails
 
-- Free data usually has survivorship bias
-- CRSP is gold standard for US equities
-- Crypto: exchanges delist coins frequently
-- ETFs: check for fund closures
+- Any universe built from a single "current members" list is survivor-biased.
+- S&P 500 changes 20--25 constituents per year; over a 10-year backtest that is 200+ changes.
+- Free data almost always has survivorship bias. Budget for CRSP or equivalent if equity research is serious.
+- ETF and crypto markets have high turnover -- fund closures and coin delistings are common and material.
+
+## Production Implementation
+
+`ml4t-data` loads survivorship-free datasets with delisting returns included:
+
+```python
+from ml4t.data import DataManager
+
+dm = DataManager()
+# Includes delisted symbols and their terminal returns
+equities = dm.load("us_equities")  # Full historical panel, not just current tickers
+```
 
 ## Checklist
 
-- [ ] Using point-in-time index constituents
-- [ ] Delisting returns included (not just dropped)
-- [ ] Universe changes tracked over time
+- [ ] Universe uses point-in-time index constituents, not current membership
+- [ ] Delisting returns included (not silently dropped)
+- [ ] Index reconstitution events tracked over the backtest period
 - [ ] Data source documented for survivorship treatment
+- [ ] Value/small-cap strategies double-checked for survivorship sensitivity

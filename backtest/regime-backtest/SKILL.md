@@ -1,104 +1,104 @@
 ---
 name: ml4t-regime-backtest
-description: Analyze strategy performance by market regime
-category: backtest
-type: operational
-dependencies: [regime-awareness, run-backtest]
-book_chapters: [17, 21]
+description: Decompose strategy performance by market regime — volatility, trend, liquidity. Use when aggregate metrics hide regime-dependent fragility.
+dependencies: [run-backtest]
+metadata:
+  book_chapters: "16, 19"
+  library: ""
 ---
 
-# Regime Backtest
+# Regime-Conditional Backtesting
 
-Evaluate strategy performance across different market conditions.
+An aggregate Sharpe of 1.2 might come from Sharpe 3.0 in bull markets and -0.5 in bear markets. Reporting only the aggregate hides the most important question: does the strategy survive the regimes that matter most?
 
-## Regime Classification
+## The Problem
 
+Strategies often harvest one regime and bleed in others. A momentum strategy that earns 80% of returns during trending markets and loses during choppy periods looks fine in aggregate over a bull run — but collapses when the regime shifts. Without per-regime decomposition, you cannot tell whether your alpha is robust or regime-dependent.
+
+## The Pattern
+
+### WRONG
 ```python
-def classify_regimes(returns: pl.Series, volatility: pl.Series) -> pl.Series:
-    """Classify into 4 regimes."""
-    vol_high = volatility > volatility.quantile(0.7)
-    ret_pos = returns.rolling(63).mean() > 0
+import numpy as np
 
-    return (
-        pl.when(ret_pos & ~vol_high).then(pl.lit('bull_calm'))
-        .when(ret_pos & vol_high).then(pl.lit('bull_volatile'))
-        .when(~ret_pos & ~vol_high).then(pl.lit('bear_calm'))
-        .otherwise(pl.lit('bear_volatile'))
+# One number for the whole period — hides regime dependence
+sharpe = returns.mean() / returns.std() * np.sqrt(252)
+print(f"Sharpe: {sharpe:.2f}")  # "Looks great!" ... until the regime changes
+```
+
+### CORRECT
+```python
+import polars as pl
+import numpy as np
+
+def classify_regimes(df: pl.DataFrame) -> pl.DataFrame:
+    """Label each bar by volatility and trend regime (using lagged data only)."""
+    return df.with_columns(
+        vol_regime=pl.when(
+            pl.col("close").pct_change().rolling_std(63) >
+            pl.col("close").pct_change().rolling_std(63).shift(1).rolling_quantile(0.7, window_size=252)
+        ).then(pl.lit("high_vol")).otherwise(pl.lit("low_vol")),
+        trend_regime=pl.when(
+            pl.col("close").pct_change().rolling_mean(63) > 0
+        ).then(pl.lit("bull")).otherwise(pl.lit("bear")),
+    )
+
+def regime_metrics(df: pl.DataFrame, ret_col: str = "strategy_ret") -> pl.DataFrame:
+    """Sharpe, drawdown, and day count per regime."""
+    return df.group_by("vol_regime", "trend_regime").agg(
+        sharpe=(pl.col(ret_col).mean() / pl.col(ret_col).std() * np.sqrt(252)),
+        max_dd=(
+            (pl.col(ret_col).cum_sum() - pl.col(ret_col).cum_sum().cum_max()).min()
+        ),
+        days=pl.col(ret_col).count(),
     )
 ```
 
-## Regime-Conditioned Metrics
+## Stress Period Overlay
+
+Define known stress periods and report strategy behavior during each:
 
 ```python
-def regime_performance(
-    strategy_returns: pl.Series,
-    regime: pl.Series
-) -> dict:
-    """Calculate metrics per regime."""
-    results = {}
-
-    for r in regime.unique():
-        mask = regime == r
-        rets = strategy_returns.filter(mask)
-
-        results[r] = {
-            'sharpe': rets.mean() / rets.std() * np.sqrt(252),
-            'return': rets.sum(),
-            'volatility': rets.std() * np.sqrt(252),
-            'max_dd': calculate_max_drawdown(rets.cum_sum()),
-            'days': mask.sum()
-        }
-
-    return results
-```
-
-## Visualization
-
-```python
-def plot_regime_performance(results: dict):
-    """Regime performance heatmap."""
-    regimes = list(results.keys())
-    metrics = ['sharpe', 'return', 'volatility', 'max_dd']
-
-    data = [[results[r][m] for m in metrics] for r in regimes]
-    # Create heatmap with regimes on y-axis, metrics on x-axis
-```
-
-## Stress Testing
-
-```python
-# Define stress periods
 STRESS_PERIODS = {
-    'gfc_2008': ('2008-09-01', '2009-03-31'),
-    'covid_crash': ('2020-02-15', '2020-03-31'),
-    'rate_shock_2022': ('2022-01-01', '2022-06-30'),
+    "GFC":        ("2008-09-01", "2009-03-31"),
+    "COVID":      ("2020-02-15", "2020-03-31"),
+    "Rate shock": ("2022-01-01", "2022-06-30"),
 }
 
-def stress_test(returns: pl.DataFrame, periods: dict) -> dict:
-    """Calculate performance during stress periods."""
-    results = {}
-    for name, (start, end) in periods.items():
-        stress_rets = returns.filter(
-            (pl.col('date') >= start) & (pl.col('date') <= end)
-        )
-        results[name] = {
-            'return': stress_rets.sum(),
-            'max_dd': calculate_max_drawdown(stress_rets),
-            'days': len(stress_rets)
-        }
-    return results
+for name, (start, end) in STRESS_PERIODS.items():
+    subset = df.filter(pl.col("timestamp").is_between(start, end))
+    ret = subset.get_column("strategy_ret")
+    print(f"{name}: return={ret.sum():.1%}, max_dd={...:.1%}, days={len(ret)}")
 ```
+
+Stress periods are in-sample (known events), so they test survival, not prediction.
 
 ## Guardrails
 
-- Regime classification should use lagged data
-- Some regimes may have few observations
-- Stress periods are in-sample (known events)
-- Good strategy works across regimes
+- Regime classification must use **lagged** indicators — computing a 63-day rolling stat uses only past data, but make sure the threshold (quantile breakpoint) is also expanding/rolling, not computed on the full sample
+- Some regimes have few observations — report day count alongside metrics and do not trust Sharpe from fewer than 60 days
+- A strategy that only works in one regime is fragile — demand positive Sharpe in at least 3 of 4 quadrants (bull/bear x low/high vol)
+
+## Production Implementation
+
+`ml4t-backtest` strategies can condition on regime within `on_data`:
+
+```python
+from ml4t.backtest import Strategy
+
+class RegimeAware(Strategy):
+    def on_data(self, timestamp, data, context, broker):
+        regime = context.get("vol_regime", "low_vol")
+        if regime == "high_vol":
+            # reduce exposure or skip trading
+            return
+        # normal logic
+```
 
 ## Checklist
 
-- [ ] Multiple regime definitions tested
-- [ ] Performance by regime calculated
-- [ ] Stress periods analyzed
-- [ ] Strategy doesn't depend on single regime
+- [ ] At least two regime dimensions tested (volatility + trend)
+- [ ] Regime labels computed from lagged data only (no lookahead in thresholds)
+- [ ] Per-regime Sharpe, max drawdown, and day count reported
+- [ ] Strategy profitable in at least 3 of 4 regime quadrants
+- [ ] Known stress periods analyzed separately

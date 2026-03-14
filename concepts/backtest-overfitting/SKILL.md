@@ -1,112 +1,115 @@
 ---
 name: ml4t-backtest-overfitting
-description: Detect and prevent overfitting to historical data
-category: concepts
-type: conceptual
-dependencies: [cpcv, deflated-sharpe]
-book_chapters: [2, 17]
+description: Detect and prevent overfitting to historical data via multiple testing corrections and pre-registration. Use when evaluating strategy backtests, tuning hyperparameters, or comparing multiple strategies.
+dependencies: [lookahead-bias]
+metadata:
+  book_chapters: "7, 16"
+  library: "ml4t-diagnostic"
 ---
 
 # Backtest Overfitting
 
-Testing many strategies guarantees finding one that "worked" by chance.
+Testing many strategies on the same data guarantees finding one that looks profitable by chance. With 100 independent trials at p < 0.05, you expect five false positives.
 
 ## The Problem
 
-Test 100 random strategies → ~5 will show p < 0.05 by chance alone.
+Every parameter you tune, every feature you try, and every universe filter you adjust is an implicit trial. A researcher who reports a Sharpe ratio of 2.0 after exploring 200 configurations has not found alpha -- they have found the luckiest draw from a noise distribution. The Deflated Sharpe Ratio corrects for this by penalizing for the number of trials conducted. Without it, most published backtests are statistically meaningless.
+
+## The Pattern
+
+### WRONG
 
 ```python
-# The more you search, the more false positives
-n_strategies_tested = 100
-expected_false_positives = n_strategies_tested * 0.05  # = 5
+# Tune until something looks good
+best_sharpe = 0
+for lookback in [5, 10, 21, 63, 126, 252]:
+    for top_k in [5, 10, 20, 50]:
+        result = backtest(lookback=lookback, top_k=top_k)
+        if result.sharpe > best_sharpe:
+            best_sharpe = result.sharpe
+            best_params = (lookback, top_k)
+
+print(f"Best Sharpe: {best_sharpe:.2f}")  # meaningless without correction
+```
+
+### CORRECT
+
+```python
+import numpy as np
+from scipy.stats import norm
+
+results = []
+for lookback in [5, 10, 21, 63, 126, 252]:
+    for top_k in [5, 10, 20, 50]:
+        result = backtest(lookback=lookback, top_k=top_k)
+        results.append(result.sharpe)
+
+# Deflated Sharpe Ratio (Bailey & Lopez de Prado, 2014)
+n_trials = len(results)
+best_sharpe = max(results)
+sharpe_std = np.std(results)
+expected_max = sharpe_std * (
+    (1 - np.euler_gamma) * norm.ppf(1 - 1 / n_trials)
+    + np.euler_gamma * norm.ppf(1 - 1 / (n_trials * np.e))
+)
+deflated_sharpe = best_sharpe - expected_max
+print(f"Observed: {best_sharpe:.2f}, Deflated: {deflated_sharpe:.2f}, Trials: {n_trials}")
 ```
 
 ## Probability of Backtest Overfitting (PBO)
 
-```python
-from ml4t.diagnostic.metrics import probability_of_backtest_overfitting
-
-# From CPCV results
-sharpe_ratios = [...]  # Sharpe from each CPCV fold
-pbo = probability_of_backtest_overfitting(sharpe_ratios)
-
-# PBO > 50% = likely overfit
-```
-
-## Deflated Sharpe Ratio
-
-Adjusts Sharpe for multiple testing:
+PBO uses combinatorial cross-validation to estimate the chance that the best in-sample strategy underperforms out-of-sample:
 
 ```python
-from ml4t.diagnostic.metrics import deflated_sharpe_ratio
+from sklearn.model_selection import TimeSeriesSplit
+import numpy as np
 
-dsr = deflated_sharpe_ratio(
-    observed_sharpe=1.5,
-    n_trials=100,           # Strategies tested
-    variance_of_sharpes=0.3,
-    t_observations=252 * 5  # 5 years daily
-)
-# DSR < observed Sharpe (penalty for search)
+# Simplified PBO: rank correlation between IS and OOS Sharpe across folds
+is_ranks, oos_ranks = [], []
+tscv = TimeSeriesSplit(n_splits=8)
+for train_idx, test_idx in tscv.split(data):
+    is_sharpe = [backtest(p, data[train_idx]).sharpe for p in param_grid]
+    oos_sharpe = [backtest(p, data[test_idx]).sharpe for p in param_grid]
+    is_ranks.append(np.argsort(is_sharpe))
+    oos_ranks.append(np.argsort(oos_sharpe))
+
+# PBO > 0.5 = best IS strategy is more likely to underperform OOS
 ```
 
 ## Red Flags
 
 | Signal | Concern |
 |--------|---------|
-| Sharpe > 2.0 daily | Almost certainly overfit |
-| OOS matches IS exactly | Data leakage likely |
-| Complex model beats simple | Overfitting to noise |
-| Performance degrades over time | Regime change or overfit |
-| Many parameters tuned | Each is an implicit test |
+| Sharpe > 2.0 on daily data | Almost certainly overfit or leakage |
+| OOS matches IS within 5% | Data leakage, not genuine alpha |
+| Complex model barely beats simple | Extra parameters fit noise |
+| Performance cliff after 2020 | Regime-specific overfitting |
 
-## Prevention
+## Guardrails
 
-### 1. Pre-Registration
-```python
-# Document BEFORE testing:
-# - Hypothesis
-# - Universe
-# - Features
-# - Validation method
-# - Success criteria
-# Commit to git, then test
-```
+- Document the total number of configurations tested -- each is a trial.
+- Pre-register the hypothesis and success threshold in version control before running any backtest.
+- Reserve a true holdout set that is touched exactly once, at the very end.
+- Minimum backtest length: 5 years of daily data (roughly 1,250 observations) for Sharpe estimation.
+- If deflated Sharpe is negative, the strategy has no statistical evidence of alpha.
 
-### 2. Holdout Discipline
-```python
-# Split data ONCE at project start
-train = data[:'2020']
-validation = data['2020':'2022']
-test = data['2022':]  # Touch ONCE at the end
+## Production Implementation
 
-# Never optimize on test set
-```
-
-### 3. Minimum Backtest Length
-```python
-# Rule of thumb: need sqrt(n) independent observations
-# For Sharpe 1.0 with 95% confidence:
-min_years = 5  # ~1250 daily observations
-```
-
-## Rules
+`ml4t-diagnostic` provides validated implementations of both corrections:
 
 ```python
-# WRONG: Tune until it works
-for params in param_grid:
-    if backtest(params).sharpe > 2:
-        return params  # Found one!
+from ml4t.diagnostic.evaluation.stats import compute_pbo, benjamini_hochberg_fdr
+from ml4t.diagnostic.splitters import CombinatorialCV
 
-# CORRECT: Pre-specify, report all trials
-results = [backtest(p) for p in param_grid]
-best = max(results, key=lambda x: x.sharpe)
-dsr = deflated_sharpe_ratio(best.sharpe, n_trials=len(param_grid))
+cpcv = CombinatorialCV(n_groups=8, n_test_groups=2, embargo_size=5)
+pbo = compute_pbo(sharpe_matrix)               # from CPCV fold results
+rejected = benjamini_hochberg_fdr(p_values, alpha=0.05)
 ```
 
 ## Checklist
 
-- [ ] Strategy hypothesis written BEFORE coding
-- [ ] Number of strategies tested documented
-- [ ] Using Deflated Sharpe Ratio
-- [ ] PBO calculated from CPCV
-- [ ] True holdout preserved until final test
+- [ ] Strategy hypothesis written and committed to git BEFORE any backtest
+- [ ] Total number of trials documented (including informal exploration)
+- [ ] Deflated Sharpe Ratio computed and reported alongside observed Sharpe
+- [ ] PBO calculated from combinatorial CV folds (PBO < 0.50 required)
+- [ ] True holdout set preserved and used exactly once

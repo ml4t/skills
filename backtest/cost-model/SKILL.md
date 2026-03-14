@@ -1,123 +1,106 @@
 ---
 name: ml4t-cost-model
-description: Configure realistic transaction cost models
-category: backtest
-type: operational
-dependencies: [transaction-costs, run-backtest]
-book_chapters: [11, 17]
-quantlab_module: ml4t.backtest.costs
+description: Model all trading costs — commission, spread, slippage, market impact. Use when estimating net performance and strategy capacity.
+dependencies: [run-backtest]
+metadata:
+  book_chapters: "18"
+  library: "ml4t-backtest"
 ---
 
-# Cost Model
+# Transaction Cost Modeling
 
-Realistic transaction cost modeling for backtests.
+A strategy with zero-cost Sharpe of 1.5 may have net Sharpe of 0.3. Trading costs are not a detail — they are the primary constraint on whether alpha survives. Every backtest must include commission, spread, slippage, and (for larger size) market impact.
 
-## API
+## The Problem
 
+Zero-cost backtests overstate performance by the full round-trip cost times turnover. A strategy trading 200% annual turnover at 20 bps round-trip loses 40 bps/year to costs alone. For high-frequency or small-cap strategies, costs can exceed gross alpha entirely. Without a cost model, you cannot estimate capacity — the AUM where costs eat all profit.
+
+## The Pattern
+
+### WRONG
 ```python
-from ml4t.backtest.costs import CostModel, ImpactModel
+import numpy as np
 
-# Simple fixed costs
-costs = CostModel(
-    commission_bps=1.0,
-    spread_bps=5.0,
-    slippage_bps=2.0
-)
-
-# Volume-dependent impact
-costs = CostModel(
-    commission_bps=1.0,
-    spread_bps=5.0,
-    impact=ImpactModel(
-        model='square_root',
-        coefficient=0.1,
-        volatility_scaling=True
-    )
-)
+# Zero-cost backtest — fiction
+positions = compute_positions(signals)
+gross_returns = positions * asset_returns
+sharpe = gross_returns.mean() / gross_returns.std() * np.sqrt(252)  # overstated
 ```
 
-## Impact Models
-
+### CORRECT
 ```python
-class ImpactModel:
-    """Market impact as function of order size."""
+import numpy as np
 
-    def calculate(self, size: float, adv: float, volatility: float) -> float:
-        participation = size / adv
+def net_returns_with_costs(
+    positions: np.ndarray,
+    asset_returns: np.ndarray,
+    prices: np.ndarray,
+    volume: np.ndarray,
+    commission_bps: float = 1.0,
+    spread_bps: float = 5.0,
+    impact_coeff: float = 0.1,
+) -> np.ndarray:
+    """Compute net returns with multi-component cost model."""
+    gross = positions * asset_returns
+    trades = np.abs(np.diff(positions, prepend=0))
 
-        if self.model == 'linear':
-            impact = self.coefficient * participation
-        elif self.model == 'square_root':
-            impact = self.coefficient * np.sqrt(participation)
-        elif self.model == 'power':
-            impact = self.coefficient * participation ** 1.5
+    # Fixed costs: commission + half-spread per side
+    fixed_cost = trades * (commission_bps + spread_bps / 2) / 10_000
 
-        if self.volatility_scaling:
-            impact *= volatility / 0.01  # Normalize to 1% daily vol
+    # Market impact: square-root model, scales with participation rate
+    participation = np.where(volume > 0, trades * prices / volume, 0)
+    impact = impact_coeff * np.sqrt(np.clip(participation, 0, 1))
 
-        return impact
+    return gross - fixed_cost - impact
+
+
+# Capacity: AUM where net Sharpe = 0.5 (minimum viable)
+def estimate_capacity(gross_sharpe, turnover, cost_bps_per_turn):
+    """Rough capacity = AUM where costs consume alpha down to threshold."""
+    alpha_bps = gross_sharpe * 100 / np.sqrt(252)  # daily alpha in bps (approx)
+    cost_drag = turnover * cost_bps_per_turn / 252
+    # Capacity is limited by market impact scaling — not a fixed formula
+    return f"Gross alpha ~{alpha_bps:.1f} bps/day, cost drag ~{cost_drag:.1f} bps/day"
 ```
 
-## Cost Configuration by Asset
+## Cost Components
 
-```python
-COST_PRESETS = {
-    'us_large_cap': CostModel(
-        commission_bps=0.5,
-        spread_bps=2.0,
-        impact=ImpactModel('square_root', 0.1)
-    ),
-    'us_small_cap': CostModel(
-        commission_bps=1.0,
-        spread_bps=10.0,
-        impact=ImpactModel('square_root', 0.3)
-    ),
-    'crypto_spot': CostModel(
-        commission_bps=10.0,  # Maker fee
-        spread_bps=5.0,
-        impact=ImpactModel('square_root', 0.2)
-    ),
-    'futures': CostModel(
-        commission_bps=0.5,
-        spread_bps=0.5,
-        impact=ImpactModel('linear', 0.05)
-    )
-}
-```
+| Component | Typical Range | Scales With |
+|-----------|--------------|-------------|
+| Commission | 0.5 - 10 bps | Trade count |
+| Spread | 1 - 50 bps | Asset liquidity |
+| Slippage | 1 - 20 bps | Order urgency |
+| Market impact | 5 - 100+ bps | Order size / ADV |
 
-## Per-Trade Cost
-
-```python
-def trade_cost(
-    order_value: float,
-    adv: float,
-    volatility: float,
-    model: CostModel
-) -> float:
-    """Calculate total cost for a trade."""
-    # Fixed costs
-    fixed = (model.commission_bps + model.spread_bps) / 10000
-
-    # Variable impact
-    impact = model.impact.calculate(
-        size=order_value,
-        adv=adv,
-        volatility=volatility
-    )
-
-    return order_value * (fixed + impact)
-```
+**Impact model**: $\text{impact} = \eta \cdot \sigma \cdot \sqrt{\frac{Q}{\text{ADV}}}$ where $Q$ is order size, $\sigma$ is daily volatility, $\eta$ is a calibration constant (typically 0.05-0.3).
 
 ## Guardrails
 
-- Use asset-class appropriate presets
-- Impact scales with order size relative to ADV
-- Higher volatility = higher impact
-- Always validate with TCA when available
+- A strategy where net Sharpe < 0.5 after realistic costs is not tradeable
+- Impact grows with the square root of participation rate — doubling AUM does not double cost
+- Use asset-class appropriate estimates: crypto spread is 5-50 bps, US large-cap is 1-3 bps
+- Validate cost assumptions against actual fill data (TCA) when available
+
+## Production Implementation
+
+`ml4t-backtest` provides composable cost models:
+
+```python
+from ml4t.backtest import (
+    BacktestConfig, PercentageCommission, VolumeShareSlippage,
+)
+
+config = BacktestConfig(
+    commission=PercentageCommission(0.001),       # 10 bps
+    slippage=VolumeShareSlippage(0.1, 0.1),       # volume-dependent
+)
+# Engine deducts costs per fill automatically
+```
 
 ## Checklist
 
-- [ ] Asset-class specific costs
-- [ ] Impact model configured
-- [ ] ADV and volatility inputs available
-- [ ] Costs validated vs actual fills (if available)
+- [ ] Commission, spread, and slippage all included (not just one)
+- [ ] Market impact modeled for order sizes > 1% ADV
+- [ ] Cost assumptions match asset class (not a single number for everything)
+- [ ] Net Sharpe reported alongside gross Sharpe
+- [ ] Capacity estimate computed (AUM where net Sharpe drops below threshold)

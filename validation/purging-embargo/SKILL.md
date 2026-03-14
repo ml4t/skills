@@ -1,84 +1,112 @@
 ---
 name: ml4t-purging-embargo
-description: Remove training samples that leak information into test set
-category: validation
-type: conceptual
+description: Remove training samples whose labels overlap with the test period and add a buffer for autocorrelation. Use when constructing any time-series cross-validation split with forward-looking labels.
 dependencies: [lookahead-bias]
-book_chapters: [10]
+metadata:
+  book_chapters: "7"
+  library: "ml4t-diagnostic"
 ---
 
 # Purging and Embargo
 
-Standard CV fails for time series because labels overlap in time.
+Standard train/test splits on time series leak information when labels span multiple periods. Purging removes contaminated training samples; embargo adds an extra buffer for feature autocorrelation.
 
 ## The Problem
 
-5-day forward return at day 98 uses prices 98-103.
-Test set starts at day 100.
-Training sample 98 leaks info about test prices → invalid CV.
+A 5-day forward return label at day 98 uses prices from days 98-103. If the test set starts at day 100, training sample 98 contains information about test-period prices. Without purging, the model sees future test data through overlapping labels. Without embargo, autocorrelated features near the boundary still carry test-period signal. Both inflate CV scores and produce unreliable strategy evaluation.
 
-## Purging
+## The Pattern
 
-Remove training samples whose labels overlap with test set.
+### WRONG
 
-```
-Test starts at t=100, label_horizon=5
-Purge training samples where t > 100 - 5 = 95
-Keep samples 0-95, test on 100+
-```
+```python
+from sklearn.model_selection import TimeSeriesSplit
 
-## Embargo
-
-Additional buffer after test set for autocorrelation.
-
-```
-Test ends at t=110, embargo_size=2
-Also remove training samples 111-112
+# No gap between train and test — labels leak across boundary
+cv = TimeSeriesSplit(n_splits=5)
+for train_idx, test_idx in cv.split(X):
+    model.fit(X[train_idx], y[train_idx])  # Train includes leaked samples
+    score = model.score(X[test_idx], y[test_idx])
 ```
 
-## Visual
+### CORRECT
+
+```python
+import numpy as np
+
+def purged_split(n_samples, train_end, test_start, test_end,
+                 label_horizon=5, embargo_size=2):
+    """Create a single purged train/test split with embargo."""
+    train_idx = np.arange(0, train_end - label_horizon + 1)  # Purge
+    test_idx = np.arange(test_start, test_end)
+
+    # Embargo: also exclude samples right after test end
+    embargo_end = min(n_samples, test_end + embargo_size)
+    post_test_train = np.arange(embargo_end, n_samples)
+    train_idx = np.concatenate([train_idx, post_test_train])
+
+    return train_idx, test_idx
+
+# Timeline: [==TRAIN==][PURGE][==TEST==][EMBARGO][==TRAIN==]
+# Samples:     0-94     95-99  100-110   111-112    113+
+train_idx, test_idx = purged_split(
+    n_samples=500, train_end=100, test_start=100,
+    test_end=111, label_horizon=5, embargo_size=2
+)
+```
+
+## How It Works
 
 ```
-Timeline:    [==TRAIN==][PURGE][==TEST==][EMBARGO][==TRAIN==]
-Samples:         0-95    96-99   100-110   111-112   113+
+label_horizon = 5, embargo_size = 2
+
+Timeline:  [====TRAIN====][PURGE][====TEST====][EMBARGO][====TRAIN====]
+Indices:       0 ... 94    95-99   100 ... 110   111-112   113 ... N
+
+Purge:   Sample 96 has label using prices 96-101 → overlaps test → REMOVE
+Embargo: Sample 111 has features correlated with test period → REMOVE
 ```
 
-## Parameters
+## Parameter Guide
 
 | Label Type | label_horizon | embargo_size |
-|------------|---------------|--------------|
+|---|---|---|
+| 1-day return | 1 | 1 |
 | 5-day return | 5 | 1-2 |
 | 10-day return | 10 | 2-3 |
 | Triple-barrier 20d | 20 | 3-5 |
 
-Rule: embargo ≈ 10-20% of label_horizon
+Rule of thumb: `embargo_size` = 10-20% of `label_horizon`.
 
-## Implementation
+## Guardrails
+
+- `label_horizon` MUST match actual label construction — a mismatch voids the purge
+- Verify training set retains enough samples after purging (especially with large horizons)
+- For multi-asset panels, purge within each asset independently
+- Both ADF and KPSS tests for autocorrelation inform embargo sizing
+
+## Production Implementation
+
+`ml4t-diagnostic` handles purging and embargo automatically in its CV splitters:
 
 ```python
-from ml4t.diagnostic.splitters import CombinatorialPurgedCV
+from ml4t.diagnostic.splitters import CombinatorialCV
 
-cv = CombinatorialPurgedCV(
+cv = CombinatorialCV(
     n_groups=8,
     n_test_groups=2,
-    label_horizon=5,    # Must match label construction
-    embargo_size=2
+    label_horizon=10,   # Must match: y = returns.shift(-10)
+    embargo_size=2,
 )
-```
-
-## Mistakes
-
-```python
-# WRONG: label_horizon doesn't match actual labels
-y = df['close'].pct_change(10).shift(-10)  # 10-day labels
-cv = CombinatorialPurgedCV(label_horizon=5)  # Wrong!
-
-# CORRECT
-cv = CombinatorialPurgedCV(label_horizon=10)  # Matches labels
+for train_idx, test_idx in cv.split(X):
+    # Purging and embargo applied automatically
+    model.fit(X[train_idx], y[train_idx])
 ```
 
 ## Checklist
 
-- [ ] label_horizon matches your label construction
-- [ ] embargo_size > 0 for autocorrelated data
-- [ ] Verify training set size after purging is sufficient
+- [ ] `label_horizon` matches actual label construction exactly
+- [ ] `embargo_size` > 0 for autocorrelated features (most financial data)
+- [ ] Training set size after purging verified as sufficient (>50% of data)
+- [ ] Multi-asset data uses per-asset purging, not global
+- [ ] No samples within `label_horizon` of test boundary appear in training

@@ -1,125 +1,104 @@
 ---
 name: ml4t-portfolio-optimize
-description: Optimize portfolio weights for risk-return trade-offs
-category: portfolio
-type: operational
+description: Construct optimal portfolios using mean-variance with shrinkage and practical constraints. Use when combining multiple alpha signals or assets into a single portfolio.
 dependencies: [position-sizing]
-book_chapters: [18]
+metadata:
+  book_chapters: "17"
+  library: ""
 ---
 
 # Portfolio Optimization
 
-Optimize weights for expected return and risk.
+Unconstrained Markowitz produces portfolios that are optimal in-sample and catastrophic out-of-sample. Estimation error in expected returns and covariances gets amplified into extreme, unstable weights.
 
-## Methods
+## The Problem
 
-| Method | Objective | Inputs |
-|--------|-----------|--------|
-| Mean-variance | max(μ - λσ²) | Returns, covariance |
-| Min variance | min(σ²) | Covariance only |
-| Risk parity | Equal risk contribution | Covariance |
-| Max Sharpe | max(μ/σ) | Returns, covariance |
+Mean-variance optimization maximizes expected return for a given risk level, but it treats its inputs as truth. With N assets, the covariance matrix has N(N+1)/2 parameters — all estimated with error. The optimizer exploits these errors, concentrating in assets whose returns are overestimated and covariances underestimated. A 100-asset optimizer can produce 300% long / 200% short positions that flip completely with one more month of data.
 
-## Mean-Variance
+## The Pattern
 
+### WRONG
 ```python
+import numpy as np
 from scipy.optimize import minimize
 
-def mean_variance_optimize(
-    expected_returns: np.ndarray,
-    covariance: np.ndarray,
-    risk_aversion: float = 1.0,
-    constraints: dict = None
-) -> np.ndarray:
-    """Classic Markowitz optimization."""
-    n = len(expected_returns)
+# Naive Markowitz with sample estimates
+mu = returns.mean(axis=0) * 252
+cov = np.cov(returns, rowvar=False) * 252
 
-    def objective(w):
-        port_ret = w @ expected_returns
-        port_var = w @ covariance @ w
-        return -(port_ret - risk_aversion * port_var)
+def neg_sharpe(w):
+    ret = w @ mu
+    vol = np.sqrt(w @ cov @ w)
+    return -ret / vol
 
-    # Constraints
-    cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1}]  # Fully invested
-
-    # Bounds
-    bounds = [(0, 1) for _ in range(n)]  # Long only
-
-    result = minimize(objective, np.ones(n)/n, method='SLSQP',
-                      bounds=bounds, constraints=cons)
-    return result.x
+n = len(mu)
+result = minimize(neg_sharpe, np.ones(n) / n, method="SLSQP",
+                  constraints=[{"type": "eq", "fun": lambda w: w.sum() - 1}])
+# Result: extreme weights, massive turnover, poor OOS performance
 ```
+
+### CORRECT
+```python
+import numpy as np
+from sklearn.covariance import LedoitWolf
+from scipy.optimize import minimize
+
+# Shrinkage covariance — far more stable
+lw = LedoitWolf().fit(returns)
+cov = lw.covariance_ * 252
+
+# Minimum variance (avoids estimating expected returns entirely)
+n = cov.shape[0]
+
+def portfolio_var(w):
+    return w @ cov @ w
+
+result = minimize(
+    portfolio_var, np.ones(n) / n, method="SLSQP",
+    bounds=[(0.0, 0.05)] * n,  # max 5% per asset
+    constraints=[{"type": "eq", "fun": lambda w: w.sum() - 1}],
+)
+weights = result.x
+```
+
+## Practical Alternatives to Markowitz
+
+| Method | Avoids Estimating | Best When |
+|--------|-------------------|-----------|
+| Minimum variance | Expected returns | You trust covariance more than returns |
+| Risk parity | Both (uses vol only) | You want diversification, not alpha |
+| Black-Litterman | Raw sample returns | You have views but want stable base |
+| Shrinkage MVO | Nothing, but stabilizes | You need full optimization with guardrails |
 
 ## Risk Parity
 
 ```python
-def risk_parity_weights(covariance: np.ndarray) -> np.ndarray:
-    """Equal risk contribution portfolio."""
-    n = covariance.shape[0]
-
-    def risk_contribution(w):
-        port_var = w @ covariance @ w
-        marginal = covariance @ w
-        return w * marginal / np.sqrt(port_var)
-
+def risk_parity(cov: np.ndarray) -> np.ndarray:
+    """Equal risk contribution — needs only covariance."""
+    n = cov.shape[0]
     def objective(w):
-        rc = risk_contribution(w)
-        target = np.ones(n) / n  # Equal RC
-        return np.sum((rc - target) ** 2)
+        vol = np.sqrt(w @ cov @ w)
+        rc = w * (cov @ w) / vol  # risk contributions
+        return ((rc - vol / n) ** 2).sum()
 
-    result = minimize(objective, np.ones(n)/n, method='SLSQP',
-                      bounds=[(0.01, 1) for _ in range(n)],
-                      constraints=[{'type': 'eq', 'fun': lambda w: sum(w) - 1}])
+    result = minimize(objective, np.ones(n) / n, method="SLSQP",
+                      bounds=[(0.01, 1.0)] * n,
+                      constraints=[{"type": "eq", "fun": lambda w: w.sum() - 1}])
     return result.x
-```
-
-## Robust Estimation
-
-```python
-from sklearn.covariance import LedoitWolf
-
-def robust_covariance(returns: np.ndarray) -> np.ndarray:
-    """Shrinkage estimator for stability."""
-    lw = LedoitWolf()
-    lw.fit(returns)
-    return lw.covariance_
-```
-
-## Black-Litterman
-
-```python
-def black_litterman(
-    market_weights: np.ndarray,
-    covariance: np.ndarray,
-    views: np.ndarray,       # P matrix: which assets
-    view_returns: np.ndarray, # Q vector: expected returns
-    tau: float = 0.05,
-    omega: np.ndarray = None  # View uncertainty
-) -> np.ndarray:
-    """Incorporate views into equilibrium."""
-    if omega is None:
-        omega = np.diag(np.diag(views @ covariance @ views.T)) * tau
-
-    # Prior (equilibrium returns)
-    pi = covariance @ market_weights
-
-    # Posterior
-    M = np.linalg.inv(np.linalg.inv(tau * covariance) + views.T @ np.linalg.inv(omega) @ views)
-    posterior = M @ (np.linalg.inv(tau * covariance) @ pi + views.T @ np.linalg.inv(omega) @ view_returns)
-
-    return posterior
 ```
 
 ## Guardrails
 
-- Sample covariance is unstable; use shrinkage
-- Expected returns are hardest to estimate
-- Constraints prevent corner solutions
-- Rebalancing costs matter
+- Always use shrinkage (Ledoit-Wolf or Oracle Approximating) — sample covariance is never acceptable for optimization
+- Prefer minimum variance or risk parity when return forecasts are weak (IC < 0.05)
+- Bound individual weights (1-5% typical) — unconstrained solutions are always wrong
+- Monitor turnover — high turnover signals unstable estimates, not real alpha
+- Rebalance no more than weekly unless transaction costs are near zero
 
 ## Checklist
 
-- [ ] Covariance estimated with shrinkage
-- [ ] Constraints prevent concentration
-- [ ] Method matched to available inputs
-- [ ] Turnover considered
+- [ ] Covariance estimated with shrinkage (LedoitWolf or similar)
+- [ ] Individual position bounds set (typically 1-5%)
+- [ ] Method matched to signal quality (min-var if IC is weak)
+- [ ] Turnover computed and within cost budget
+- [ ] Out-of-sample backtest confirms stability vs equal-weight baseline

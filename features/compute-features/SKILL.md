@@ -1,79 +1,100 @@
 ---
 name: ml4t-compute-features
-description: Config-driven feature computation with dependency resolution
-category: features
-type: operational
+description: Systematic feature computation across multiple assets with group-aware operations. Use when engineering features for a cross-sectional panel of symbols.
 dependencies: [lookahead-bias]
-book_chapters: [7]
-quantlab_module: ml4t.engineer.api
+metadata:
+  book_chapters: "8"
+  library: "ml4t-engineer"
 ---
 
 # Compute Features
 
-Config-driven feature computation with automatic dependency resolution.
+Computing features across a panel of assets requires group-aware operations — a global rolling mean mixes Apple's history with Tesla's. Every windowed statistic must be computed per symbol.
 
-## API
+## The Problem
 
+Features computed with global statistics bleed information across assets. A z-score computed over the full dataframe uses one symbol's volatility to normalize another. Worse, using `.mean()` on the full column leaks future data from late-arriving symbols into early rows.
+
+## The Pattern
+
+### WRONG
 ```python
-from ml4t.engineer.api import compute_features
+import polars as pl
 
-# Three input formats:
-# 1. List of feature names (default params)
-df = compute_features(data, ["rsi", "macd", "bollinger_bands"])
-
-# 2. List of dicts with custom params
-df = compute_features(data, [
-    {"name": "rsi", "params": {"period": 14}},
-    {"name": "macd", "params": {"fast": 12, "slow": 26}},
-])
-
-# 3. YAML config file
-df = compute_features(data, "config/features.yaml")
+# Global statistics mix symbols and leak future
+df = df.with_columns(
+    mom_zscore=(pl.col("returns") - pl.col("returns").mean())
+    / pl.col("returns").std()
+)
 ```
 
-## Available Features
+### CORRECT
+```python
+import polars as pl
 
-| Category | Features |
-|----------|----------|
-| Trend | sma, ema, dema, tema, kama, t3, trima |
-| Momentum | rsi, macd, stochastic, roc, kdj |
-| Volatility | bollinger_bands, atr, keltner |
-| Volume | obv, ad_line, chaikin |
-| Microstructure | amihud, kyle_lambda, roll_spread, vpin |
-| Statistics | linear_reg, variance, std_dev |
-
-## YAML Config Format
-
-```yaml
-# features.yaml
-features:
-  - name: rsi
-    params:
-      period: 14
-  - name: macd
-    params:
-      fast: 12
-      slow: 26
-      signal: 9
-  - name: bollinger_bands
-    params:
-      period: 20
-      std_dev: 2.0
+# Per-symbol expanding window — no cross-contamination, no lookahead
+df = df.sort("symbol", "timestamp").with_columns(
+    mom_zscore=(
+        (pl.col("returns") - pl.col("returns").expanding().mean().shift(1))
+        / pl.col("returns").expanding().std().shift(1)
+    ).over("symbol")
+)
 ```
 
-## Feature Registry
+## Windowed Aggregations
+
+Three window types, each with different use cases:
 
 ```python
-from ml4t.engineer.core.registry import get_registry
+# Rolling: fixed lookback, discards old data
+pl.col("close").pct_change(21).over("symbol")              # 21-day momentum
 
-registry = get_registry()
-print(registry.list_features())  # All available
-print(registry.get_feature("rsi"))  # Feature metadata
+# Expanding: growing window, uses all history
+pl.col("returns").expanding().mean().shift(1).over("symbol")  # Historical mean
+
+# Cross-sectional: rank across all symbols at each timestamp
+pl.col("momentum").rank().over("timestamp")                 # Peer rank
+```
+
+Always `.shift(1)` expanding/rolling statistics to avoid using the current bar's value in its own feature.
+
+## Multi-Feature Computation
+
+```python
+features = df.sort("symbol", "timestamp").with_columns(
+    momentum_21d=pl.col("close").pct_change(21).over("symbol"),
+    volatility_21d=pl.col("returns").rolling_std(21).over("symbol"),
+    volume_ratio=pl.col("volume")
+    / pl.col("volume").rolling_mean(21).shift(1).over("symbol"),
+)
 ```
 
 ## Guardrails
 
-- Features computed in topological order (dependencies first)
-- Uses Polars expressions (lazy evaluation supported)
-- Input must have OHLCV columns for most features
-- Check `feature.lookback` for minimum data requirements
+- **Every `.over("symbol")`**: any rolling/expanding stat without `.over("symbol")` on panel data is a bug
+- **Shift before use**: expanding stats need `.shift(1)` to avoid including the current observation
+- **Sort order matters**: always `sort("symbol", "timestamp")` before windowed operations
+
+## Production Implementation
+
+`ml4t-engineer` provides config-driven computation with dependency resolution:
+
+```python
+from ml4t.engineer.api import compute_features
+from ml4t.engineer.core.registry import feature_catalog
+
+# Discover available features
+print(feature_catalog.list_features())
+
+# Compute from names, dicts, or YAML config
+features = compute_features(data, ["rsi", "macd", "bollinger_bands"])
+features = compute_features(data, "config/features.yaml")
+```
+
+## Checklist
+
+- [ ] All windowed features use `.over("symbol")` for panel data
+- [ ] Expanding/rolling stats are `.shift(1)` before use
+- [ ] Data is sorted by `("symbol", "timestamp")` before feature computation
+- [ ] No global `.mean()` / `.std()` on panel columns
+- [ ] Cross-sectional features use `.over("timestamp")`

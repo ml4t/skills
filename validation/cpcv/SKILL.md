@@ -1,71 +1,112 @@
 ---
 name: ml4t-cpcv
-description: Combinatorial Purged Cross-Validation for robust backtesting
-category: validation
-type: operational
+description: Combinatorial Purged Cross-Validation generates a distribution of backtest paths instead of a single estimate. Use when evaluating strategy robustness or detecting overfitting in time-series models.
 dependencies: [purging-embargo]
-book_chapters: [10, 12]
-quantlab_module: ml4t.diagnostic.splitters
+metadata:
+  book_chapters: "7"
+  library: "ml4t-diagnostic"
 ---
 
-# Combinatorial Purged CV
+# Combinatorial Purged Cross-Validation
 
-Generates multiple backtest paths (not just one) to detect overfitting.
+Standard k-fold CV on time series produces one biased performance estimate. CPCV generates C(N,k) train/test combinations with purging and embargo, yielding a **distribution** of results that reveals overfitting.
 
-## How It Works
+## The Problem
 
-1. Partition data into N groups
-2. Generate C(N,k) combinations of test groups
-3. Apply purging and embargo to each
-4. Get distribution of results, not single number
+A single train/test split gives one Sharpe ratio — you cannot tell if it is skill or luck. Standard k-fold shuffles temporal order, leaking future information. Even `TimeSeriesSplit` produces only a handful of sequential folds, each with different train sizes, making comparison unreliable. You need many unbiased performance samples to build a distribution.
 
-## API
+## The Pattern
+
+Partition data into N groups, select k as test sets, train on the rest. Purge samples whose labels overlap the test boundary, add an embargo buffer. Repeat for all C(N,k) combinations.
+
+### WRONG
 
 ```python
-from ml4t.diagnostic.splitters import CombinatorialPurgedCV
+from sklearn.model_selection import KFold
 
-cv = CombinatorialPurgedCV(
-    n_groups=8,              # Partition into 8 groups
-    n_test_groups=2,         # 2 groups per test set → C(8,2)=28 combos
-    label_horizon=5,         # Purge: labels look 5 periods forward
-    embargo_size=2,          # Buffer after test set
-    max_combinations=20,     # Limit for efficiency
-    random_state=42
-)
-
+# Shuffled k-fold on time series — future leaks into training
+cv = KFold(n_splits=5, shuffle=True, random_state=42)
+scores = []
 for train_idx, test_idx in cv.split(X):
     model.fit(X[train_idx], y[train_idx])
-    score = model.score(X[test_idx], y[test_idx])
+    scores.append(model.score(X[test_idx], y[test_idx]))
+print(f"Mean score: {np.mean(scores):.3f}")  # Overly optimistic
 ```
 
-## Multi-Asset
+### CORRECT
 
 ```python
-cv = CombinatorialPurgedCV(
-    n_groups=6,
-    n_test_groups=2,
-    label_horizon=5,
-    isolate_groups=True  # Per-asset purging
-)
+import numpy as np
+from itertools import combinations
+from sklearn.model_selection import TimeSeriesSplit
 
-for train_idx, test_idx in cv.split(X, groups=symbols):
-    # Purging applied independently per asset
-    pass
+# Manual CPCV with purging using standard tools
+n_groups, n_test, horizon, embargo = 8, 2, 5, 2
+n_samples = len(X)
+group_size = n_samples // n_groups
+scores = []
+
+for test_groups in combinations(range(n_groups), n_test):
+    test_mask = np.zeros(n_samples, dtype=bool)
+    for g in test_groups:
+        test_mask[g * group_size:(g + 1) * group_size] = True
+
+    # Purge: remove training samples within horizon of test boundaries
+    train_mask = ~test_mask.copy()
+    for i in np.where(np.diff(test_mask.astype(int)) != 0)[0]:
+        purge_start = max(0, i + 1 - horizon)
+        purge_end = min(n_samples, i + 1 + embargo)
+        train_mask[purge_start:purge_end] = False
+
+    model.fit(X[train_mask], y[train_mask])
+    scores.append(model.score(X[test_mask], y[test_mask]))
+
+# C(8,2) = 28 scores — a distribution, not a single number
+print(f"Mean: {np.mean(scores):.3f}, Std: {np.std(scores):.3f}")
 ```
 
 ## Parameter Selection
 
-| n_groups | n_test_groups | Combinations |
-|----------|---------------|--------------|
-| 6 | 2 | 15 |
-| 8 | 2 | 28 (standard) |
-| 10 | 3 | 120 |
+| n_groups | n_test_groups | Combinations | Use case |
+|----------|---------------|--------------|----------|
+| 6 | 2 | 15 | Small datasets |
+| 8 | 2 | 28 | Standard |
+| 10 | 3 | 120 | Deep analysis |
 
-- `label_horizon`: Match your label construction (e.g., 5-day returns → 5)
+- `label_horizon`: must match label construction (5-day returns = 5)
 - `embargo_size`: ~10-20% of label_horizon
 
 ## Guardrails
 
-- Check variance across folds (high = not robust)
-- Use Deflated Sharpe Ratio for statistical significance
-- PBO > 50% suggests overfitting
+- High variance across folds signals lack of robustness — report std alongside mean
+- Verify training set size after purging is still sufficient (>60% of data)
+- Combine with Deflated Sharpe Ratio (see `deflated-sharpe` skill) for statistical significance
+- Never report the best fold — report the full distribution
+
+## Production Implementation
+
+`ml4t-diagnostic` provides a validated, sklearn-compatible splitter:
+
+```python
+from ml4t.diagnostic.splitters import CombinatorialCV
+
+cv = CombinatorialCV(
+    n_groups=8,
+    n_test_groups=2,
+    label_horizon=5,
+    embargo_size=2,
+    max_combinations=28,
+    random_state=42,
+)
+for train_idx, test_idx in cv.split(X):
+    model.fit(X[train_idx], y[train_idx])
+    scores.append(model.score(X[test_idx], y[test_idx]))
+```
+
+## Checklist
+
+- [ ] Using CPCV (not KFold or single split) for strategy evaluation
+- [ ] `label_horizon` matches actual label construction
+- [ ] `embargo_size` > 0 for autocorrelated features
+- [ ] Reporting distribution statistics (mean, std, min), not single score
+- [ ] Training set size after purging verified as sufficient

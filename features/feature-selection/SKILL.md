@@ -1,97 +1,117 @@
 ---
 name: ml4t-feature-selection
-description: Select relevant features and reduce dimensionality
-category: features
-type: operational
-dependencies: [information-coefficient]
-book_chapters: [9]
+description: Select informative features and remove redundant ones using IC ranking, mutual information, or RFE — always within CV folds. Use when a feature set exceeds 20 features or contains suspected noise.
+dependencies: [lookahead-bias]
+metadata:
+  book_chapters: "8"
+  library: "ml4t-diagnostic"
 ---
 
 # Feature Selection
 
-Reduce features to those with genuine predictive power.
+Selecting features on the full dataset is a form of lookahead bias. The test set influences which features are kept, inflating out-of-sample performance. Feature selection must happen inside each CV fold.
 
-## Methods
+## The Problem
 
-| Method | Type | Use Case |
-|--------|------|----------|
-| IC ranking | Univariate | Quick filtering |
-| Mutual information | Univariate | Non-linear |
-| RFE | Wrapper | Model-specific |
-| L1 regularization | Embedded | During training |
-| SHAP importance | Model-agnostic | Interpretation |
+With 50 features and a finite sample, some will correlate with forward returns by chance alone. If you rank features by IC on the full dataset and keep the top 10, those 10 are partly selected for noise. Out-of-sample, the noise component vanishes and the model underperforms expectations.
 
-## IC-Based Selection
+## The Pattern
 
+### WRONG
 ```python
-from ml4t.diagnostic.metrics import information_coefficient
+from scipy.stats import spearmanr
+import numpy as np
 
-# Calculate IC for each feature
-ic_scores = {}
-for col in feature_cols:
-    ic = information_coefficient(X[col], y)
-    ic_scores[col] = ic.mean()
-
-# Select top features
+# Feature selection on full dataset — leaks test-set information
+ic_scores = {col: abs(spearmanr(X[col], y).statistic) for col in X.columns}
 selected = sorted(ic_scores, key=ic_scores.get, reverse=True)[:20]
+model.fit(X[selected], y)
 ```
 
-## SHAP-Based Selection
-
+### CORRECT
 ```python
-import shap
+from scipy.stats import spearmanr
+from sklearn.model_selection import TimeSeriesSplit
+import numpy as np
 
-# Fit model
-model.fit(X_train, y_train)
+tscv = TimeSeriesSplit(n_splits=5)
+for train_idx, test_idx in tscv.split(X):
+    X_train, y_train = X[train_idx], y[train_idx]
 
-# Calculate SHAP values
-explainer = shap.TreeExplainer(model)
-shap_values = explainer.shap_values(X_test)
+    # Select features using ONLY training data
+    ic_scores = {
+        col: abs(spearmanr(X_train[:, i], y_train).statistic)
+        for i, col in enumerate(feature_names)
+    }
+    selected = sorted(ic_scores, key=ic_scores.get, reverse=True)[:20]
+    sel_idx = [feature_names.index(f) for f in selected]
 
-# Feature importance
-importance = np.abs(shap_values).mean(axis=0)
-top_features = X.columns[np.argsort(importance)[-20:]]
+    model.fit(X_train[:, sel_idx], y_train)
+    preds = model.predict(X[test_idx][:, sel_idx])
 ```
 
-## Collinearity Removal
+## Selection Methods
+
+| Method | Type | When to Use |
+|--------|------|-------------|
+| IC ranking | Univariate | Quick filter, large feature set |
+| Mutual information | Univariate | Non-linear relationships |
+| L1 regularization | Embedded | During training (Lasso, ElasticNet) |
+| SHAP importance | Model-based | After training, interpretation |
+| Recursive feature elimination | Wrapper | Small feature set, expensive |
+
+## Collinearity Removal (Pre-Selection)
 
 ```python
-def remove_collinear(X: pl.DataFrame, threshold: float = 0.8) -> list:
-    """Remove highly correlated features."""
-    corr = X.corr()
+import numpy as np
+
+def remove_collinear(corr_matrix: np.ndarray, feature_names: list, threshold: float = 0.8) -> list:
+    """Drop one feature from each highly correlated pair."""
     to_drop = set()
-
-    for i, col in enumerate(corr.columns):
-        for j in range(i + 1, len(corr.columns)):
-            if abs(corr[i, j]) > threshold:
-                # Drop feature with lower IC
-                to_drop.add(corr.columns[j])
-
-    return [c for c in X.columns if c not in to_drop]
+    for i in range(len(feature_names)):
+        for j in range(i + 1, len(feature_names)):
+            if abs(corr_matrix[i, j]) > threshold:
+                to_drop.add(feature_names[j])
+    return [f for f in feature_names if f not in to_drop]
 ```
 
-## Walk-Forward Selection
+## Selection Stability Diagnostic
 
 ```python
-# WRONG: Select features on full dataset
-selected = select_features(X, y)  # Leakage
+# Track which features are selected across folds
+from collections import Counter
+fold_selections = Counter()
+for train_idx, _ in tscv.split(X):
+    selected = select_top_k(X[train_idx], y[train_idx], k=20)
+    fold_selections.update(selected)
 
-# CORRECT: Select features only on training data
-for train_idx, test_idx in cv.split(X):
-    selected = select_features(X[train_idx], y[train_idx])
-    model.fit(X[train_idx][selected], y[train_idx])
+# Features selected in <50% of folds are unstable — likely noise
+stable = [f for f, count in fold_selections.items() if count >= len(list(tscv.split(X))) // 2]
 ```
 
 ## Guardrails
 
-- Feature selection must be inside CV loop
-- IC-based selection can overfit to noise
-- Start with more features, regularize
-- Stability of selection across folds is informative
+- **Selection inside CV is non-negotiable** — any global selection is lookahead bias
+- **Stability across folds matters** — a feature selected in 1/5 folds is noise
+- **IC > 0.1 is suspicious** — investigate for leakage before trusting
+- **Collinearity removal is safe pre-CV** — it uses only feature-feature correlation, not the target
+
+## Production Implementation
+
+`ml4t-diagnostic` provides a validated feature selection pipeline:
+
+```python
+from ml4t.diagnostic import FeatureSelector, SelectionReport
+
+selector = FeatureSelector(method="ic", k=20, min_stability=0.5)
+report: SelectionReport = selector.fit(X, y, cv=tscv)  # Selection inside CV
+selected_features = report.stable_features
+```
 
 ## Checklist
 
-- [ ] Selection inside cross-validation
-- [ ] Collinearity checked
-- [ ] Multiple methods compared
-- [ ] Selection stability assessed
+- [ ] Feature selection happens inside each CV fold, never on the full dataset
+- [ ] Collinearity removed first (threshold 0.7-0.8)
+- [ ] Selection stability checked across folds (>50% agreement)
+- [ ] No feature with IC > 0.1 accepted without leakage investigation
+- [ ] Selected feature set documented and versioned

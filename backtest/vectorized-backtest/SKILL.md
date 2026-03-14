@@ -1,108 +1,99 @@
 ---
 name: ml4t-vectorized-backtest
-description: Fast array-based backtesting for factor strategies
-category: backtest
-type: operational
+description: Fast array-based signal evaluation for factor strategies. Use when screening signals before committing to full event-driven simulation.
 dependencies: [run-backtest]
-book_chapters: [17]
+metadata:
+  book_chapters: "16"
+  library: ""
 ---
 
-# Vectorized Backtest
+# Vectorized Backtesting
 
-Fast backtesting using array operations instead of event loops.
+Matrix operations can evaluate a signal across thousands of assets in seconds — but only if you shift positions by one bar. Without the shift, you are trading on prices you have already seen, and the backtest is meaningless.
 
-## When to Use
+## The Problem
 
-| Approach | Use Case | Speed |
-|----------|----------|-------|
-| Vectorized | Long-only, no path dependence | Very fast |
-| Event-driven | Complex rules, path dependence | Slower |
+Vectorized backtests compute `positions * returns` in one shot. The critical mistake is using today's signal to trade today's return. That is lookahead bias: you are "buying" at the price your signal already observed. The fix is a single `.shift(1)` — but forgetting it inflates Sharpe by 0.5-1.0 or more.
 
-## API
+## The Pattern
 
+### WRONG
 ```python
-def vectorized_backtest(
-    signals: pl.DataFrame,    # (date, symbol) → signal
-    returns: pl.DataFrame,    # (date, symbol) → return
-    weight_func: str = 'equal',
-    max_weight: float = 0.10
-) -> pl.DataFrame:
-    """
-    Vectorized portfolio backtest.
+import polars as pl
 
-    Returns portfolio returns series.
-    """
-    # Shift signals to avoid lookahead
-    positions = signals.shift(1)
-
-    # Apply weighting
-    if weight_func == 'equal':
-        weights = positions / positions.abs().sum(axis=1)
-    elif weight_func == 'signal':
-        weights = positions / positions.abs().sum(axis=1)
-
-    # Clip weights
-    weights = weights.clip(-max_weight, max_weight)
-
-    # Portfolio return = sum(weight * return)
-    portfolio_returns = (weights * returns).sum(axis=1)
-
-    return portfolio_returns
+# Signal computed on close[t], applied to return[t] — lookahead!
+signals = df.with_columns(
+    signal=pl.col("close").pct_change(21)  # 21-day momentum
+)
+positions = (signals.get_column("signal") > 0).cast(pl.Int8)
+returns = df.get_column("close").pct_change()
+strategy_returns = positions * returns  # BUG: no shift
 ```
 
-## Position Matrix
-
+### CORRECT
 ```python
-# Build position matrix from signals
-def signal_to_positions(signal: pl.DataFrame, long_only: bool = True):
-    """Convert continuous signal to positions."""
-    if long_only:
-        # Top quintile = 1, rest = 0
-        return (signal.rank(pct=True) > 0.8).cast(pl.Int8)
-    else:
-        # Long top, short bottom
-        rank = signal.rank(pct=True)
-        return (
-            pl.when(rank > 0.8).then(1)
-            .when(rank < 0.2).then(-1)
-            .otherwise(0)
-        )
+import polars as pl
+import numpy as np
+
+# Shift positions by 1: decide on bar t, hold from t+1
+df = df.with_columns(
+    signal=pl.col("close").pct_change(21),
+    fwd_ret=pl.col("close").pct_change().shift(-1),  # next-bar return
+)
+positions = (pl.col("signal") > 0).cast(pl.Int8)
+
+result = df.with_columns(positions=positions).with_columns(
+    gross_ret=pl.col("positions") * pl.col("fwd_ret"),
+    turnover=pl.col("positions").diff().abs(),
+).with_columns(
+    net_ret=pl.col("gross_ret") - pl.col("turnover") * 10 / 10_000,  # 10 bps cost
+)
+
+sharpe = (
+    result.get_column("net_ret").mean()
+    / result.get_column("net_ret").std()
+    * np.sqrt(252)
+)
 ```
 
-## Turnover Estimation
+## Cross-Sectional Signals (Multi-Asset)
+
+For panel data, rank across assets each day then compute portfolio returns:
 
 ```python
-def turnover(weights: pl.DataFrame) -> pl.Series:
-    """Calculate daily turnover."""
-    weight_changes = weights.diff().abs()
-    return weight_changes.sum(axis=1) / 2  # Two-sided
+ranked = (
+    df.with_columns(
+        rank=pl.col("signal").rank().over("timestamp") /
+             pl.col("signal").count().over("timestamp")
+    )
+    .with_columns(
+        weight=pl.when(pl.col("rank") > 0.8).then(1)
+               .when(pl.col("rank") < 0.2).then(-1)
+               .otherwise(0)
+    )
+)
+# Normalize weights per day, then portfolio_return = sum(weight * fwd_ret)
 ```
 
-## With Transaction Costs
+## Limitations
 
-```python
-def backtest_with_costs(
-    weights: pl.DataFrame,
-    returns: pl.DataFrame,
-    cost_bps: float = 10
-) -> pl.DataFrame:
-    """Vectorized backtest including costs."""
-    gross_returns = (weights.shift(1) * returns).sum(axis=1)
-    turnover = weights.diff().abs().sum(axis=1) / 2
-    costs = turnover * cost_bps / 10000
-    return gross_returns - costs
-```
+Vectorized backtests **cannot** model: position limits, partial fills, path-dependent exits (stop-loss, trailing stop), margin requirements, or realistic slippage. Use them for signal screening, then validate winners with event-driven simulation.
 
 ## Guardrails
 
-- Must shift signals to prevent lookahead
-- Cannot handle path-dependent rules
-- Transaction costs are approximations
-- No realistic fill simulation
+- Missing `.shift(1)` on positions (or equivalent `.shift(-1)` on returns) is the most common vectorized backtest bug
+- Turnover estimate = `abs(weight_change).sum() / 2` per rebalance — include cost deduction
+- Beware survivorship bias: if delisted assets disappear from your panel, long-only results are inflated
+- Sharpe above 3.0 in a vectorized backtest almost certainly means a bug
+
+## Production Implementation
+
+For production validation, switch to `ml4t-backtest`'s event-driven engine (see `run-backtest` skill). Vectorized backtests are a screening tool, not a final answer.
 
 ## Checklist
 
-- [ ] Signals shifted before use
-- [ ] Weights normalized
-- [ ] Turnover calculated
-- [ ] Costs included
+- [ ] Positions shifted by 1 bar relative to signal (or returns shifted by -1)
+- [ ] Weights normalized per rebalance date (sum to 1 or market-neutral)
+- [ ] Turnover computed and cost deducted from gross returns
+- [ ] No survivorship bias in the asset universe
+- [ ] Winners re-validated with event-driven backtest

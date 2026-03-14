@@ -1,85 +1,96 @@
 ---
 name: ml4t-triple-barrier
-description: Label trades using profit target, stop loss, and time barriers
-category: features
-type: operational
+description: Label trades using profit-target, stop-loss, and time barriers with volatility-adaptive thresholds. Use when building labels for supervised learning on trade outcomes.
 dependencies: [lookahead-bias]
-book_chapters: [7]
-quantlab_module: ml4t.engineer.labeling
+metadata:
+  book_chapters: "7"
+  library: "ml4t-engineer"
 ---
 
 # Triple-Barrier Labeling
 
-Labels reflect trading outcomes: +1 (profit hit), -1 (stop hit), 0 (time expiry).
+Fixed return thresholds ignore volatility — a 2% move is noise in crypto but a signal in treasuries. Triple-barrier labels adapt to the asset's current regime.
 
-## API
+## The Problem
 
+Naive binary labels (`return > 0`) are noisy and ignore position management. A trade that gains 5% then gives back 8% is labeled "winning" if you only check the endpoint. Triple-barrier labeling mirrors real trading: you exit when you hit a profit target, a stop loss, or time runs out.
+
+## The Pattern
+
+### WRONG
 ```python
-from ml4t.engineer.labeling.barriers import BarrierConfig, ATRBarrierConfig
+import numpy as np
 
-# Fixed barriers
-config = BarrierConfig(
-    upper_barrier=0.02,      # 2% profit target
-    lower_barrier=0.01,      # 1% stop loss
-    max_holding_period=10,   # 10 bars max
-    side=1                   # 1=long, -1=short, None=symmetric
-)
-
-# Volatility-adaptive barriers
-config = ATRBarrierConfig(
-    upper_multiplier=2.0,    # 2x ATR profit
-    lower_multiplier=1.5,    # 1.5x ATR stop
-    atr_period=14,
-    max_holding_period=20
-)
+# Fixed threshold ignores volatility regime
+labels = np.where(fwd_returns > 0.02, 1, np.where(fwd_returns < -0.01, -1, 0))
 ```
 
-## Usage
-
+### CORRECT
 ```python
-from ml4t.engineer.labeling import triple_barrier
+import numpy as np
+import polars as pl
 
-labels = triple_barrier(
-    prices=df,
-    config=config,
-    price_col="close",
-    timestamp_col="date"
-)
-# Returns: label, exit_time, holding_period, return
+def triple_barrier_labels(
+    prices: np.ndarray,
+    upper_mult: float = 2.0,
+    lower_mult: float = 1.5,
+    atr_period: int = 14,
+    max_holding: int = 10,
+) -> np.ndarray:
+    """Label each bar: +1 profit hit, -1 stop hit, 0 time expiry."""
+    # Volatility-adaptive barriers via ATR
+    high_low = np.abs(np.diff(prices, prepend=prices[0]))
+    atr = np.convolve(high_low, np.ones(atr_period) / atr_period, mode="same")
+
+    labels = np.zeros(len(prices))
+    for i in range(len(prices) - max_holding):
+        upper = prices[i] + atr[i] * upper_mult
+        lower = prices[i] - atr[i] * lower_mult
+        for j in range(1, max_holding + 1):
+            if prices[i + j] >= upper:
+                labels[i] = 1; break
+            elif prices[i + j] <= lower:
+                labels[i] = -1; break
+        # else: labels[i] stays 0 (time expiry)
+    return labels
 ```
 
-## Dynamic Barriers
+## Barrier Calibration
 
-```python
-# Use column names for adaptive barriers
-df['upper'] = df['atr_14'] * 2
-df['lower'] = df['atr_14'] * 1.5
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| 90%+ stops hit | Barriers too tight | Widen lower_mult |
+| 90%+ time expiry | Barriers too wide | Tighten multipliers or shorten max_holding |
+| Label imbalance >3:1 | Asymmetric barriers | Adjust upper/lower ratio |
 
-config = BarrierConfig(
-    upper_barrier='upper',
-    lower_barrier='lower',
-    max_holding_period=20
-)
-```
+The ATR multiplier controls barrier width relative to current volatility. Typical ranges: upper 1.5-3.0x, lower 1.0-2.0x.
 
 ## Guardrails
 
-- **Purging required**: label_horizon = max_holding_period
-- **Class imbalance**: Check distribution, use class weights
-- **Barrier width**: Too tight → mostly stops; too wide → mostly time expiry
+- **Purging required**: CV must purge `max_holding_period` bars around test boundaries to prevent leakage
+- **Class balance**: check label distribution — use class weights if imbalanced beyond 3:1
+- **ATR lookback**: must use only past data; `atr[i]` must not include bar `i+1`
+
+## Production Implementation
+
+`ml4t-engineer` provides a validated, vectorized implementation:
 
 ```python
-# CV must match label horizon
-cv = CombinatorialPurgedCV(
-    label_horizon=10,  # Same as max_holding_period
-    embargo_size=2
+from ml4t.engineer.labeling import triple_barrier
+from ml4t.engineer.labeling.barriers import ATRBarrierConfig
+
+config = ATRBarrierConfig(
+    upper_multiplier=2.0, lower_multiplier=1.5,
+    atr_period=14, max_holding_period=10,
 )
+labels = triple_barrier(prices=df, config=config, price_col="close")
+# Returns: label, exit_time, holding_period, return
 ```
 
-## Label Interpretation
+## Checklist
 
-| Label | Long Position | Short Position |
-|-------|--------------|----------------|
-| +1 | Profit target hit | Profit target hit |
-| -1 | Stop loss hit | Stop loss hit |
-| 0 | Time expiry | Time expiry |
+- [ ] Barriers are volatility-adaptive (ATR or realized vol), not fixed thresholds
+- [ ] `max_holding_period` matches CV purge window (`label_horizon`)
+- [ ] Label distribution checked — no single class >80%
+- [ ] ATR computed from past data only (no lookahead)
+- [ ] Short-side labels handled correctly if strategy is long/short

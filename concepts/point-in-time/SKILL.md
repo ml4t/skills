@@ -1,97 +1,111 @@
 ---
 name: ml4t-point-in-time
-description: Use data as it was available, not as revised later
-category: concepts
-type: conceptual
+description: Use data as it was available at decision time, not revised values. Use when joining fundamental, macro, or alternative data to price series for signal construction.
 dependencies: [lookahead-bias]
-book_chapters: [3, 5]
+metadata:
+  book_chapters: "2, 4"
+  library: "ml4t-data"
 ---
 
 # Point-in-Time Correctness
 
-Use data as it was available at decision time, not revised values.
-
-## Key Concepts
-
-| Term | Definition |
-|------|------------|
-| Event time | When something happened (e.g., Q4 earnings period) |
-| Availability time | When data became known (e.g., filing date) |
-| Revision | Later correction to previously published data |
+Joining data by event date instead of availability date uses information that did not exist yet, inflating backtest returns by 1--3% annually on fundamental strategies.
 
 ## The Problem
 
-```python
-# WRONG: Using revised GDP when it wasn't available
-gdp = fred.get_series("GDP")  # Contains all revisions
-signal = gdp.pct_change()     # Uses final values, not initial releases
+Fundamental data has two timestamps: when the economic event occurred (quarter-end) and when the data became publicly available (SEC filing date, press release, data vendor publication). Using the event date treats revised, delayed, or embargoed data as if it were available in real time.
 
-# Reality: GDP released ~30 days after quarter end, revised 2-3 times
+Example: Apple's Q4 2024 revenue (period ending Dec 31) is filed with the SEC on Jan 31, 2025. A model that joins revenue on Dec 31 uses data 31 days before it existed.
+
+Macro data has the same problem: GDP is released ~30 days after quarter-end and revised two to three times over the following months.
+
+## The Pattern
+
+### WRONG
+
+```python
+import polars as pl
+
+# Join fundamentals on the quarter they describe
+prices = pl.read_parquet("prices.parquet")
+fundamentals = pl.read_parquet("fundamentals.parquet")
+
+df = prices.join(
+    fundamentals,
+    left_on=["symbol", "timestamp"],
+    right_on=["symbol", "quarter_end"],    # uses event date
+    how="left",
+)
 ```
 
-## Rules
-
-### Fundamentals
+### CORRECT
 
 ```python
-# WRONG: Join on report period
-df = prices.join(fundamentals, on='quarter')
+import polars as pl
 
-# CORRECT: Join on filing date (availability time)
-df = prices.join(fundamentals, on='filing_date')
-# Only use fundamental data AFTER it was filed
+prices = pl.read_parquet("prices.parquet")
+fundamentals = pl.read_parquet("fundamentals.parquet")
+
+# Join on filing date (when the data became publicly available)
+df = prices.join_asof(
+    fundamentals.sort("filing_date"),
+    left_on="timestamp",
+    right_on="filing_date",              # uses availability date
+    by="symbol",
+    strategy="backward",                 # only use data available by this date
+)
 ```
 
-### Macro Data
+## Key Date Types
+
+| Date field | What it means | Safe to join on? |
+|------------|---------------|-----------------|
+| `quarter_end` / `period_end` | When the economic event occurred | No |
+| `filing_date` / `published_at` | When the data became public | Yes |
+| `release_date` (macro) | When the statistical agency published it | Yes |
+| `revised_date` | When a correction was issued | Only for the revision |
+
+## Macro Data: Release Calendars
 
 ```python
-# WRONG: Align by observation date
-df['gdp'] = gdp.reindex(df.index, method='ffill')
-
-# CORRECT: Align by release date + lag
-release_calendar = get_fred_release_dates('GDP')
-df['gdp'] = align_by_availability(gdp, release_calendar, lag_days=1)
-```
-
-### SEC Filings
-
-```python
-# Key dates for 10-K:
-# - period_end: Dec 31 (fiscal year end)
-# - filed_date: Feb 28 (when SEC received it)
-# - available: Feb 28 + processing time
-
-# Use filed_date, not period_end
-features = filings[filings['filed_date'] <= current_date]
-```
-
-## Bitemporal Model
-
-Track two time dimensions:
-1. **Valid time**: When fact was true (event time)
-2. **Transaction time**: When fact became known (availability time)
-
-```python
-# Store both timestamps
-fundamentals_table = {
-    'symbol': 'AAPL',
-    'metric': 'revenue',
-    'value': 100B,
-    'valid_time': '2024-12-31',      # Q4 2024
-    'transaction_time': '2025-02-01'  # Filing date
-}
+# GDP example: align by release date, not observation quarter
+gdp_releases = pl.DataFrame({
+    "observation_quarter": ["2024-Q3", "2024-Q3", "2024-Q3"],
+    "release_date": ["2024-10-30", "2024-11-27", "2024-12-19"],
+    "release_type": ["advance", "second", "third"],
+    "value": [4.9, 5.2, 4.9],
+})
+# A point-in-time feature on Nov 1, 2024 should use 4.9 (advance), not 5.2
 ```
 
 ## Guardrails
 
-- FRED data: Check release calendar, not observation date
-- SEC filings: Use `filed_date`, not `period_of_report`
-- Earnings: Available after market close on announcement day
-- Macro revisions: Initial release often differs 0.5-1% from final
+- Every fundamental join must use a `filing_date` or `release_date` column, never `quarter_end` or `period_end`.
+- FRED data: check the release calendar (`FRED/releases`), not the observation date.
+- Earnings data: available after market close on announcement day, not at open.
+- Add a 1-day buffer after filing date to account for data vendor processing lag.
+
+## Production Implementation
+
+`ml4t-data`'s `DataManager` handles point-in-time alignment automatically:
+
+```python
+from ml4t.data import DataManager
+
+dm = DataManager()
+panel = dm.load(
+    datasets=["prices", "fundamentals"],
+    as_of_date="filing_date",            # enforces PIT alignment
+    start="2015-01-01",
+    end="2024-12-31",
+)
+# Fundamentals are forward-filled from filing_date, not quarter_end
+```
 
 ## Checklist
 
-- [ ] All fundamental joins use filing/release date
-- [ ] Macro data aligned by availability, not observation
-- [ ] No "as-reported" vs "revised" confusion
-- [ ] Lag buffer added for data processing time
+- [ ] All fundamental joins use `filing_date` / `release_date`, not period-end
+- [ ] Macro features aligned by publication date with release calendar
+- [ ] 1-day buffer added for data processing lag
+- [ ] No "as-reported" vs "revised" confusion in the feature pipeline
+- [ ] `join_asof` with `strategy="backward"` used for temporal alignment

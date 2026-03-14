@@ -1,124 +1,112 @@
 ---
 name: ml4t-model-validation
-description: Comprehensive model validation before deployment
-category: workflows
-type: workflow
-dependencies: [cpcv, deflated-sharpe, shap-analysis, regime-backtest, sensitivity-analysis]
-book_chapters: [12, 17]
+description: Multi-gate model validation process from cross-validation through stress testing to deployment sign-off. Use when a model is being considered for backtesting or live deployment.
+dependencies: [cpcv, purging-embargo, deflated-sharpe, shap-analysis, backtest-overfitting]
+metadata:
+  book_chapters: "7, 12"
+  library: "ml4t-diagnostic"
 ---
 
 # Model Validation Workflow
 
-Rigorous validation before production deployment.
+A model that passes a single train/test split proves nothing. Rigorous validation requires combinatorial CV, overfitting probability, deflated statistics, feature attribution, and out-of-time holdout — all before any backtest.
 
-## Stage Overview
+## The Problem
 
-```
-1. Cross-Validation → 2. Backtest → 3. Stress Test → 4. Sensitivity → 5. Sign-off
-```
+A researcher splits data 80/20, trains a model, sees good test-set performance, and runs a backtest. The backtest looks promising. They deploy. The strategy loses money immediately. The cause: the single split was lucky, the model memorized regime-specific patterns, and hyperparameter tuning leaked information across the boundary. Without multiple validation gates, a model that looks good on one split can be arbitrarily overfit.
 
-## Stage 1: Cross-Validation
+## The Pattern
+
+### WRONG
 
 ```python
-from ml4t.diagnostic.splitters import CombinatorialPurgedCV
-from ml4t.diagnostic.metrics import probability_of_backtest_overfitting
+# Single train/test split, no overfitting checks, straight to deployment
+from sklearn.model_selection import train_test_split
+import lightgbm as lgb
 
-cv = CombinatorialPurgedCV(n_groups=10, n_test_groups=2, purge_gap=5)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, shuffle=True  # Shuffling time series!
+)
+model = lgb.LGBMRegressor().fit(X_train, y_train)
+score = model.score(X_test, y_test)
+print(f"R2: {score:.3f}")  # 0.15 — good enough, deploy
+```
 
-cv_results = []
-for train_idx, test_idx in cv.split(X):
+### CORRECT
+
+```python
+# Five-gate validation: CPCV → PBO → Deflated Sharpe → SHAP → OOS holdout
+import numpy as np
+import lightgbm as lgb
+
+# Gate 1: CPCV — multiple train/test paths, not one split (see ml4t-cpcv)
+cv_sharpes = []
+for train_idx, test_idx in time_aware_cv_splits:  # C(10,2) = 45 paths
+    model = lgb.LGBMRegressor(n_estimators=100, random_state=42)
     model.fit(X[train_idx], y[train_idx])
-    pred = model.predict(X[test_idx])
-    sharpe = calculate_sharpe(pred, y[test_idx])
-    cv_results.append(sharpe)
+    preds = model.predict(X[test_idx])
+    sharpe = np.mean(preds * y[test_idx]) / np.std(preds * y[test_idx]) * np.sqrt(252)
+    cv_sharpes.append(sharpe)
 
-pbo = probability_of_backtest_overfitting(cv_results)
-print(f"PBO: {pbo:.1%}")  # Should be < 50%
+# Gate 2: PBO — fraction of paths with negative OOS Sharpe (see ml4t-backtest-overfitting)
+pbo = np.mean([s < 0 for s in cv_sharpes])
+assert pbo < 0.50, f"PBO {pbo:.0%} — model is likely overfit"
+
+# Gate 3: Deflated Sharpe — adjust for number of trials (see ml4t-deflated-sharpe)
+expected_max = np.sqrt(2 * np.log(len(cv_sharpes)))
+dsr = (max(cv_sharpes) - expected_max) / (np.std(cv_sharpes) / np.sqrt(len(cv_sharpes)))
+
+# Gate 4: SHAP — verify features match hypothesis (see ml4t-shap-analysis)
+import shap
+shap_values = shap.TreeExplainer(model).shap_values(X[test_idx])
+
+# Gate 5: OOS holdout — data never seen in any CV fold
+oos_sharpe = (np.mean(model.predict(X_holdout) * y_holdout)
+              / np.std(model.predict(X_holdout) * y_holdout) * np.sqrt(252))
+degradation = (np.mean(cv_sharpes) - oos_sharpe) / np.mean(cv_sharpes)
+assert degradation < 0.30, f"OOS degradation {degradation:.0%} — too high"
 ```
 
-## Stage 2: Out-of-Sample Backtest
+## Gate Summary
+
+| # | Gate | Pass Condition | Fail Action |
+|---|------|---------------|-------------|
+| 1 | CPCV | Median path Sharpe > 0 | Simplify model or revisit features |
+| 2 | PBO | < 50% of paths have negative Sharpe | Reduce model complexity |
+| 3 | Deflated Sharpe | Significant after trial adjustment | Fewer hyperparameter trials |
+| 4 | SHAP | Top features match economic hypothesis | Remove noise features |
+| 5 | OOS holdout | Degradation < 30% from in-sample | Model memorized regime — redesign |
+
+Gates are sequential. Do not skip to Gate 5 hoping a good holdout compensates for a bad PBO.
+
+## Guardrails
+
+- If PBO > 50%, adding more features or complexity will make it worse, not better
+- If SHAP shows the model relies on a single feature for > 40% of predictions, the model is fragile
+- If OOS degradation is < 5%, be suspicious — it often means data leakage, not a great model
+- If CV Sharpe variance across folds is > 1.0, the signal is unstable across regimes
+
+## Production Implementation
+
+`ml4t-diagnostic` provides validated CPCV splitting and PBO computation:
 
 ```python
-# True holdout (never touched during development)
-holdout_start = '2022-01-01'
-holdout_end = '2024-12-31'
+from ml4t.diagnostic.splitters import CombinatorialCV
+from ml4t.diagnostic.evaluation.stats import compute_pbo
+from ml4t.diagnostic import Evaluator
 
-holdout_results = run_backtest(
-    strategy=Strategy(model),
-    data=data.filter(pl.col('date') >= holdout_start),
-    costs=realistic_costs
-)
-
-# Compare to in-sample
-is_sharpe = np.mean(cv_results)
-oos_sharpe = holdout_results.sharpe
-degradation = (is_sharpe - oos_sharpe) / is_sharpe
-print(f"OOS degradation: {degradation:.1%}")  # Should be < 30%
+cv = CombinatorialCV(n_groups=10, n_test_groups=2, embargo_periods=5)
+evaluator = Evaluator(cv=cv, metrics=["sharpe", "ic"])
+result = evaluator.evaluate(model=model, X=X, y=y)
+pbo = compute_pbo(result.path_sharpes)
 ```
 
-## Stage 3: Stress Testing
+## Checklist
 
-```python
-from ml4t.portfolio.stress import stress_test_report
-
-stress_results = stress_test_report(
-    weights=final_weights,
-    scenarios=HISTORICAL_SCENARIOS
-)
-
-# Check survival
-max_stress_loss = stress_results['loss'].min()
-print(f"Worst scenario loss: {max_stress_loss:.1%}")
-assert max_stress_loss > -0.30, "Would not survive historical stress"
-```
-
-## Stage 4: Sensitivity Analysis
-
-```python
-from ml4t.backtest.sensitivity import parameter_sweep
-
-sensitivity = parameter_sweep(
-    strategy_fn=strategy_with_params,
-    param_grid={
-        'lookback': [20, 40, 60, 80],
-        'threshold': [0.5, 1.0, 1.5, 2.0]
-    }
-)
-
-robustness = (sensitivity['sharpe'] > 0).mean()
-print(f"Robustness: {robustness:.1%}")  # Should be > 70%
-```
-
-## Stage 5: Sign-off Checklist
-
-```python
-validation_results = {
-    'pbo': pbo,
-    'oos_sharpe': oos_sharpe,
-    'oos_degradation': degradation,
-    'max_stress_loss': max_stress_loss,
-    'robustness_score': robustness
-}
-
-THRESHOLDS = {
-    'pbo': (lambda x: x < 0.50, "PBO must be < 50%"),
-    'oos_sharpe': (lambda x: x > 0.5, "OOS Sharpe must be > 0.5"),
-    'oos_degradation': (lambda x: x < 0.30, "Degradation must be < 30%"),
-    'max_stress_loss': (lambda x: x > -0.30, "Stress loss must be > -30%"),
-    'robustness_score': (lambda x: x > 0.70, "Robustness must be > 70%")
-}
-
-for metric, (check, msg) in THRESHOLDS.items():
-    passed = check(validation_results[metric])
-    print(f"{'✓' if passed else '✗'} {msg}: {validation_results[metric]:.2f}")
-```
-
-## Checkpoints
-
-- [ ] CPCV with purging and embargo
-- [ ] PBO < 50%
-- [ ] True holdout backtested
-- [ ] OOS degradation < 30%
-- [ ] Stress tests passed
-- [ ] Parameter sensitivity checked
-- [ ] All sign-off criteria met
+- [ ] Cross-validation uses CPCV with purging and embargo, not random splits
+- [ ] PBO computed and < 50%
+- [ ] Deflated Sharpe ratio significant after adjusting for number of trials
+- [ ] SHAP feature importance aligns with economic hypothesis
+- [ ] True out-of-time holdout tested (data never used in any CV fold)
+- [ ] OOS performance degradation < 30% from in-sample
+- [ ] All five gates passed before proceeding to backtest

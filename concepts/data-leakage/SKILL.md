@@ -1,65 +1,100 @@
 ---
 name: ml4t-data-leakage
-description: Prevent all forms of information leakage in ML pipelines
-category: concepts
-type: conceptual
+description: Prevent train-test contamination, target leakage, and temporal leakage in ML pipelines. Use when building features, fitting transformers, or splitting data for cross-validation.
 dependencies: [lookahead-bias]
-book_chapters: [2, 7, 10]
+metadata:
+  book_chapters: "2, 7, 8"
+  library: "ml4t-diagnostic"
 ---
 
 # Data Leakage
 
-## Types
+Leakage lets test-set information influence training, producing models that look good in development but fail in production.
 
-1. **Lookahead bias**: Using future data (see `ml4t-lookahead-bias`)
-2. **Target leakage**: Features derived from target
-3. **Train-test contamination**: Test info in training transforms
-4. **CV leakage**: Standard k-fold on time series
-5. **Survivorship bias**: Current universe for historical backtest
+## The Problem
 
-## Rules
+Three distinct failure modes inflate backtest performance:
 
-### Transformations
+1. **Target leakage** -- features computed from the target variable (e.g., future returns embedded in a "sentiment score" that was derived from price changes).
+2. **Train-test contamination** -- fitting a scaler, encoder, or selector on the full dataset before splitting, so test statistics leak into training transforms.
+3. **Temporal leakage** -- using future data in features (overlaps with lookahead bias, but here the mechanism is the train/test split itself, not the feature formula).
+
+A pipeline that fits a `StandardScaler` on the full matrix before splitting commonly inflates Sharpe by 0.2--0.5 on daily data. The model learns the test set's distribution.
+
+## The Pattern
+
+### WRONG
+
 ```python
-# WRONG
-scaler.fit_transform(X_all)
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import Ridge
 
-# CORRECT
-scaler.fit(X_train)
-X_train_scaled = scaler.transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)          # fit on ALL data (leaks test stats)
+
+X_train, X_test = X_scaled[:split], X_scaled[split:]
+y_train, y_test = y[:split], y[split:]
+
+model = Ridge().fit(X_train, y_train)
+print(model.score(X_test, y_test))           # inflated R^2
 ```
 
-### Cross-Validation
-```python
-# WRONG
-KFold(n_splits=5, shuffle=True)
+### CORRECT
 
-# CORRECT
-from ml4t.diagnostic.splitters import CombinatorialPurgedCV
-CombinatorialPurgedCV(n_groups=8, n_test_groups=2, label_horizon=5)
+```python
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import Ridge
+
+X_train, X_test = X[:split], X[split:]
+y_train, y_test = y[:split], y[split:]
+
+pipe = Pipeline([
+    ("scaler", StandardScaler()),             # fit on train only
+    ("model", Ridge()),
+])
+pipe.fit(X_train, y_train)
+print(pipe.score(X_test, y_test))             # honest R^2
 ```
 
-### Statistics
+## Detection Heuristics
+
+| Red flag | Likely cause |
+|----------|--------------|
+| `fit_transform(X)` before any split | Train-test contamination |
+| Feature-target Pearson > 0.5 | Target leakage |
+| OOS performance matches IS within 1% | Information bleeding through |
+| Accuracy > 55% on daily return direction | Verify no leakage before celebrating |
+
+## Guardrails
+
+- Search codebase for `fit_transform` calls that precede `train_test_split` -- each one is a leak candidate.
+- Compute feature-target correlation on the training fold only; correlation > 0.3 warrants investigation.
+- Any `SelectKBest` or `mutual_info_classif` call on the full dataset is leakage -- wrap in a pipeline.
+- Time-series splits must respect temporal order: no shuffled k-fold on sequential data.
+
+## Production Implementation
+
+`ml4t-engineer` provides a leakage-safe dataset builder that enforces correct split ordering:
+
 ```python
-# WRONG - uses all data
-threshold = df['returns'].quantile(0.75)
+from ml4t.engineer import create_dataset_builder
 
-# CORRECT - expanding window
-threshold = df['returns'].expanding().quantile(0.75).shift(1)
+builder = create_dataset_builder(
+    features=["momentum_21d", "volatility_63d", "volume_rank"],
+    label="fwd_ret_21d",
+    n_folds=8,
+    embargo_days=5,
+)
+for fold in builder.walk_forward():
+    X_train, y_train = fold.train
+    X_test, y_test = fold.test       # scaler fit on train only
 ```
-
-## Detection
-
-Red flags:
-- Sharpe > 2.0 on daily data
-- Accuracy > 55% for return prediction
-- Feature-target correlation > 0.8
-- In-sample ≈ out-of-sample performance
 
 ## Checklist
 
-- [ ] All fit() calls on training data only
-- [ ] Time-series aware CV with purging
-- [ ] Point-in-time data correctness
-- [ ] No future statistics in features/labels
+- [ ] All `fit()` / `fit_transform()` calls happen on training data only
+- [ ] Feature selection wrapped inside the CV loop (not before splitting)
+- [ ] No shuffled k-fold on time-series data
+- [ ] Feature-target correlations reviewed for target leakage
+- [ ] Pipeline used to chain scaler + model (prevents ordering mistakes)

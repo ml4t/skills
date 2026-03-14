@@ -1,118 +1,93 @@
 ---
 name: ml4t-stress-test
-description: Test portfolio under extreme scenarios
-category: portfolio
-type: operational
+description: Test portfolios against historical crises and hypothetical shocks to quantify tail exposure. Use when assessing whether a strategy survives extreme markets.
 dependencies: [risk-metrics]
-book_chapters: [20]
+metadata:
+  book_chapters: "19"
+  library: ""
 ---
 
 # Stress Testing
 
-Evaluate portfolio under extreme market conditions.
+A strategy backtested on 2015-2023 has never seen a regime where equities and bonds fall simultaneously. Without stress testing against 2008, 2020, and 2022, you are implicitly betting that those regimes will not recur.
 
-## Scenario Types
+## The Problem
 
-| Type | Source | Example |
-|------|--------|---------|
-| Historical | Past crises | 2008 GFC |
-| Hypothetical | Constructed | 2x GFC severity |
-| Sensitivity | Single factor | +200bp rates |
+Backtests cover only the historical sample, which may exclude the scenarios most relevant to survival. A momentum strategy backtested from 2010 onward has never experienced the 2009 momentum crash (-46% in one month). Stress testing applies known crisis scenarios and hypothetical shocks to the current portfolio, revealing exposures that summary statistics hide. This is not optional — it is how you discover that your "diversified" portfolio has a hidden correlation spike that produces a -30% month.
 
-## Historical Scenarios
+## The Pattern
 
+### WRONG
 ```python
-HISTORICAL_SCENARIOS = {
-    'black_monday_1987': {'equity': -0.226, 'bond': 0.02, 'gold': 0.03},
-    'gfc_2008': {'equity': -0.50, 'bond': 0.15, 'credit': -0.30},
-    'covid_crash_2020': {'equity': -0.34, 'bond': 0.08, 'vol': 4.0},
-    'rate_shock_2022': {'equity': -0.20, 'bond': -0.15, 'credit': -0.10},
+import numpy as np
+
+# Only looks at backtest period (2016-2023) — misses major crises
+returns = backtest_returns  # 2016-2023 daily
+max_loss = returns.min()
+print(f"Worst day: {max_loss:.1%}")  # -3.2%, looks safe
+# But GFC 2008 would have been -15% in a single week for this portfolio
+```
+
+### CORRECT
+```python
+import numpy as np
+
+# Define crisis scenarios as asset-class shocks
+SCENARIOS = {
+    "GFC 2008":       {"equity": -0.50, "bond": +0.15, "credit": -0.30, "vol": +3.0},
+    "COVID Mar 2020":  {"equity": -0.34, "bond": +0.08, "credit": -0.15, "vol": +4.0},
+    "Rate Shock 2022": {"equity": -0.20, "bond": -0.15, "credit": -0.10, "vol": +1.5},
+    "Correlation Spike":{"equity": -0.25, "bond": -0.10, "credit": -0.20, "vol": +2.0},
 }
 
-def apply_scenario(
-    weights: np.ndarray,
-    asset_mapping: dict,  # position -> asset class
-    scenario: dict
-) -> float:
-    """Calculate portfolio loss under scenario."""
-    loss = 0
-    for i, w in enumerate(weights):
-        asset_class = asset_mapping[i]
-        shock = scenario.get(asset_class, 0)
-        loss += w * shock
-    return loss
+# Apply each scenario to current portfolio weights
+weights = np.array([0.40, 0.30, 0.20, 0.10])  # equity, bond, credit, vol
+asset_classes = ["equity", "bond", "credit", "vol"]
+
+for name, shocks in SCENARIOS.items():
+    pnl = sum(weights[i] * shocks.get(ac, 0) for i, ac in enumerate(asset_classes))
+    survives = pnl > -0.20  # survival threshold
+    print(f"{name:25s} PnL: {pnl:+.1%}  {'OK' if survives else 'BREACH'}")
 ```
 
-## Factor Stress
+## Factor Stress Testing
 
 ```python
-def factor_stress_test(
-    weights: np.ndarray,
-    factor_betas: np.ndarray,  # (n_assets, n_factors)
-    factor_shocks: dict        # factor -> shock magnitude
-) -> float:
-    """Stress test via factor exposures."""
-    shocks = np.array([factor_shocks.get(f, 0) for f in factor_names])
+def factor_stress(weights, factor_betas, factor_shocks):
+    """Stress via factor exposures rather than asset classes.
+
+    factor_betas: (n_assets, n_factors) from regression
+    factor_shocks: dict of factor_name -> shock magnitude
+    """
+    shocks = np.array([factor_shocks[f] for f in factor_names])
     asset_impacts = factor_betas @ shocks
     return weights @ asset_impacts
+
+# Example: what if momentum factor drops 3 sigma?
+loss = factor_stress(weights, betas, {"momentum": -0.15, "value": 0.05})
 ```
 
-## Monte Carlo Stress
+## Hypothetical Scenarios to Always Include
 
-```python
-def monte_carlo_stress(
-    returns: np.ndarray,
-    weights: np.ndarray,
-    n_simulations: int = 10000,
-    tail_percentile: float = 1.0
-) -> dict:
-    """Simulate extreme scenarios."""
-    # Resample from worst historical returns
-    worst_mask = returns <= np.percentile(returns, tail_percentile, axis=0)
-
-    scenarios = []
-    for _ in range(n_simulations):
-        scenario = np.array([
-            np.random.choice(r[m]) for r, m in zip(returns.T, worst_mask.T)
-        ])
-        scenarios.append(weights @ scenario)
-
-    return {
-        'mean_stress_loss': np.mean(scenarios),
-        'worst_case': np.min(scenarios),
-        '1pct_loss': np.percentile(scenarios, 1)
-    }
-```
-
-## Stress Report
-
-```python
-def stress_test_report(
-    weights: np.ndarray,
-    scenarios: dict
-) -> pl.DataFrame:
-    """Generate stress test report."""
-    results = []
-    for name, scenario in scenarios.items():
-        loss = apply_scenario(weights, asset_mapping, scenario)
-        results.append({
-            'scenario': name,
-            'loss': loss,
-            'survives': loss > -0.20  # Example threshold
-        })
-    return pl.DataFrame(results)
-```
+| Scenario | Key Feature | Why It Matters |
+|----------|-------------|----------------|
+| 2008 GFC | Equity crash + credit freeze | Tests leverage and liquidity |
+| 2020 COVID | Fastest drawdown in history | Tests execution under vol spike |
+| 2022 Rate Shock | Bonds and equities fall together | Tests diversification assumption |
+| Correlation spike | All correlations go to 0.8 | Tests if hedges actually work |
+| Liquidity freeze | 5x normal bid-ask spreads | Tests transaction cost sensitivity |
 
 ## Guardrails
 
-- Historical scenarios may underestimate future crises
-- Correlations change under stress (usually increase)
-- Test portfolio at current positions, not average
-- Update scenarios as new crises occur
+- Historical scenarios are a floor, not a ceiling — always include a "2x worst" hypothetical
+- Correlations increase under stress — use stressed correlations, not normal-regime estimates
+- Test at current positions, not average or target weights
+- Update scenario library when new crises occur (each one reveals a new failure mode)
 
 ## Checklist
 
-- [ ] Major historical crises tested
-- [ ] Factor sensitivities analyzed
-- [ ] Survival thresholds defined
-- [ ] Scenarios updated regularly
+- [ ] At least 3 historical crisis scenarios applied (2008, 2020, 2022)
+- [ ] At least 1 hypothetical scenario (correlation spike or liquidity freeze)
+- [ ] Survival threshold defined (e.g., max -20% in any scenario)
+- [ ] Factor exposures stress-tested (not just asset-class proxies)
+- [ ] Scenario library reviewed and updated within last 12 months

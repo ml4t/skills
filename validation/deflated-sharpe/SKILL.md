@@ -1,105 +1,116 @@
 ---
 name: ml4t-deflated-sharpe
-description: Adjust Sharpe ratio for multiple testing bias
-category: validation
-type: operational
-dependencies: [backtest-overfitting, cpcv]
-book_chapters: [17]
-quantlab_module: ml4t.diagnostic.metrics
+description: Adjust the Sharpe ratio for multiple testing bias when selecting the best strategy from many trials. Use when reporting strategy performance after evaluating multiple configurations or signals.
+dependencies: [cpcv]
+metadata:
+  book_chapters: "7, 16"
+  library: "ml4t-diagnostic"
 ---
 
 # Deflated Sharpe Ratio
 
-Sharpe ratio adjusted for the number of strategies tested.
+Reporting the best Sharpe ratio from N trials is misleading. The Deflated Sharpe Ratio corrects for the number of trials, non-normal returns, and sample size to test whether observed performance reflects genuine skill.
 
-## Why Deflate?
+## The Problem
 
-Observed Sharpe is biased upward when selecting the best from many trials.
+If you test 100 strategy variants and report the best Sharpe, you are performing selection bias. The expected maximum Sharpe from N independent trials of a zero-skill strategy grows as roughly `sqrt(2 * log(N))`. Testing 100 strategies inflates expected Sharpe by about 1.0 even with zero alpha. Without correction, most "discovered" strategies are statistical artifacts that fail out of sample.
 
-```
-Test 1 strategy:    E[max SR] ≈ true SR
-Test 10 strategies: E[max SR] ≈ true SR + 0.5
-Test 100 strategies: E[max SR] ≈ true SR + 1.0
-```
+## The Pattern
 
-## API
+### WRONG
 
 ```python
-from ml4t.diagnostic.metrics import deflated_sharpe_ratio
+import numpy as np
 
-dsr = deflated_sharpe_ratio(
-    observed_sharpe=1.5,
-    n_trials=50,              # Number of strategies tested
-    variance_of_sharpes=0.3,  # Variance across trials
-    t_observations=1260       # Sample size (5 years daily)
-)
-```
-
-## From CPCV Results
-
-```python
-from ml4t.diagnostic.splitters import CombinatorialPurgedCV
-
-cv = CombinatorialPurgedCV(n_groups=8, n_test_groups=2, label_horizon=5)
+# Test 50 parameter combos, report the best
 sharpes = []
-
-for train_idx, test_idx in cv.split(X):
-    model.fit(X[train_idx], y[train_idx])
-    returns = compute_strategy_returns(model, X[test_idx], y[test_idx])
+for params in param_grid:  # 50 configurations
+    returns = run_backtest(params)
     sr = returns.mean() / returns.std() * np.sqrt(252)
     sharpes.append(sr)
 
-# Deflate using distribution from CPCV
+best = max(sharpes)
+print(f"Strategy Sharpe: {best:.2f}")  # Inflated by selection
+```
+
+### CORRECT
+
+```python
+import numpy as np
+from scipy import stats
+
+def deflated_sharpe_ratio(observed_sr, n_trials, sr_std, n_obs,
+                          skew=0.0, kurtosis=3.0):
+    """Deflate Sharpe ratio for multiple testing (Bailey & de Prado)."""
+    # Expected max SR under null (Euler-Mascheroni approximation)
+    euler_mascheroni = 0.5772
+    e_max_sr = sr_std * (
+        (1 - euler_mascheroni) * stats.norm.ppf(1 - 1 / n_trials)
+        + euler_mascheroni * stats.norm.ppf(1 - 1 / (n_trials * np.e))
+    )
+    # SR standard error with non-normal correction
+    sr_se = np.sqrt(
+        (1 - skew * observed_sr + (kurtosis - 1) / 4 * observed_sr**2)
+        / (n_obs - 1)
+    )
+    # Test statistic: is observed SR significantly above expected max?
+    test_stat = (observed_sr - e_max_sr) / sr_se
+    return stats.norm.cdf(test_stat)  # p(skill is real)
+
+# Apply to strategy search
+n_trials = len(sharpes)
 dsr = deflated_sharpe_ratio(
-    observed_sharpe=np.mean(sharpes),
-    n_trials=len(sharpes),
-    variance_of_sharpes=np.var(sharpes),
-    t_observations=len(X)
+    observed_sr=max(sharpes),
+    n_trials=n_trials,
+    sr_std=np.std(sharpes),
+    n_obs=252 * 5,  # 5 years daily
 )
+print(f"Observed Sharpe: {max(sharpes):.2f}")
+print(f"Trials tested: {n_trials}")
+print(f"DSR p-value: {dsr:.3f}")  # > 0.95 = credible
 ```
 
 ## Interpretation
 
-| DSR | Interpretation |
-|-----|----------------|
-| > 1.0 | Strong evidence of skill |
-| 0.5-1.0 | Moderate evidence |
-| < 0.5 | Weak, likely noise |
-| < 0 | No evidence of skill |
+| DSR p-value | Meaning |
+|---|---|
+| > 0.95 | Strong evidence of genuine skill |
+| 0.80-0.95 | Moderate evidence, worth investigating |
+| < 0.80 | Likely noise — do not deploy |
 
-## Haircut Table
+## Expected Sharpe Inflation
 
-Expected Sharpe inflation by number of trials:
-
-| Trials | Expected Inflation |
-|--------|-------------------|
+| Trials | Approx. inflation |
+|---|---|
 | 10 | +0.4 |
 | 50 | +0.8 |
 | 100 | +1.0 |
 | 500 | +1.3 |
 
-## Rules
-
-```python
-# WRONG: Report observed Sharpe
-print(f"Strategy Sharpe: {observed_sharpe:.2f}")
-
-# CORRECT: Report deflated Sharpe
-print(f"Observed Sharpe: {observed_sharpe:.2f}")
-print(f"Trials tested: {n_trials}")
-print(f"Deflated Sharpe: {dsr:.2f}")
-```
-
 ## Guardrails
 
-- Always track number of strategies tested
-- Include failed strategies in trial count
-- DSR assumes independent trials (conservative if correlated)
-- Combine with PBO for full picture
+- Always count ALL trials tested, including abandoned or failed ones
+- DSR assumes approximately independent trials — correlated strategies understate the correction
+- Non-normal returns (fat tails, skew) make the correction larger via the kurtosis/skew terms
+- Combine with Probability of Backtest Overfitting (PBO) for a complete picture
+
+## Production Implementation
+
+`ml4t-diagnostic` provides multiple-testing correction utilities:
+
+```python
+from ml4t.diagnostic.evaluation.stats import benjamini_hochberg_fdr
+
+# FDR-controlled p-values across all tested strategies
+adjusted_pvalues = benjamini_hochberg_fdr(raw_pvalues, alpha=0.05)
+significant = adjusted_pvalues < 0.05
+print(f"{significant.sum()} / {len(raw_pvalues)} strategies pass FDR")
+```
 
 ## Checklist
 
-- [ ] Number of trials documented
-- [ ] DSR calculated and reported
-- [ ] DSR > 0.5 minimum threshold
-- [ ] Variance estimated from CPCV folds
+- [ ] Total number of trials documented (including failures)
+- [ ] DSR computed and reported alongside observed Sharpe
+- [ ] DSR p-value > 0.95 before declaring strategy viable
+- [ ] Non-normality (skew, kurtosis) accounted for in calculation
+- [ ] Variance of Sharpe estimates sourced from CPCV folds when available

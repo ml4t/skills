@@ -1,99 +1,125 @@
 ---
 name: ml4t-horizon-design
-description: Design prediction horizon aligned with strategy
-category: features
-type: conceptual
+description: Choose prediction horizon by analyzing IC decay, turnover cost, and feature-horizon alignment. Use when designing labels or deciding rebalancing frequency for a trading strategy.
 dependencies: [triple-barrier]
-book_chapters: [7, 9]
+metadata:
+  book_chapters: "7"
+  library: "ml4t-diagnostic"
 ---
 
 # Horizon Design
 
-Prediction horizon must match trading strategy and signal decay.
+An arbitrary 1-day horizon forces daily rebalancing, which costs 2-5% annually in transaction costs. If the signal's IC peaks at 20 days, you are paying for turnover that destroys the edge.
 
-## Horizon Selection
+## The Problem
 
-| Horizon | Strategy Type | Turnover |
-|---------|--------------|----------|
-| 1-5 days | Mean-reversion | Very high |
-| 5-20 days | Momentum | High |
-| 20-60 days | Factor | Moderate |
-| 60+ days | Value | Low |
+The prediction horizon determines everything downstream: label construction, feature relevance, turnover, and whether transaction costs leave any alpha. Choosing it arbitrarily — or defaulting to "1 day because that is what everyone uses" — misaligns the model with the actual signal dynamics.
 
-## Feature-Horizon Alignment
+## The Pattern
 
+### WRONG
 ```python
-# WRONG: Misaligned horizons
-feature = returns.rolling(5).mean()   # 5-day feature
-label = returns.shift(-60)            # 60-day prediction
+import numpy as np
 
-# CORRECT: Aligned horizons
-feature = returns.rolling(60).mean()  # 60-day feature
-label = returns.shift(-60)            # 60-day prediction
-
-# Or: Multi-horizon
-for horizon in [5, 20, 60]:
-    labels[f'ret_{horizon}d'] = returns.shift(-horizon)
+# Arbitrary 1-day horizon — no evidence this matches the signal
+labels = np.roll(returns, -1)  # forward 1-day return as label
+# Result: high turnover, transaction costs eat the edge
 ```
 
-## Signal Decay Analysis
-
+### CORRECT
 ```python
-def ic_decay_analysis(signal: pl.Series, returns: pl.DataFrame) -> dict:
-    """Measure how quickly signal loses predictive power."""
-    horizons = [1, 5, 10, 20, 40, 60]
-    decay = {}
+from scipy.stats import spearmanr
+import numpy as np
 
+def find_optimal_horizon(
+    signal: np.ndarray, returns: np.ndarray, horizons: list[int] = None,
+) -> dict:
+    """Analyze IC decay to find the horizon where the signal is strongest."""
+    if horizons is None:
+        horizons = [1, 2, 5, 10, 20, 40, 60]
+
+    results = {}
     for h in horizons:
-        forward_ret = returns.shift(-h)
-        ic = information_coefficient(signal, forward_ret).mean()
-        decay[h] = ic
+        fwd_ret = np.full_like(returns, np.nan)
+        fwd_ret[:-h] = np.sum(
+            [np.roll(returns, -i) for i in range(1, h + 1)], axis=0
+        )[:-h]
+        valid = ~np.isnan(signal) & ~np.isnan(fwd_ret)
+        ic, _ = spearmanr(signal[valid], fwd_ret[valid])
+        results[h] = ic
 
-    return decay
-
-# Find optimal horizon (max IC)
-optimal = max(decay, key=decay.get)
+    optimal = max(results, key=lambda k: abs(results[k]))
+    return {"ic_by_horizon": results, "optimal_horizon": optimal}
 ```
+
+## IC Decay Profile
+
+A well-behaved signal shows a clear IC peak and then decays:
+
+| Horizon | Typical IC | Interpretation |
+|---------|-----------|----------------|
+| 1d | 0.01 | Too noisy, costs dominate |
+| 5d | 0.03 | Building strength |
+| 20d | 0.05 | **Peak — optimal horizon** |
+| 40d | 0.03 | Decaying |
+| 60d | 0.01 | Signal exhausted |
 
 ## Transaction Cost Constraint
 
 ```python
-# Shorter horizons need higher gross returns
-# to cover transaction costs
-
-min_alpha_per_trade = transaction_cost * 2.5  # Safety margin
-trades_per_year = 252 / avg_holding_period
-
-# Required annual alpha
-required_alpha = min_alpha_per_trade * trades_per_year
-
-# If horizon is too short, costs eat alpha
+def min_viable_horizon(cost_per_trade: float, annual_alpha: float) -> int:
+    """Shortest horizon where alpha covers costs."""
+    # Trades per year = 252 / holding_period
+    # Required: alpha_per_trade > cost_per_trade * safety_margin
+    for h in [1, 2, 5, 10, 20, 40, 60]:
+        trades_per_year = 252 / h
+        alpha_per_trade = annual_alpha / trades_per_year
+        if alpha_per_trade > cost_per_trade * 2.5:  # 2.5x safety margin
+            return h
+    return 60  # Default to low-frequency if costs are high
 ```
 
-## Multi-Horizon Approach
+## Feature-Horizon Alignment
+
+Feature lookback should roughly match the prediction horizon:
 
 ```python
-# Different models for different horizons
-models = {
-    'short': {'horizon': 5, 'features': microstructure_features},
-    'medium': {'horizon': 20, 'features': momentum_features},
-    'long': {'horizon': 60, 'features': fundamental_features}
-}
+# Misaligned: 5-day feature predicting 60-day returns
+feature = returns_5d  # Short lookback
+label = fwd_returns_60d  # Long horizon — feature has decayed
 
-# Ensemble predictions across horizons
+# Aligned: 60-day feature predicting 60-day returns
+feature = returns_60d  # Matching lookback
+label = fwd_returns_60d  # Aligned horizon
 ```
+
+Short features + long horizon = noise. Long features + short horizon = stale signal.
 
 ## Guardrails
 
-- Shorter horizons need higher turnover capacity
-- Feature lookback should roughly match horizon
-- Transaction costs constrain minimum horizon
-- Signal decay tells you optimal horizon
+- **Never default to 1-day** without IC decay analysis — most alpha signals peak at 5-20 days
+- **Transaction costs are the binding constraint** — a 5-day signal with 10 bps costs beats a 1-day signal with the same IC
+- **Feature lookback should match horizon** within a factor of 2-3x
+- **Multi-horizon models** are valid when IC is comparable across several horizons
+
+## Production Implementation
+
+`ml4t-diagnostic` provides IC decay analysis:
+
+```python
+from ml4t.diagnostic import compute_ic_series, compute_ic_hac_stats
+
+# Compute IC at multiple horizons
+for horizon in [1, 5, 10, 20, 60]:
+    ic_series = compute_ic_series(predictions, forward_returns[horizon])
+    stats = compute_ic_hac_stats(ic_series)
+    print(f"{horizon}d: IC={stats['mean']:.4f}, t={stats['t_stat']:.2f}")
+```
 
 ## Checklist
 
-- [ ] Horizon matches trading frequency
-- [ ] Feature lookback aligned to horizon
-- [ ] IC decay analysis performed
-- [ ] Transaction costs considered
-- [ ] Multi-horizon if signal persists
+- [ ] IC decay analysis run across at least 5 horizons (1d, 5d, 10d, 20d, 60d)
+- [ ] Optimal horizon identified as the peak of |IC| vs horizon
+- [ ] Transaction costs modeled — alpha per trade exceeds cost by at least 2.5x
+- [ ] Feature lookback windows aligned with chosen horizon
+- [ ] Rebalancing frequency matches horizon (not more frequent)
