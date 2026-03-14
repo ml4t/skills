@@ -92,12 +92,17 @@ print(f"Selected {len(selected)} / {len(feature_names)} features")
 
 ```python
 from ml4t.diagnostic.evaluation.metrics import compute_shap_importance
+from ml4t.diagnostic.evaluation import TradeShapAnalyzer
 
 # Cross-validated SHAP importance with stability metrics
 shap_report = compute_shap_importance(
     model, X_test, feature_names=feature_names
 )
-# Returns DataFrame with mean_shap, std_shap, rank per feature
+# Returns dict with sorted feature_names, importances, shap_values, and base_value
+top_features = list(zip(shap_report["feature_names"][:10], shap_report["importances"][:10]))
+
+# For post-trade debugging, TradeShapAnalyzer links SHAP values to bad trades
+trade_analyzer = TradeShapAnalyzer(model, features_df)
 ```
 
 ## Checklist

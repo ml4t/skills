@@ -109,15 +109,19 @@ EXIT_THRESHOLD  = 4_750_000   # $5M * 0.95
 
 ## Production Implementation
 
-`ml4t-data` provides point-in-time universe construction:
+`ml4t-data` provides maintained symbol universes plus batch loading:
 
 ```python
 from ml4t.data import DataManager
 
 dm = DataManager()
-# Survivorship-free panel with delisting returns
-equities = dm.load("us_equities")
-# Universe filters applied via DataManager configuration
+panel = dm.batch_load_universe(
+    "sp500",
+    start="2015-01-01",
+    end="2024-12-31",
+    provider="yahoo",
+)
+# Apply PIT membership and liquidity filters explicitly in research code
 ```
 
 ## Checklist

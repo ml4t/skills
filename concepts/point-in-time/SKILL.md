@@ -87,19 +87,19 @@ gdp_releases = pl.DataFrame({
 
 ## Production Implementation
 
-`ml4t-data`'s `DataManager` handles point-in-time alignment automatically:
+`ml4t-data` provides point-in-time access for specific datasets rather than a generic PIT join helper:
 
 ```python
-from ml4t.data import DataManager
+from ml4t.data.providers.fred import FREDProvider
 
-dm = DataManager()
-panel = dm.load(
-    datasets=["prices", "fundamentals"],
-    as_of_date="filing_date",            # enforces PIT alignment
-    start="2015-01-01",
-    end="2024-12-31",
+provider = FREDProvider()
+unrate = provider.fetch_ohlcv(
+    "UNRATE",
+    "2024-01-01",
+    "2024-03-31",
+    vintage_date="2024-03-15",
 )
-# Fundamentals are forward-filled from filing_date, not quarter_end
+# Multi-dataset PIT joins still belong in your research code
 ```
 
 ## Checklist

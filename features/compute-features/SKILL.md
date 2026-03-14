@@ -77,7 +77,10 @@ features = df.sort("symbol", "timestamp").with_columns(
 
 ## Production Implementation
 
-`ml4t-engineer` provides config-driven computation with dependency resolution:
+`ml4t-engineer` provides config-driven computation with dependency resolution for
+single-series or per-symbol feature pipelines. For cross-sectional panels, keep
+the explicit grouped Polars logic from this skill and apply registry features
+per symbol rather than assuming automatic panel partitioning.
 
 ```python
 from ml4t.engineer import compute_features, feature_catalog
@@ -85,9 +88,11 @@ from ml4t.engineer import compute_features, feature_catalog
 # Discover available features
 print(feature_catalog.list())
 
-# Compute from names, dicts, or YAML config
-features = compute_features(data, ["rsi", "macd", "bollinger_bands"])
-features = compute_features(data, "config/features.yaml")
+# Per-asset registry features
+spy_features = compute_features(spy_prices, ["rsi", "macd", "bollinger_bands"])
+
+# YAML configs are also supported
+feature_specs = compute_features(spy_prices, "config/features.yaml")
 ```
 
 ## Checklist

@@ -95,15 +95,25 @@ Most effort belongs in the early stages — 60% hypothesis and data, 25% feature
 `ml4t-backtest` and `ml4t-live` share the same `Strategy` interface, enabling zero-code-change deployment:
 
 ```python
+import asyncio
+
 from ml4t.backtest import Strategy, run_backtest, BacktestConfig
-from ml4t.live import LiveEngine, AlpacaBroker
+from ml4t.live import LiveEngine, AlpacaBroker, AlpacaDataFeed
 
 # Same Strategy class works in backtest and live
-results = run_backtest(strategy=MyStrategy(), config=BacktestConfig(...))
+results = run_backtest(
+    prices=prices, signals=signals, strategy=MyStrategy(), config=BacktestConfig()
+)
 
 # When ready for live (after paper trading)
-engine = LiveEngine(strategy=MyStrategy(), broker=AlpacaBroker())
-engine.run()
+async def trade_live():
+    broker = AlpacaBroker(api_key, secret_key, paper=True)
+    feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"])
+    engine = LiveEngine(MyStrategy(), broker, feed)
+    await engine.connect()
+    await engine.run()
+
+asyncio.run(trade_live())
 ```
 
 ## Checklist

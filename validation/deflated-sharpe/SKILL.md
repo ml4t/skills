@@ -101,10 +101,14 @@ print(f"DSR p-value: {dsr:.3f}")  # > 0.95 = credible
 ```python
 from ml4t.diagnostic.evaluation.stats import deflated_sharpe_ratio
 
-# Single strategy -> PSR; list of return series -> DSR with multiple-testing correction
-result = deflated_sharpe_ratio(strategy_returns, frequency="daily")
-print(f"Prob(true SR > 0): {result.probability:.3f}")
-print(f"Deflated Sharpe: {result.deflated_sharpe:.3f}")
+# Single strategy -> PSR
+single = deflated_sharpe_ratio(strategy_returns, frequency="daily")
+
+# Multiple strategies -> DSR with multiple-testing correction
+search = deflated_sharpe_ratio(candidate_return_series, frequency="daily")
+print(f"PSR probability: {single.probability:.3f}")
+print(f"DSR probability: {search.probability:.3f}")
+print(f"Deflated Sharpe: {search.deflated_sharpe:.3f}")
 ```
 
 ## Checklist

@@ -99,14 +99,24 @@ class ExecutionEnv(gym.Env):
 `ml4t-backtest` provides execution simulation with realistic market impact:
 
 ```python
-from ml4t.backtest import Engine, BacktestConfig
-from ml4t.backtest.models import PerShareCommission, VolumeShareSlippage
+from ml4t.backtest import BacktestConfig, CommissionType, Engine
+from ml4t.backtest.config import SlippageType
+from ml4t.backtest.execution.impact import SquareRootImpact
+from ml4t.backtest.execution.limits import VolumeParticipationLimit
 
 config = BacktestConfig(
-    slippage=VolumeShareSlippage(impact_factor=0.1),
-    commission=PerShareCommission(per_share=0.005),
+    commission_type=CommissionType.PER_SHARE,
+    commission_rate=0.005,
+    slippage_type=SlippageType.VOLUME_BASED,
+    slippage_rate=0.001,
 )
-# Use engine's execution model as the RL environment's simulator
+env_engine = Engine(
+    feed,
+    strategy,
+    config,
+    market_impact_model=SquareRootImpact(volatility=0.02),
+    execution_limits=VolumeParticipationLimit(max_participation=0.05),
+)
 ```
 
 ## Checklist

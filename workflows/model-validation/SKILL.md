@@ -88,19 +88,18 @@ Gates are sequential. Do not skip to Gate 5 hoping a good holdout compensates fo
 
 ## Production Implementation
 
-`ml4t-diagnostic` provides validated CPCV splitting and PBO computation:
+`ml4t-diagnostic` provides validated CPCV splitting with fold-level Sharpe
+tracking and built-in DSR evaluation:
 
 ```python
-import numpy as np
-
 from ml4t.diagnostic.api import ValidatedCrossValidation
 from ml4t.diagnostic.config import ValidatedCrossValidationConfig
-from ml4t.diagnostic.evaluation.stats import compute_pbo
 
 config = ValidatedCrossValidationConfig(n_groups=10, n_test_groups=2, embargo_pct=0.01)
 vcv = ValidatedCrossValidation(config)
 result = vcv.fit_evaluate(X, y, model, times=timestamps)
-pbo = compute_pbo(np.array(is_sharpes), np.array(oos_sharpes))
+print(result.summary())
+fold_sharpes = [fold.sharpe_ratio for fold in result.fold_results]
 ```
 
 ## Checklist

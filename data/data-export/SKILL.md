@@ -100,14 +100,17 @@ When schema evolves, write a sidecar `.schema.json` alongside the Parquet file c
 
 ## Production Implementation
 
-`ml4t-data` handles schema-enforced Parquet storage automatically:
+`ml4t-data` writes typed, compressed Parquet when paired with a storage backend:
 
 ```python
 from ml4t.data import DataManager
+from ml4t.data.storage.backend import StorageConfig
+from ml4t.data.storage.hive import HiveStorage
 
-dm = DataManager()
-# All datasets stored as typed Parquet with canonical schema
-etfs = dm.load("etfs")  # Enforced types, zstd compression, predicate pushdown
+storage = HiveStorage(StorageConfig(base_path="./data", partition_granularity="year"))
+dm = DataManager(storage=storage, use_transactions=True)
+key = dm.load("SPY", "2015-01-01", "2024-12-31", provider="yahoo")
+# Writes partitioned Parquet and returns the storage key
 ```
 
 ## Checklist

@@ -198,8 +198,12 @@ Skills reference these production libraries in their "Production Implementation"
 Notes on current API usage:
 
 - `ml4t-diagnostic.api` is the stable integration surface for IC metrics and validated CV workflows.
+- Advanced `ml4t-diagnostic` helpers such as `analyze_stationarity`, `analyze_drift`, `compute_ic_by_horizon`, and `deflated_sharpe_ratio` live under `ml4t.diagnostic.evaluation.*`.
 - `ml4t.backtest.models` contains commission and slippage classes.
 - `ml4t.data.DataManager` is a generic fetch/storage manager; book-style loaders such as `ETFDataManager` and `FuturesDataManager` live in subpackages.
+- `ml4t.data.DataManager.load(...)` is storage-backed ingest, not a dataset loader like `load("etfs")` or `load("us_equities")`.
+- `ml4t.engineer.compute_features(...)` is best for single-series or per-symbol pipelines; panel-aware grouping still belongs in explicit Polars logic.
+- `ml4t.engineer.store.OfflineFeatureStore` is DuckDB-backed and uses `point_in_time_join(...)` rather than a generic versioned-parquet `as_of` loader.
 
 ## Contributing
 

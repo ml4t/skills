@@ -65,14 +65,14 @@ def load_features(
 
 ```
 feature_store/
-├── momentum_63d/
+├── mom/
 │   ├── v1.0/
 │   │   ├── data.parquet
 │   │   └── metadata.json    # params, computed_at, row count
 │   └── v1.1/
 │       ├── data.parquet
 │       └── metadata.json
-├── realized_vol_21d/
+├── realized_volatility/
 │   └── v1.0/
 │       ├── data.parquet
 │       └── metadata.json
@@ -95,18 +95,23 @@ def validate_schema(df: pl.DataFrame, name: str) -> None:
 
 ## Point-in-Time Correctness
 
-The `as_of` filter ensures you only see features that were available at a given date. This prevents lookahead: a feature recomputed in March 2024 with a bug fix must not appear when loading "as of January 2024."
+Any serious feature store needs point-in-time-safe retrieval semantics. In a
+simple file-based design that may be an `as_of` filter; in a database-backed
+design it is often implemented as a point-in-time join. The core requirement is
+the same: a feature recomputed in March 2024 must not appear in a January 2024
+training set.
 
 ## Guardrails
 
 - **Never overwrite** — create a new version, never modify an existing one
 - **Metadata is mandatory** — every version records parameters, computation date, and row count
 - **Schema enforcement** — every feature DataFrame must have `timestamp` and `symbol` columns
-- **Point-in-time retrieval** — `as_of` filtering must be available for any downstream consumer
+- **Point-in-time safety** — every downstream consumer needs either `as_of` semantics or an explicit PIT join
 
 ## Production Implementation
 
-`ml4t-engineer` provides catalog-driven computation plus an offline feature store:
+`ml4t-engineer` implements the storage layer as a DuckDB-backed offline feature
+store with explicit point-in-time joins:
 
 ```python
 from ml4t.engineer import compute_features, feature_catalog
@@ -116,9 +121,10 @@ from ml4t.engineer.store import OfflineFeatureStore
 print(feature_catalog.list(category="momentum"))
 
 # Compute, persist, and join point-in-time safely
-features = compute_features(prices, ["momentum_63d", "realized_vol_21d"])
+features = compute_features(prices, ["mom", "realized_volatility"])
 with OfflineFeatureStore("features.duckdb") as store:
     store.save_features(features, "daily_features", mode="replace")
+    snapshot = store.load_features("daily_features", columns=["timestamp", "symbol", "mom"])
     train_set = store.point_in_time_join(labels, "daily_features", join_keys=["symbol"])
 ```
 
@@ -127,5 +133,5 @@ with OfflineFeatureStore("features.duckdb") as store:
 - [ ] Every feature file has a version directory and metadata.json
 - [ ] Schema validated before write (required columns present, no null timestamps)
 - [ ] Old versions never overwritten — only new versions created
-- [ ] Point-in-time retrieval works correctly with `as_of` parameter
+- [ ] Point-in-time retrieval or join works correctly for downstream training
 - [ ] Feature registry (index) lists all available features and their current versions

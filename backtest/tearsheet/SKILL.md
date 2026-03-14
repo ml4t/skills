@@ -87,11 +87,11 @@ Always report **gross and net** (after costs). A gross Sharpe of 1.5 that drops 
 `ml4t-backtest` generates tearsheets from `BacktestResult`:
 
 ```python
-from ml4t.backtest import Engine, BacktestConfig
+from ml4t.backtest import Engine
 
-result = Engine(config).run(strategy, feed)
-# result exposes: .sharpe, .max_drawdown, .calmar, .returns, .equity
-print(f"Sharpe: {result.sharpe:.2f}  MaxDD: {result.max_drawdown:.1%}")
+result = Engine(feed, strategy, config).run()
+html = result.to_tearsheet(output_path="backtest_report.html")
+equity_df = result.to_equity_dataframe()
 ```
 
 ## Checklist

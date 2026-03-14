@@ -79,18 +79,20 @@ avg_cross_family = corr.abs().mean().mean()  # Target: < 0.3
 
 ## Production Implementation
 
-`ml4t-engineer` provides a catalog of 120+ features organized by family:
+`ml4t-engineer` provides a catalog of 120+ features organized by registry
+category. The mapping to economic families is approximate, so carry and value
+signals often remain external features in research code.
 
 ```python
 from ml4t.engineer import compute_features, feature_catalog
 
-# Browse by family
+# Browse registry categories
 feature_catalog.list(category="momentum")
 feature_catalog.list(category="volatility")
 
-# Compute a diversified set
+# Compute a diversified set from current registry names
 features = compute_features(data, [
-    "momentum_63d", "rsi_14", "realized_vol_21d", "roll_yield",
+    "mom", "rsi", "realized_volatility", "garman_klass_volatility",
 ])
 ```
 

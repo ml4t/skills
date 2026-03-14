@@ -92,11 +92,11 @@ frac_diff = fdiff(series.to_numpy(), d=0.4)
 `ml4t-diagnostic` provides batch stationarity testing:
 
 ```python
-from ml4t.diagnostic.evaluation.stats import robust_ic
+from ml4t.diagnostic.evaluation.stationarity import analyze_stationarity
 
-# robust_ic handles non-stationary inputs by auto-detecting
-# and applying appropriate transformations before IC computation
-ic_result = robust_ic(signal, forward_returns)
+result = analyze_stationarity(feature_series, include_tests=["adf", "kpss"])
+print(result.consensus)
+print(result.summary_df)
 ```
 
 ## Checklist

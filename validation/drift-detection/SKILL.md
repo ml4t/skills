@@ -94,12 +94,13 @@ if np.mean(ic[-63:]) < baseline_ic * 0.5:
 `ml4t-diagnostic` provides integrated drift monitoring:
 
 ```python
-from ml4t.diagnostic.evaluation.metrics import compute_ic_series
+from ml4t.diagnostic.api import compute_ic_series
+from ml4t.diagnostic.evaluation.drift import analyze_drift
 
-# Track IC over time to detect concept drift
-ic_series = compute_ic_series(predictions, actuals, timestamps)
-recent_ic = np.mean(ic_series[-63:])
-baseline_ic = np.mean(ic_series[:252])
+drift = analyze_drift(reference_df, current_df, methods=["psi", "wasserstein"])
+ic_df = compute_ic_series(predictions, forward_returns, entity_col="symbol")
+recent_ic = ic_df.tail(63)["ic"].mean()
+baseline_ic = ic_df.head(252)["ic"].mean()
 print(f"Baseline IC: {baseline_ic:.4f}, Recent IC: {recent_ic:.4f}")
 ```
 

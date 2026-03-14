@@ -57,8 +57,8 @@ class Momentum(Strategy):
             elif mom <= 0 and pos:
                 broker.close_position(sym)
 
-# Backtest: Engine(config).run(Momentum(), DataFeed(prices))
-# Live:     LiveEngine(config).run(Momentum(), LiveDataFeed(...))
+# Backtest: Engine(feed, Momentum(), config).run()
+# Live:     await LiveEngine(Momentum(), broker, feed).run()
 # Same class. Same logic. Different engine.
 ```
 
@@ -96,16 +96,21 @@ Handle partial fills: the broker may fill 80 of 100 shares. Your strategy must t
 `ml4t-live` reuses Strategy from `ml4t-backtest` with zero changes:
 
 ```python
+import asyncio
+
 from ml4t.backtest import Strategy
 from ml4t.live import LiveEngine, AlpacaBroker, AlpacaDataFeed, SafeBroker, LiveRiskConfig
 
 # Same Momentum class from backtest — no changes
-engine = LiveEngine(config)
-broker = SafeBroker(
-    AlpacaBroker(api_key, secret_key),
-    LiveRiskConfig(max_drawdown=0.10, max_position_pct=0.05),
-)
-engine.run(Momentum(), AlpacaDataFeed(api_key), broker=broker)
+broker = SafeBroker(AlpacaBroker(api_key, secret_key), LiveRiskConfig(max_drawdown=0.10))
+feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"])
+
+async def trade_live():
+    engine = LiveEngine(Momentum(), broker, feed)
+    await engine.connect()
+    await engine.run()
+
+asyncio.run(trade_live())
 ```
 
 ## Checklist

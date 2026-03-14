@@ -84,11 +84,13 @@ Full Kelly maximizes long-run growth but has extreme variance. Half-Kelly sacrif
 from ml4t.backtest import TargetWeightExecutor, RebalanceConfig
 
 executor = TargetWeightExecutor(
-    rebalance=RebalanceConfig(frequency="weekly"),
-    max_position_weight=0.10,
-    max_leverage=1.5,
+    config=RebalanceConfig(
+        max_single_weight=0.10,
+        max_gross_leverage=1.5,
+        min_weight_change=0.01,
+    ),
 )
-# Executor clips weights, enforces leverage, and manages rebalance timing
+orders = executor.execute(target_weights, data, broker)
 ```
 
 ## Checklist

@@ -91,7 +91,7 @@ var_param = returns.mean() + norm.ppf(0.05) * returns.std()
 ```python
 from ml4t.diagnostic.api import PortfolioAnalysis
 
-pa = PortfolioAnalysis(returns=equity_curve, benchmark=benchmark_curve)
+pa = PortfolioAnalysis(returns=strategy_returns, benchmark=benchmark_returns)
 metrics = pa.compute_summary_stats()
 report = metrics.summary()  # Sharpe, Sortino, max_dd, Calmar, VaR, CVaR, etc.
 ```

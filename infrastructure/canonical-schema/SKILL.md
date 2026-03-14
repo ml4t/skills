@@ -98,14 +98,19 @@ Schema enforcement happens at load time, not downstream. This means:
 
 ## Production Implementation
 
-`ml4t-data` enforces canonical schema automatically:
+`ml4t-data` standardizes generic OHLCV fetches to canonical columns:
 
 ```python
 from ml4t.data import DataManager
 
 dm = DataManager()
-etfs = dm.load("etfs")          # Always has: timestamp, symbol, open, high, low, close, volume
-futures = dm.load("cme_futures") # Always has: timestamp, product, open, high, low, close, volume
+panel = dm.batch_load(
+    ["SPY", "QQQ"],
+    start="2015-01-01",
+    end="2024-12-31",
+    provider="yahoo",
+)
+# Columns: timestamp, symbol, open, high, low, close, volume
 ```
 
 ## Checklist

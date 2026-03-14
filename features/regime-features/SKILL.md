@@ -83,12 +83,18 @@ df = df.sort("timestamp").with_columns(
 `ml4t-engineer` includes regime features in its catalog:
 
 ```python
-from ml4t.engineer.api import compute_features
+from ml4t.engineer import compute_features
 
 features = compute_features(data, [
-    "vix_percentile", "realized_vol_zscore", "adx_14", "yield_curve_slope",
+    "adx",
+    "choppiness_index",
+    "volatility_percentile_rank",
+    "volatility_regime_probability",
 ])
 ```
+
+Macro regime inputs like VIX term structure or yield-curve slope still need to
+be sourced separately and joined in as external features.
 
 ## Checklist
 

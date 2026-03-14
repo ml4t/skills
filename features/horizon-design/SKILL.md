@@ -104,23 +104,21 @@ Short features + long horizon = noise. Long features + short horizon = stale sig
 
 ## Production Implementation
 
-`ml4t-diagnostic` provides IC decay analysis:
+`ml4t-diagnostic` provides a helper for multi-horizon IC analysis:
 
 ```python
-from ml4t.diagnostic.api import compute_ic_hac_stats, compute_ic_series
+from ml4t.diagnostic.evaluation.metrics import compute_ic_by_horizon
 
-# Compute IC at multiple horizons
-for horizon in [1, 5, 10, 20, 60]:
-    ic_series = compute_ic_series(
-        predictions,
-        forward_returns[horizon],
-        pred_col="prediction",
-        ret_col="forward_return",
-        date_col="date",
-        entity_col="symbol",
-    )
-    stats = compute_ic_hac_stats(ic_series)
-    print(f"{horizon}d: IC={stats['mean_ic']:.4f}, t={stats['t_stat']:.2f}")
+ic_by_horizon = compute_ic_by_horizon(
+    predictions=prediction_frame,
+    prices=price_frame,
+    horizons=[1, 5, 10, 20, 60],
+    pred_col="prediction",
+    price_col="close",
+    date_col="date",
+    group_col="symbol",
+)
+print(ic_by_horizon)
 ```
 
 ## Checklist

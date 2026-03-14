@@ -91,13 +91,14 @@ Flag likely unadjusted splits: overnight return >40% with no corresponding volum
 
 ## Production Implementation
 
-`ml4t-data` includes built-in validation at load time:
+`ml4t-data` validates provider output during fetches and storage-backed ingest:
 
 ```python
 from ml4t.data import DataManager
 
 dm = DataManager()
-df = dm.load("etfs", validate=True)  # Runs all checks, raises on critical failures
+df = dm.fetch("SPY", start="2015-01-01", end="2024-12-31", provider="yahoo")
+# Returned OHLCV is validated before it reaches your modeling code
 ```
 
 ## Checklist

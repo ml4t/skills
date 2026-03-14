@@ -76,21 +76,18 @@ def event_backtest(prices: np.ndarray, signal_fn, cost_bps: float = 10):
 from ml4t.backtest import (
     Strategy, Engine, DataFeed, BacktestConfig,
 )
-from ml4t.backtest.models import PercentageCommission, PercentageSlippage
 
 class Momentum(Strategy):
     def on_data(self, timestamp, data, context, broker):
         for sym, bar in data.items():
-            if bar["momentum"] > 0 and not broker.get_position(sym):
+            if bar["signals"].get("momentum", 0) > 0 and not broker.get_position(sym):
                 size = int(broker.get_cash() * 0.1 / bar["close"])
                 broker.submit_order(sym, size)
 
-config = BacktestConfig(
-    commission=PercentageCommission(0.001),
-    slippage=PercentageSlippage(0.001),
-)
-result = Engine(config).run(Momentum(), DataFeed(prices))
-print(f"Sharpe: {result.sharpe:.2f}  MaxDD: {result.max_drawdown:.1%}")
+feed = DataFeed(prices_df=prices, signals_df=signals)
+config = BacktestConfig(commission_rate=0.001, slippage_rate=0.001)
+result = Engine(feed, Momentum(), config).run()
+print(f"Sharpe: {result.metrics['sharpe']:.2f}  MaxDD: {result.metrics['max_drawdown']:.1%}")
 ```
 
 ## Checklist

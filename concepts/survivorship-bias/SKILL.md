@@ -84,14 +84,14 @@ delisting_return = {
 
 ## Production Implementation
 
-`ml4t-data` loads survivorship-free datasets with delisting returns included:
+`ml4t-data` exposes a survivorship-bias-free historical US equities archive through 2018:
 
 ```python
-from ml4t.data import DataManager
+from ml4t.data.providers.wiki_prices import WikiPricesProvider
 
-dm = DataManager()
-# Includes delisted symbols and their terminal returns
-equities = dm.load("us_equities")  # Full historical panel, not just current tickers
+provider = WikiPricesProvider()
+aapl = provider.fetch_ohlcv("AAPL", "2010-01-01", "2018-03-27")
+# The archive includes delisted companies; PIT constituents still need explicit handling
 ```
 
 ## Checklist

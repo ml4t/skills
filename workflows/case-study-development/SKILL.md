@@ -96,8 +96,9 @@ If any stage reads from a hardcoded path instead of the canonical location, conf
 from ml4t.backtest import run_backtest, BacktestConfig, DataFeed
 from ml4t.engineer import compute_features
 
-features = compute_features(data, config="setup.yaml")
-results = run_backtest(strategy=strategy, config=BacktestConfig.from_yaml("setup.yaml"))
+features = compute_features(data, "configs/features.yaml")
+backtest_config = BacktestConfig.from_yaml("configs/backtest.yaml")
+results = run_backtest(prices=prices, signals=signals, strategy=strategy, config=backtest_config)
 ```
 
 ## Checklist

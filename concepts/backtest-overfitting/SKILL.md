@@ -25,8 +25,9 @@ best_sharpe = 0
 for lookback in [5, 10, 21, 63, 126, 252]:
     for top_k in [5, 10, 20, 50]:
         result = backtest(lookback=lookback, top_k=top_k)
-        if result.sharpe > best_sharpe:
-            best_sharpe = result.sharpe
+        sharpe = result["sharpe"]
+        if sharpe > best_sharpe:
+            best_sharpe = sharpe
             best_params = (lookback, top_k)
 
 print(f"Best Sharpe: {best_sharpe:.2f}")  # meaningless without correction
@@ -42,7 +43,7 @@ results = []
 for lookback in [5, 10, 21, 63, 126, 252]:
     for top_k in [5, 10, 20, 50]:
         result = backtest(lookback=lookback, top_k=top_k)
-        results.append(result.sharpe)
+        results.append(result["sharpe"])
 
 # Deflated Sharpe Ratio (Bailey & Lopez de Prado, 2014)
 n_trials = len(results)
@@ -68,8 +69,8 @@ import numpy as np
 is_ranks, oos_ranks = [], []
 tscv = TimeSeriesSplit(n_splits=8)
 for train_idx, test_idx in tscv.split(data):
-    is_sharpe = [backtest(p, data[train_idx]).sharpe for p in param_grid]
-    oos_sharpe = [backtest(p, data[test_idx]).sharpe for p in param_grid]
+    is_sharpe = [backtest(p, data[train_idx])["sharpe"] for p in param_grid]
+    oos_sharpe = [backtest(p, data[test_idx])["sharpe"] for p in param_grid]
     is_ranks.append(np.argsort(is_sharpe))
     oos_ranks.append(np.argsort(oos_sharpe))
 
@@ -98,11 +99,13 @@ for train_idx, test_idx in tscv.split(data):
 `ml4t-diagnostic` provides validated implementations of both corrections:
 
 ```python
+import numpy as np
+
 from ml4t.diagnostic.evaluation.stats import compute_pbo, benjamini_hochberg_fdr
 from ml4t.diagnostic.splitters import CombinatorialCV
 
 cpcv = CombinatorialCV(n_groups=8, n_test_groups=2, embargo_size=5)
-pbo = compute_pbo(sharpe_matrix)               # from CPCV fold results
+pbo = compute_pbo(np.array(is_sharpes), np.array(oos_sharpes))
 rejected = benjamini_hochberg_fdr(p_values, alpha=0.05)
 ```
 

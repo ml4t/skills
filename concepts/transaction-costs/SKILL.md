@@ -98,14 +98,16 @@ print(f"Estimated capacity: ${capacity/1e6:.0f}M")
 `ml4t-backtest` provides composable commission and slippage models:
 
 ```python
-from ml4t.backtest import BacktestConfig, run_backtest
-from ml4t.backtest.models import PercentageCommission, VolumeShareSlippage
+from ml4t.backtest import BacktestConfig, CommissionType, run_backtest
+from ml4t.backtest.config import SlippageType
 
 config = BacktestConfig(
-    commission=PercentageCommission(rate=0.0001),  # 1 bp
-    slippage=VolumeShareSlippage(impact_factor=0.1),
+    commission_type=CommissionType.PERCENTAGE,
+    commission_rate=0.0001,         # 1 bp
+    slippage_type=SlippageType.VOLUME_BASED,
+    slippage_rate=0.001,
 )
-result = run_backtest(strategy, data, config=config)
+result = run_backtest(prices=prices, signals=signals, strategy=strategy, config=config)
 ```
 
 ## Checklist
