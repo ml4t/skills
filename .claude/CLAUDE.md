@@ -1,8 +1,16 @@
 # ML4T Skills — Authoring Guide
 
 **Location**: `/home/stefan/ml4t/skills`
-**Purpose**: ~66 standalone agent skills that teach quant ML techniques correctly
+**Purpose**: 66 standalone agent skills that teach quant ML techniques correctly
 **Distribution**: Standalone repo, ships via ML4T website as bonus resource for readers
+
+## Current State
+
+- The repository currently contains 66 `SKILL.md` files across the 10 categories below.
+- The active maintenance objective is API accuracy: keep every `## Production Implementation` section aligned with the checked-in `ml4t-*` library source in `~/ml4t/libraries/`.
+- The conceptual teaching pattern remains fixed: concept-first, library-recommended (80/20), with no `ml4t.*` imports before `## Production Implementation`.
+- If docs or existing skills conflict with current library source, treat library source as ground truth and update the skill/docs rather than preserving stale wrappers.
+- Repo-local agent onboarding lives in `AGENTS.md`, `.claude/CLAUDE.md`, and `.claude/settings.json`. There is no committed `.agents/` directory in this repo.
 
 ## Design Philosophy: Concept-First, Library-Recommended (80/20)
 
@@ -125,38 +133,61 @@ A skill is done when it passes all five:
 
 Ground truth for all Production Implementation sections. Verified from library source.
 
-### ml4t-data (`from ml4t.data import ...`)
-- `DataManager` — unified data loading/management
+### ml4t-data
+- `from ml4t.data import DataManager, ContractSpec, FUTURES_REGISTRY, Config, BaseProvider, AssetClass`
+- `DataManager` is the generic fetch/storage manager.
+- Use `fetch(...)`, `batch_load(...)`, and `batch_load_universe(...)` for retrieval patterns.
+- `DataManager.load(...)` is a storage operation, not a dataset-registry API like `load("etfs")`.
+- Book-style managers live in subpackages:
+  - `from ml4t.data.etfs import ETFDataManager`
+  - `from ml4t.data.futures import FuturesDataManager, ContinuousContractBuilder, build_continuous_contract`
 - `ContractSpec`, `FUTURES_REGISTRY` — futures contract specs
 - `Config`, `BaseProvider`, `AssetClass`
-- **Note**: Data loaders (`load_etfs()`, etc.) are LOCAL code repo wrappers, not library functions
 
-### ml4t-backtest (`from ml4t.backtest import ...`)
+### ml4t-backtest
 - `Strategy` (ABC) — `on_data(timestamp, data, context, broker)`, `on_start(broker)`, `on_end(broker)`
 - `Broker` — `submit_order()`, `get_position()`, `close_position()`, `cancel_order()`, `get_cash()`
 - `Engine`, `run_backtest()`, `DataFeed`
 - `BacktestConfig`, `BacktestResult`, `CommissionType`
+- Current engine usage: `Engine(feed, strategy, config).run()` or `run_backtest(prices=..., strategy=..., signals=..., context=..., config=...)`
+- `BacktestConfig` uses primitive commission/slippage fields like `commission_type`, `commission_rate`, `slippage_type`, `slippage_rate`
+- `BacktestResult` metrics live under `result.metrics[...]`; tearsheet/export helpers include `to_equity_dataframe()`, `to_daily_returns()`, and `to_tearsheet()`
 - Types: `OrderType`, `OrderSide`, `OrderStatus`, `ExecutionMode`
 - Risk: `StopLoss`, `TakeProfit`, `TrailingStop`, `RuleChain`
 - Execution: `RebalanceConfig`, `TargetWeightExecutor`
-- Commission: `NoCommission`, `PercentageCommission`, `PerShareCommission`, `TieredCommission`, `FuturesCommission`
-- Slippage: `NoSlippage`, `FixedSlippage`, `PercentageSlippage`, `VolumeShareSlippage`
+- Cost models live in `ml4t.backtest.models`, not package root:
+  - Commission: `NoCommission`, `PercentageCommission`, `PerShareCommission`, `TieredCommission`, `FuturesCommission`
+  - Slippage: `NoSlippage`, `FixedSlippage`, `PercentageSlippage`, `VolumeShareSlippage`
 
-### ml4t-engineer (`from ml4t.engineer import ...`)
+### ml4t-engineer
 - `compute_features(data, features)` — main API (list of names, list of dicts, YAML path)
 - `FeatureCatalog`, `feature_catalog` — 120+ feature discovery
-- `MLDatasetBuilder`, `create_dataset_builder()` — leakage-safe train/test splits
+- `feature_catalog.list(...)` is the current discovery method
+- `MLDatasetBuilder`, `create_dataset_builder(features, labels, dates=None, scaler="standard")`
+- Use `builder.split(cv)` for CV folds; older helper patterns like `walk_forward()` / `get_train()` are stale
+- Registry feature names are canonical names like `mom`, `rsi`, `realized_volatility`, `adx`
+- `compute_features(...)` is safest for single-series or per-symbol pipelines; explicit grouped Polars logic is still required for panel-aware features
 - `PreprocessingPipeline`, `StandardScaler`, `MinMaxScaler`, `RobustScaler`
 - Features: `from ml4t.engineer.features.momentum import macd, rsi, adx`
+- Labeling:
+  - `from ml4t.engineer.config import LabelingConfig`
+  - `from ml4t.engineer.labeling import triple_barrier_labels, atr_triple_barrier_labels, meta_labels, compute_bet_size`
+- Storage:
+  - `from ml4t.engineer.store import OfflineFeatureStore`
+  - Current store API is DuckDB-backed: `save_features(...)`, `load_features(...)`, `point_in_time_join(...)`
 
-### ml4t-diagnostic (`from ml4t.diagnostic import ...`)
+### ml4t-diagnostic
 - Splitters: `CombinatorialCV`, `WalkForwardCV` (in `ml4t.diagnostic.splitters`)
   - **NOT** `CombinatorialPurgedCV` — that name does not exist
-- `Evaluator`, `EvaluationResult`, `ValidatedCrossValidation`
-- `FeatureSelector`, `SelectionReport`
-- Metrics: `compute_ic_series`, `compute_ic_hac_stats`, `compute_permutation_importance`, `compute_shap_importance`
-- Stats: `benjamini_hochberg_fdr`, `robust_ic`, `compute_pbo` (in `ml4t.diagnostic.evaluation.stats`)
-- `TradeAnalysis`, `PortfolioAnalysis`, `BarrierAnalysis`
+- Stable integration surface for metrics/workflows is `ml4t.diagnostic.api`
+- Package root reliably exports `Evaluator`, `EvaluationResult`, `ValidatedCrossValidation`, `FeatureSelector`, `SelectionReport`
+- Metrics from `ml4t.diagnostic.api`: `compute_ic_series`, `compute_ic_hac_stats`, `compute_permutation_importance`, `compute_shap_importance`
+- Advanced evaluation helpers live under submodules:
+  - `ml4t.diagnostic.evaluation.metrics`: `compute_ic_by_horizon`
+  - `ml4t.diagnostic.evaluation.stationarity`: `analyze_stationarity`
+  - `ml4t.diagnostic.evaluation.drift`: `analyze_drift`
+  - `ml4t.diagnostic.evaluation.stats`: `benjamini_hochberg_fdr`, `robust_ic`, `compute_pbo`, `deflated_sharpe_ratio`, `deflated_sharpe_ratio_from_statistics`
+- `TradeAnalysis`, `PortfolioAnalysis`, `BarrierAnalysis`, `TradeShapAnalyzer`, `FeatureDiagnostics`, `FactorAnalysis`
 
 ### ml4t-live (`from ml4t.live import ...`)
 - `LiveEngine` — live trading engine
