@@ -1,12 +1,13 @@
 ---
 name: ml4t-risk-metrics
-description: Compute comprehensive portfolio risk measures including drawdown, VaR, CVaR, and tail metrics. Use when evaluating strategy performance or setting risk limits.
+description: "Compute portfolio risk measures including drawdown, VaR, CVaR, and tail metrics. Use when assessing portfolio risk beyond simple return statistics."
+when_to_use: "Use when evaluating strategy performance or setting risk limits"
 dependencies: []
 metadata:
   book_chapters: "19"
   library: "ml4t-diagnostic"
+paths: ["**/*portfolio*.py", "**/*position*.py", "**/*risk*.py", "**/*optim*.py", "**/*exposure*.py", "**/*kill*.py", "**/*stress*.py"]
 ---
-
 # Risk Metrics
 
 A strategy with Sharpe 1.5 and max drawdown -55% will get shut down before it recovers. Reporting returns without drawdowns, tail risk, and duration metrics hides the path dependency that determines whether a strategy survives.
@@ -35,7 +36,7 @@ returns = strategy_returns  # daily, numpy array
 
 # Return metrics
 sharpe = returns.mean() / returns.std() * np.sqrt(252)
-downside = returns[returns < 0]
+downside = np.minimum(returns, 0)  # All returns: negative kept, positive → 0
 sortino = returns.mean() / np.sqrt((downside ** 2).mean()) * np.sqrt(252)
 
 # Drawdown
@@ -58,7 +59,7 @@ print(f"Max DD: {max_dd:.1%} | VaR(95): {var_95:.1%} | CVaR(95): {cvar_95:.1%}")
 | Metric | Formula | Measures |
 |--------|---------|----------|
 | Sharpe | mean(r) / std(r) * sqrt(252) | Risk-adjusted return |
-| Sortino | mean(r) / downside_std * sqrt(252) | Downside-adjusted return |
+| Sortino | mean(r) / sqrt(E[min(r,0)^2]) * sqrt(252) | Downside-adjusted return |
 | Max drawdown | max peak-to-trough decline | Worst cumulative loss |
 | Calmar | ann_return / \|max_dd\| | Return per unit of drawdown |
 | VaR(95%) | 5th percentile of returns | Daily loss threshold |

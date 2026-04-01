@@ -1,12 +1,13 @@
 ---
 name: ml4t-portfolio-optimize
-description: Construct optimal portfolios using mean-variance with shrinkage and practical constraints. Use when combining multiple alpha signals or assets into a single portfolio.
+description: "Construct optimal portfolios using mean-variance with shrinkage and constraints. Use when converting alpha signals into target portfolio weights."
+when_to_use: "Use when combining multiple alpha signals or assets into a single portfolio"
 dependencies: [position-sizing]
 metadata:
   book_chapters: "17"
   library: ""
+paths: ["**/*portfolio*.py", "**/*position*.py", "**/*risk*.py", "**/*optim*.py", "**/*exposure*.py", "**/*kill*.py", "**/*stress*.py"]
 ---
-
 # Portfolio Optimization
 
 Unconstrained Markowitz produces portfolios that are optimal in-sample and catastrophic out-of-sample. Estimation error in expected returns and covariances gets amplified into extreme, unstable weights.

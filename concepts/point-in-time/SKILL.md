@@ -1,12 +1,12 @@
 ---
 name: ml4t-point-in-time
-description: Use data as it was available at decision time, not revised values. Use when joining fundamental, macro, or alternative data to price series for signal construction.
+description: "Ensure data reflects what was known at each decision point, not revised or restated values. Use when joining fundamental, macro, or alternative data to price series."
+when_to_use: "Use when joining fundamental, macro, or alternative data to price series for signal construction"
 dependencies: [lookahead-bias]
 metadata:
   book_chapters: "2, 4"
   library: "ml4t-data"
 ---
-
 # Point-in-Time Correctness
 
 Joining data by event date instead of availability date uses information that did not exist yet, inflating backtest returns by 1--3% annually on fundamental strategies.

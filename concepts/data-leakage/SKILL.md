@@ -1,12 +1,12 @@
 ---
 name: ml4t-data-leakage
-description: Prevent train-test contamination, target leakage, and temporal leakage in ML pipelines. Use when building features, fitting transformers, or splitting data for cross-validation.
+description: "Prevent train-test contamination, target leakage, and temporal leakage. Use when splitting data, fitting preprocessors, or engineering features for time-series ML."
+when_to_use: "Use when building features, fitting transformers, or splitting data for cross-validation"
 dependencies: [lookahead-bias]
 metadata:
   book_chapters: "2, 7, 8"
   library: "ml4t-diagnostic"
 ---
-
 # Data Leakage
 
 Leakage lets test-set information influence training, producing models that look good in development but fail in production.

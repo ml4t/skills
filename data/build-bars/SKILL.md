@@ -1,12 +1,13 @@
 ---
 name: ml4t-build-bars
-description: Aggregate tick data into time, volume, and dollar bars. Use when working with trade-level data and need OHLCV bars with uniform information content.
+description: "Aggregate tick data into time, volume, and dollar bars. Use when resampling raw tick data into regular or information-driven bars."
+when_to_use: "Use when working with trade-level data and need OHLCV bars with uniform information content"
 dependencies: [fetch-data]
 metadata:
   book_chapters: "3"
   library: ""
+paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**/*calendar*.py", "**/*futures*.py", "**/*export*.py", "**/*synthetic*.py"]
 ---
-
 # Build Bars
 
 Time bars sample by the clock, producing bars with wildly different information content — a 5-minute bar during the open contains 100x more trades than one at 2pm.

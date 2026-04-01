@@ -1,12 +1,12 @@
 ---
 name: ml4t-model-validation
-description: Multi-gate model validation process from cross-validation through stress testing to deployment sign-off. Use when a model is being considered for backtesting or live deployment.
+description: "Multi-gate model validation from cross-validation through stress testing to deployment sign-off. Use when qualifying a model for production use."
+when_to_use: "Use when a model is being considered for backtesting or live deployment"
 dependencies: [cpcv, purging-embargo, deflated-sharpe, shap-analysis, backtest-overfitting]
 metadata:
   book_chapters: "7, 12"
   library: "ml4t-diagnostic"
 ---
-
 # Model Validation Workflow
 
 A model that passes a single train/test split proves nothing. Rigorous validation requires combinatorial CV, overfitting probability, deflated statistics, feature attribution, and out-of-time holdout — all before any backtest.

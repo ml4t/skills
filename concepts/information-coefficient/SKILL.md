@@ -1,12 +1,12 @@
 ---
 name: ml4t-information-coefficient
-description: Measure predictive signal quality with IC, Rank IC, and IC_IR. Use when evaluating alpha signals, comparing features, or connecting signal strength to portfolio performance via the Fundamental Law.
+description: "Measure predictive signal quality with IC, Rank IC, and IC_IR. Use when evaluating whether a feature has predictive power for returns."
+when_to_use: "Use when evaluating alpha signals, comparing features, or connecting signal strength to portfolio performance via the Fundamental Law"
 dependencies: []
 metadata:
   book_chapters: "7, 8"
   library: "ml4t-diagnostic"
 ---
-
 # Information Coefficient
 
 IC is the correlation between a predicted signal and realized returns. It is the primary metric for judging whether a signal has predictive power before building a full backtest.

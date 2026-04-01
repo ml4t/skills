@@ -1,12 +1,13 @@
 ---
 name: ml4t-deflated-sharpe
-description: Adjust the Sharpe ratio for multiple testing bias when selecting the best strategy from many trials. Use when reporting strategy performance after evaluating multiple configurations or signals.
+description: "Adjust the Sharpe ratio for multiple testing bias when selecting from many trials. Use when reporting strategy performance after parameter or model search."
+when_to_use: "Use when reporting strategy performance after evaluating multiple configurations or signals"
 dependencies: [cpcv]
 metadata:
   book_chapters: "7, 16"
   library: "ml4t-diagnostic"
+paths: ["**/*cv*.py", "**/*valid*.py", "**/*eval*.py", "**/*drift*.py", "**/*sharpe*.py", "**/*shap*.py", "**/*stationar*.py", "**/*purge*.py", "**/*embargo*.py", "**/*walk_forward*.py"]
 ---
-
 # Deflated Sharpe Ratio
 
 Reporting the best Sharpe ratio from N trials is misleading. The Deflated Sharpe Ratio corrects for the number of trials, non-normal returns, and sample size to test whether observed performance reflects genuine skill.
@@ -115,6 +116,5 @@ print(f"Deflated Sharpe: {search.deflated_sharpe:.3f}")
 
 - [ ] Total number of trials documented (including failures)
 - [ ] DSR computed and reported alongside observed Sharpe
-- [ ] DSR p-value > 0.95 before declaring strategy viable
-- [ ] Non-normality (skew, kurtosis) accounted for in calculation
+- [ ] DSR p-value > 0.95 before declaring viable; non-normality (skew, kurtosis) included
 - [ ] Variance of Sharpe estimates sourced from CPCV folds when available

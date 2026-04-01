@@ -1,12 +1,13 @@
 ---
 name: ml4t-model-governance
-description: Model risk management with validation independence and lifecycle controls. Use when building governance around ML trading models for regulatory compliance or institutional risk management.
+description: "Model risk management with validation independence and lifecycle controls. Use when implementing governance for production trading models."
+when_to_use: "Use when building governance around ML trading models for regulatory compliance or institutional risk management"
 dependencies: [model-validation, risk-metrics]
 metadata:
-  book_chapters: "27"
+  book_chapters: "26"
   library: ""
+paths: ["**/*live*.py", "**/*deploy*.py", "**/*monitor*.py", "**/*govern*.py", "**/*mlops*.py", "**/*pipeline*.py"]
 ---
-
 # Model Governance
 
 Deploying a model and never revisiting it is how firms accumulate silent risk. Governance ensures every model is inventoried, independently validated, periodically challenged, and retired when it no longer works.

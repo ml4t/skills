@@ -1,12 +1,13 @@
 ---
 name: ml4t-run-backtest
-description: Event-driven backtesting with realistic execution. Use when simulating a strategy bar-by-bar with fills, positions, and costs.
+description: "Event-driven backtesting with realistic order execution, position tracking, and performance measurement. Use when simulating a trading strategy on historical data."
+when_to_use: "Use when simulating a strategy bar-by-bar with fills, positions, and costs"
 dependencies: [cost-model]
 metadata:
   book_chapters: "16"
   library: "ml4t-backtest"
+paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.py", "**/*cost*.py", "**/*regime*.py", "**/*tearsheet*.py"]
 ---
-
 # Event-Driven Backtesting
 
 Vectorized backtests hide execution reality. Event-driven simulation processes each bar sequentially, submitting orders that fill at future prices — the only way to model what actually happens when you trade.

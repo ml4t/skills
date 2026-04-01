@@ -1,12 +1,13 @@
 ---
 name: ml4t-horizon-design
-description: Choose prediction horizon by analyzing IC decay, turnover cost, and feature-horizon alignment. Use when designing labels or deciding rebalancing frequency for a trading strategy.
+description: "Choose prediction horizon by analyzing IC decay, turnover cost, and feature-horizon alignment. Use when determining the optimal lookahead window for labels."
+when_to_use: "Use when designing labels or deciding rebalancing frequency for a trading strategy"
 dependencies: [triple-barrier]
 metadata:
   book_chapters: "7"
   library: "ml4t-diagnostic"
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Horizon Design
 
 An arbitrary 1-day horizon forces daily rebalancing, which costs 2-5% annually in transaction costs. If the signal's IC peaks at 20 days, you are paying for turnover that destroys the edge.

@@ -1,12 +1,13 @@
 ---
 name: ml4t-purging-embargo
-description: Remove training samples whose labels overlap with the test period and add a buffer for autocorrelation. Use when constructing any time-series cross-validation split with forward-looking labels.
+description: "Remove training samples whose labels overlap the test period and add an embargo buffer. Use when performing time-series CV to prevent leakage between folds."
+when_to_use: "Use when constructing any time-series cross-validation split with forward-looking labels"
 dependencies: [lookahead-bias]
 metadata:
-  book_chapters: "7"
+  book_chapters: "6, 7"
   library: "ml4t-diagnostic"
+paths: ["**/*cv*.py", "**/*valid*.py", "**/*eval*.py", "**/*drift*.py", "**/*sharpe*.py", "**/*shap*.py", "**/*stationar*.py", "**/*purge*.py", "**/*embargo*.py", "**/*walk_forward*.py"]
 ---
-
 # Purging and Embargo
 
 Standard train/test splits on time series leak information when labels span multiple periods. Purging removes contaminated training samples; embargo adds an extra buffer for feature autocorrelation.
@@ -83,7 +84,7 @@ Rule of thumb: `embargo_size` = 10-20% of `label_horizon`.
 - `label_horizon` MUST match actual label construction — a mismatch voids the purge
 - Verify training set retains enough samples after purging (especially with large horizons)
 - For multi-asset panels, purge within each asset independently
-- Both ADF and KPSS tests for autocorrelation inform embargo sizing
+- ACF analysis of features informs embargo sizing (higher autocorrelation → larger embargo)
 
 ## Production Implementation
 

@@ -1,12 +1,13 @@
 ---
 name: ml4t-triple-barrier
-description: Label trades using profit-target, stop-loss, and time barriers with volatility-adaptive thresholds. Use when building labels for supervised learning on trade outcomes.
+description: "Label trades using profit-target, stop-loss, and time barriers with volatility-adaptive thresholds. Use when creating supervised labels for financial time series."
+when_to_use: "Use when building labels for supervised learning on trade outcomes"
 dependencies: [lookahead-bias]
 metadata:
   book_chapters: "7"
   library: "ml4t-engineer"
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Triple-Barrier Labeling
 
 Fixed return thresholds ignore volatility — a 2% move is noise in crypto but a signal in treasuries. Triple-barrier labels adapt to the asset's current regime.
@@ -38,9 +39,9 @@ def triple_barrier_labels(
     max_holding: int = 10,
 ) -> np.ndarray:
     """Label each bar: +1 profit hit, -1 stop hit, 0 time expiry."""
-    # Volatility-adaptive barriers via ATR
-    high_low = np.abs(np.diff(prices, prepend=prices[0]))
-    atr = np.convolve(high_low, np.ones(atr_period) / atr_period, mode="same")
+    # Volatility-adaptive barriers via smoothed absolute price changes
+    abs_changes = np.abs(np.diff(prices, prepend=prices[0]))
+    atr = np.convolve(abs_changes, np.ones(atr_period) / atr_period, mode="same")
 
     labels = np.zeros(len(prices))
     for i in range(len(prices) - max_holding):
@@ -63,13 +64,17 @@ def triple_barrier_labels(
 | 90%+ time expiry | Barriers too wide | Tighten multipliers or shorten max_holding |
 | Label imbalance >3:1 | Asymmetric barriers | Adjust upper/lower ratio |
 
-The ATR multiplier controls barrier width relative to current volatility. Typical ranges: upper 1.5-3.0x, lower 1.0-2.0x.
+The ATR multiplier controls barrier width relative to current volatility. Typical ranges: upper 1.5-3.0x, lower 1.0-2.0x. De Prado's original uses EWMA daily vol; ATR is a practical alternative that captures intraday range.
+
+**MFE/MAE diagnostics**: Plot Maximum Favorable Excursion (best unrealized P&L) and Maximum Adverse Excursion (worst drawdown) for each trade to calibrate barriers empirically — barriers should sit at natural break points in the MFE/MAE distributions.
 
 ## Guardrails
 
 - **Purging required**: CV must purge `max_holding_period` bars around test boundaries to prevent leakage
+- **Label overlap**: labels with overlapping holding periods are not IID — use sample uniqueness weighting or sequential bootstrap for honest evaluation
 - **Class balance**: check label distribution — use class weights if imbalanced beyond 3:1
 - **ATR lookback**: must use only past data; `atr[i]` must not include bar `i+1`
+- **Tie-breaking**: when both barriers are crossed in the same bar, define a resolution rule (e.g., stop-loss takes priority)
 
 ## Production Implementation
 

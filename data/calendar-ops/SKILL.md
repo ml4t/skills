@@ -1,12 +1,13 @@
 ---
 name: ml4t-calendar-ops
-description: Trading calendar awareness for correct date alignment and rolling windows. Use when computing rolling statistics, aligning multi-market data, or handling holidays.
+description: "Trading calendar awareness for correct date alignment and rolling windows. Use when aligning data across markets or computing holiday-aware windows."
+when_to_use: "Use when computing rolling statistics, aligning multi-market data, or handling holidays"
 dependencies: []
 metadata:
   book_chapters: "2, 3"
   library: ""
+paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**/*calendar*.py", "**/*futures*.py", "**/*export*.py", "**/*synthetic*.py"]
 ---
-
 # Calendar Operations
 
 Using calendar days instead of trading days for a 20-day rolling window includes weekends and holidays, producing a window that covers 28 calendar days but only 20 observations — silently misaligning your features with your labels.
@@ -53,7 +54,7 @@ def add_trading_day_offset(
     """Shift dates by N trading days (not calendar days)."""
     cal = xcals.get_calendar(calendar_code)
     sessions = sorted(cal.sessions_in_range(
-        df["timestamp"].min(), df["timestamp"].max() + pl.duration(days=offset * 2)
+        df["timestamp"].min(), df["timestamp"].max() + timedelta(days=offset * 2)
     ).to_list())
     idx = {d: i for i, d in enumerate(sessions)}
     return df.with_columns(

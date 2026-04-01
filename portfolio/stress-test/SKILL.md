@@ -1,12 +1,13 @@
 ---
 name: ml4t-stress-test
-description: Test portfolios against historical crises and hypothetical shocks to quantify tail exposure. Use when assessing whether a strategy survives extreme markets.
+description: "Test portfolios against historical crises and hypothetical shocks. Use when quantifying tail risk before deployment or during risk reviews."
+when_to_use: "Use when assessing whether a strategy survives extreme markets"
 dependencies: [risk-metrics]
 metadata:
   book_chapters: "19"
   library: ""
+paths: ["**/*portfolio*.py", "**/*position*.py", "**/*risk*.py", "**/*optim*.py", "**/*exposure*.py", "**/*kill*.py", "**/*stress*.py"]
 ---
-
 # Stress Testing
 
 A strategy backtested on 2015-2023 has never seen a regime where equities and bonds fall simultaneously. Without stress testing against 2008, 2020, and 2022, you are implicitly betting that those regimes will not recur.

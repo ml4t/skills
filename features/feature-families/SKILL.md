@@ -1,12 +1,13 @@
 ---
 name: ml4t-feature-families
-description: Five families of financial features — momentum, mean-reversion, volatility, carry, and value — each capturing different market dynamics. Use when designing a diversified feature set for alpha models.
+description: "Five families of financial features — momentum, mean-reversion, volatility, carry, and value. Use when designing a feature set to ensure coverage across complementary market dynamics."
+when_to_use: "Use when designing a diversified feature set for alpha models"
 dependencies: []
 metadata:
   book_chapters: "8"
   library: "ml4t-engineer"
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Feature Families
 
 A model trained on six momentum variants learns one signal six ways. Diversifying across feature families — each driven by a different economic mechanism — produces more robust predictions.

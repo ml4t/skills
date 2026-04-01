@@ -1,12 +1,13 @@
 ---
 name: ml4t-tearsheet
-description: Generate comprehensive performance reports from backtest returns. Use when evaluating strategy quality beyond a single Sharpe number.
+description: "Generate comprehensive performance reports from backtest returns. Use when summarizing backtest results for review or comparison."
+when_to_use: "Use when evaluating strategy quality beyond a single Sharpe number"
 dependencies: [run-backtest]
 metadata:
   book_chapters: "16"
   library: "ml4t-backtest"
+paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.py", "**/*cost*.py", "**/*regime*.py", "**/*tearsheet*.py"]
 ---
-
 # Strategy Tearsheet
 
 A single metric hides more than it reveals. A tearsheet shows cumulative returns, drawdowns, rolling Sharpe, monthly heatmap, and a metrics table — exposing regime dependence, tail risk, and decay that one number cannot.
@@ -90,8 +91,8 @@ Always report **gross and net** (after costs). A gross Sharpe of 1.5 that drops 
 from ml4t.backtest import Engine
 
 result = Engine(feed, strategy, config).run()
-html = result.to_tearsheet(output_path="backtest_report.html")
 equity_df = result.to_equity_dataframe()
+daily_returns = result.to_daily_returns()
 ```
 
 ## Checklist

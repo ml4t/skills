@@ -1,12 +1,13 @@
 ---
 name: ml4t-fetch-data
-description: Reliable data acquisition with schema validation. Use when downloading or loading financial data from any provider.
+description: "Reliable data acquisition with provider abstraction and schema validation. Use when ingesting market data from APIs, databases, or files."
+when_to_use: "Use when downloading or loading financial data from any provider"
 dependencies: []
 metadata:
   book_chapters: "2, 3"
   library: "ml4t-data"
+paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**/*calendar*.py", "**/*futures*.py", "**/*export*.py", "**/*synthetic*.py"]
 ---
-
 # Fetch Data
 
 Blindly loading data without validation produces silent schema drift, missing rows, and type errors that surface deep in modeling code.
@@ -116,5 +117,4 @@ panel = dm.batch_load(["SPY", "QQQ", "IWM"], start="2015-01-01", end="2024-12-31
 - [ ] Date range covers expected period
 - [ ] Gaps detected and logged
 - [ ] Provider errors handled with retry
-- [ ] Canonical column names used (`symbol`, `timestamp`)
-- [ ] Adjustment status known (`close` vs `adj_close`)
+- [ ] Canonical column names used (`symbol`, `timestamp`) and adjustment status known

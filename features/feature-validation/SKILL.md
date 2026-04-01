@@ -1,12 +1,13 @@
 ---
 name: ml4t-feature-validation
-description: Validate features before training — IC significance, stability over time, redundancy, and lookahead contamination checks. Use when adding new features to a model or auditing an existing feature set.
+description: "Validate features before training — IC significance, stability, redundancy, and contamination checks. Use when auditing feature quality before model fitting."
+when_to_use: "Use when adding new features to a model or auditing an existing feature set"
 dependencies: [lookahead-bias]
 metadata:
   book_chapters: "7, 8"
   library: "ml4t-diagnostic"
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Feature Validation
 
 A feature with IC of 0.05 on the full sample may have IC of 0.12 in one year and -0.03 in every other year. Without validation, the model trains on noise disguised as signal.
@@ -94,7 +95,7 @@ def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> d
 from ml4t.diagnostic.api import compute_ic_hac_stats, compute_ic_series
 from ml4t.diagnostic.evaluation.metrics import analyze_feature_outcome
 
-ic_series = compute_ic_series(features, forward_returns, entity_col="symbol", method="spearman")
+ic_series = compute_ic_series(features, forward_returns, pred_col="signal", ret_col="forward_return", entity_col="symbol")
 stats = compute_ic_hac_stats(ic_series)  # HAC-corrected t-stats
 
 analysis = analyze_feature_outcome(
@@ -112,6 +113,6 @@ analysis = analyze_feature_outcome(
 - [ ] Every feature has IC computed with p-value < 0.05
 - [ ] IC stability checked across time (IC-IR > 0.5)
 - [ ] Any feature with |IC| > 0.10 investigated for leakage
-- [ ] IC decay across horizons is monotonically decreasing
+- [ ] IC peaks at expected horizon then decays (non-decaying IC suggests leakage)
 - [ ] Pairwise correlation < 0.7 with all other selected features
 - [ ] Null percentage < 5% and outliers winsorized

@@ -1,16 +1,32 @@
 # ML4T Skills — Authoring Guide
 
-**Location**: `/home/stefan/ml4t/skills`
-**Purpose**: 66 standalone agent skills that teach quant ML techniques correctly
+**Location**: This repository
+**Purpose**: 70 standalone agent skills that teach quant ML techniques correctly
 **Distribution**: Standalone repo, ships via ML4T website as bonus resource for readers
 
 ## Current State
 
-- The repository currently contains 66 `SKILL.md` files across the 10 categories below.
-- The active maintenance objective is API accuracy: keep every `## Production Implementation` section aligned with the checked-in `ml4t-*` library source in `~/ml4t/libraries/`.
+- The repository currently contains 70 `SKILL.md` files across the 10 categories below.
+- The active maintenance objective is API accuracy: keep every `## Production Implementation` section aligned with the published `ml4t-*` library APIs.
 - The conceptual teaching pattern remains fixed: concept-first, library-recommended (80/20), with no `ml4t.*` imports before `## Production Implementation`.
 - If docs or existing skills conflict with current library source, treat library source as ground truth and update the skill/docs rather than preserving stale wrappers.
-- Repo-local agent onboarding lives in `AGENTS.md`, `.claude/CLAUDE.md`, and `.claude/settings.json`. There is no committed `.agents/` directory in this repo.
+- Repo-local agent onboarding lives in `AGENTS.md`, `.claude/CLAUDE.md`, and `.claude/settings.json`.
+
+## Multi-Runtime Setup
+
+Skills are authored once in category directories at the repo root (`concepts/`, `features/`, etc.) and discovered by both Claude Code and Codex:
+
+| Runtime | Discovery Path | Mechanism |
+|---------|---------------|-----------|
+| Claude Code | Repo root directories | Scans for `SKILL.md` from CWD up to repo root |
+| Codex | `.agents/skills/` | Symlinks to category directories |
+
+The `.agents/skills/` directory contains symlinks (not copies) to the 10 category directories. This means one canonical source with dual-runtime access. Edit skills in their category directories; both runtimes see the changes.
+
+### Frontmatter portability
+- `name`, `description`, `metadata` — portable across all runtimes
+- `when_to_use`, `paths`, `dependencies` — Claude Code extensions, ignored by Codex
+- `description` includes "Use when..." trigger language so Codex implicit matching works without `when_to_use`
 
 ## Design Philosophy: Concept-First, Library-Recommended (80/20)
 
@@ -106,13 +122,13 @@ metadata:
 
 | # | Category | Skills | Coverage |
 |---|----------|--------|----------|
-| 1 | `concepts/` | 10 | Foundational pitfalls and principles |
+| 1 | `concepts/` | 11 | Foundational pitfalls and principles |
 | 2 | `data/` | 8 | Data sourcing, validation, management |
-| 3 | `features/` | 10 | Labels, feature engineering, selection |
+| 3 | `features/` | 12 | Labels, feature engineering, selection, text, latent factors |
 | 4 | `validation/` | 8 | CV, evaluation, multiple testing |
 | 5 | `backtest/` | 6 | Strategy simulation, cost modeling |
 | 6 | `portfolio/` | 6 | Position sizing, optimization, risk |
-| 7 | `advanced-ai/` | 5 | RL, RAG, knowledge graphs, agents |
+| 7 | `advanced-ai/` | 6 | RL, RAG, knowledge graphs, agents, DL time series |
 | 8 | `production/` | 4 | Live trading, MLOps, governance |
 | 9 | `infrastructure/` | 4 | Schema, registry, Polars, pipelines |
 | 10 | `workflows/` | 5 | End-to-end composite processes |
@@ -201,6 +217,6 @@ Ground truth for all Production Implementation sections. Verified from library s
 
 ## Source Material
 
-- **Book chapters**: `~/ml4t/third_edition/book/`
-- **Code repo**: `~/ml4t/third_edition/code/`
-- **Libraries**: `~/ml4t/libraries/` — ml4t-data, ml4t-engineer, ml4t-backtest, ml4t-diagnostic, ml4t-live
+- **Book**: [*Machine Learning for Algorithmic Trading*](https://ml4trading.io) (27 chapters + case studies)
+- **Code**: [github.com/stefan-jansen/machine-learning-for-trading](https://github.com/stefan-jansen/machine-learning-for-trading)
+- **Libraries**: ml4t-data, ml4t-engineer, ml4t-backtest, ml4t-diagnostic, ml4t-live (all on PyPI)

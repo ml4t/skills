@@ -1,12 +1,13 @@
 ---
 name: ml4t-data-export
-description: Export financial data in efficient columnar formats with schema enforcement. Use when persisting datasets for analytics, sharing data across pipeline stages, or optimizing read performance.
+description: "Export financial data in efficient columnar formats with schema enforcement. Use when persisting datasets for reproducible research or cross-pipeline sharing."
+when_to_use: "Use when persisting datasets for analytics, sharing data across pipeline stages, or optimizing read performance"
 dependencies: [fetch-data]
 metadata:
   book_chapters: "2"
   library: "ml4t-data"
+paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**/*calendar*.py", "**/*futures*.py", "**/*export*.py", "**/*synthetic*.py"]
 ---
-
 # Data Export
 
 Saving financial data as CSV loses type information, bloats file size 5-10x, and makes every downstream read parse strings back into numbers — a tax paid on every pipeline run.

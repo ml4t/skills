@@ -1,12 +1,13 @@
 ---
 name: ml4t-polars-patterns
-description: Polars-first data processing patterns for financial data. Use when working with market data, computing per-symbol features, or processing datasets too large for pandas.
+description: "Polars-first data processing patterns for financial data. Use when writing efficient grouped, windowed, or lazy-evaluated data transformations."
+when_to_use: "Use when working with market data, computing per-symbol features, or processing datasets too large for pandas"
 dependencies: []
 metadata:
   book_chapters: "2, 3"
   library: ""
+paths: ["**/*schema*.py", "**/*registry*.py", "**/*pipeline*.py", "**/*polars*.py", "**/*case_study*.py"]
 ---
-
 # Polars Patterns for Quant Finance
 
 Pandas groupby-apply with Python functions is 10-100x slower than Polars lazy expressions with `.over()`. For financial data — where most operations are per-symbol rolling computations — the performance gap determines whether your pipeline takes minutes or hours.

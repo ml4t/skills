@@ -1,12 +1,13 @@
 ---
 name: ml4t-feature-selection
-description: Select informative features and remove redundant ones using IC ranking, mutual information, or RFE — always within CV folds. Use when a feature set exceeds 20 features or contains suspected noise.
+description: "Select informative features using IC ranking, mutual information, or RFE — always within CV folds. Use when reducing feature dimensionality before training."
+when_to_use: "Use when a feature set exceeds 20 features or contains suspected noise"
 dependencies: [lookahead-bias]
 metadata:
-  book_chapters: "8"
+  book_chapters: "7, 8"
   library: "ml4t-diagnostic"
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Feature Selection
 
 Selecting features on the full dataset is a form of lookahead bias. The test set influences which features are kept, inflating out-of-sample performance. Feature selection must happen inside each CV fold.

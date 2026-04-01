@@ -1,12 +1,12 @@
 ---
 name: ml4t-survivorship-bias
-description: Account for delisted and removed securities in historical backtests. Use when constructing trading universes or evaluating strategies on equity, crypto, or ETF panels.
+description: "Account for delisted and removed securities in historical analysis. Use when constructing universes or computing cross-sectional features to avoid survivor-only inflation."
+when_to_use: "Use when constructing trading universes or evaluating strategies on equity, crypto, or ETF panels"
 dependencies: []
 metadata:
   book_chapters: "2, 6"
   library: "ml4t-data"
 ---
-
 # Survivorship Bias
 
 Testing a strategy only on securities that exist today removes the worst performers from history, inflating backtest returns by 1--2% per year.
@@ -70,7 +70,7 @@ delisting_return = {
 | Source | Survivorship-free? | Notes |
 |--------|-------------------|-------|
 | CRSP | Yes | Gold standard, includes delistings |
-| NASDAQ Data Link (Wiki) | Yes | 2007--2018, has delisting codes |
+| NASDAQ Data Link (Wiki) | Yes | 1962--2018, includes delisted companies |
 | Yahoo Finance | No | Current tickers only |
 | Most free APIs | No | Survivor-biased by default |
 | Crypto exchanges | Partial | Coins get delisted frequently |

@@ -1,12 +1,13 @@
 ---
 name: ml4t-registry-system
-description: Content-addressed experiment tracking for ML trading models. Use when running model experiments and need reproducibility, comparison, and audit trail across training runs.
+description: "Content-addressed experiment tracking for ML trading models. Use when versioning models, features, or experiment artifacts for reproducibility."
+when_to_use: "Use when running model experiments and need reproducibility, comparison, and audit trail across training runs"
 dependencies: []
 metadata:
   book_chapters: "11, 12"
   library: ""
+paths: ["**/*schema*.py", "**/*registry*.py", "**/*pipeline*.py", "**/*polars*.py", "**/*case_study*.py"]
 ---
-
 # Experiment Registry
 
 Without a registry, you overwrite the best model every time you retrain. Content-addressed storage — where hash(config) determines the storage path — makes every experiment reproducible and comparable without manual bookkeeping.

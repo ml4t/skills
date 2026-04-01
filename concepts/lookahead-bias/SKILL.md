@@ -1,12 +1,12 @@
 ---
 name: ml4t-lookahead-bias
-description: Detect and prevent future information leaking into features, labels, and evaluation. Use when computing features, creating labels, preprocessing data, or setting up cross-validation for time-series models.
+description: "Detect future information leaking into features, labels, or evaluation. Use when any pipeline step might expose data not yet available at prediction time."
+when_to_use: "Use when computing features, creating labels, preprocessing data, or setting up cross-validation for time-series models"
 dependencies: []
 metadata:
   book_chapters: "6, 7"
   library: "ml4t-diagnostic"
 ---
-
 # Lookahead Bias
 
 The most common ML4T failure. A model uses future information during training — normalization with full-sample statistics, labels from future thresholds, standard k-fold CV on time series — producing a great backtest that fails immediately in production.
@@ -65,13 +65,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Ridge
 
-scaler = StandardScaler().fit(X)
-X_train, X_test = X_scaled[:split], X_scaled[split:]
-
+# Pipeline ensures scaler is fit on train only, even inside CV
 pipe = Pipeline([
     ("scaler", StandardScaler()),
     ("model", Ridge()),
 ])
+pipe.fit(X_train, y_train)       # scaler sees only training data
+pipe.predict(X_test)             # test data transformed with train stats
 ```
 
 ## Detection

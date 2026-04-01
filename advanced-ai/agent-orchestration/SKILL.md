@@ -1,12 +1,13 @@
 ---
 name: ml4t-agent-orchestration
-description: Multi-agent architecture for trading workflows with specialized agents, clear interfaces, and audit trails. Use when building autonomous or semi-autonomous trading systems with separation of concerns.
+description: "Multi-agent architecture for trading workflows with specialized agents and audit trails. Use when coordinating research, execution, and risk agents."
+when_to_use: "Use when building autonomous or semi-autonomous trading systems with separation of concerns"
 dependencies: [strategy-workflow, kill-switch]
 metadata:
-  book_chapters: "25"
+  book_chapters: "24"
   library: ""
+paths: ["**/*agent*.py", "**/*rl*.py", "**/*rag*.py", "**/*graph*.py", "**/*knowledge*.py", "**/*orchestrat*.py"]
 ---
-
 # Agent Orchestration for Trading
 
 A monolithic trading bot couples signal generation, risk checking, and execution into one opaque process. When it fails, you cannot tell which stage went wrong. Multi-agent design makes each decision visible and auditable.

@@ -1,19 +1,20 @@
 ---
 name: ml4t-evaluate-factor
-description: Evaluate alpha factor quality with IC analysis, quantile spreads, turnover, and decay before portfolio integration. Use when assessing whether a predictive signal is worth trading.
+description: "Evaluate alpha factor quality with IC analysis, quantile spreads, turnover, and decay. Use when deciding whether a signal has enough predictive power to trade."
+when_to_use: "Use when assessing whether a predictive signal is worth trading"
 dependencies: []
 metadata:
   book_chapters: "7, 8"
   library: "ml4t-diagnostic"
+paths: ["**/*cv*.py", "**/*valid*.py", "**/*eval*.py", "**/*drift*.py", "**/*sharpe*.py", "**/*shap*.py", "**/*stationar*.py", "**/*purge*.py", "**/*embargo*.py", "**/*walk_forward*.py"]
 ---
-
 # Factor Evaluation
 
 A factor that looks predictive may be untradeable due to high turnover, rapid decay, or non-monotonic quantile spreads. Comprehensive evaluation before portfolio integration prevents costly live failures.
 
 ## The Problem
 
-Reporting a single backtest Sharpe ratio conflates signal quality with portfolio construction. A factor with IC 0.03 and low turnover is more valuable than one with IC 0.05 and 80% daily turnover — the second one's alpha is consumed by transaction costs. Without decomposing signal quality into IC, quantile monotonicity, turnover, and decay, you cannot diagnose why a strategy fails or how to improve it.
+Reporting a single backtest Sharpe ratio conflates signal quality with portfolio construction. A factor with IC 0.03 and low turnover can be more valuable than one with IC 0.05 and 80% daily turnover — whether IC is sufficient depends on breadth, turnover costs, and regime stability. Without decomposing signal quality into IC, quantile monotonicity, turnover, and decay, you cannot diagnose why a strategy fails or how to improve it.
 
 ## The Pattern
 

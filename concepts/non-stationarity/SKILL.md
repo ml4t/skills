@@ -1,12 +1,12 @@
 ---
 name: ml4t-non-stationarity
-description: Handle changing statistical properties in financial time series. Use when normalizing features, selecting lookback windows, or diagnosing model decay.
+description: "Handle changing statistical properties in financial time series. Use when features or model performance degrade over time."
+when_to_use: "Use when normalizing features, selecting lookback windows, or diagnosing model decay"
 dependencies: [regime-awareness]
 metadata:
-  book_chapters: "6, 9"
+  book_chapters: "9"
   library: "ml4t-diagnostic"
 ---
-
 # Non-Stationarity
 
 Financial time series have means, variances, and correlations that change over time. A model trained on 2015--2019 low-volatility data will underperform in a 2020 regime shift if it assumes fixed parameters.

@@ -1,12 +1,13 @@
 ---
 name: ml4t-regime-backtest
-description: Decompose strategy performance by market regime — volatility, trend, liquidity. Use when aggregate metrics hide regime-dependent fragility.
+description: "Decompose strategy performance by market regime — volatility, trend, liquidity. Use when diagnosing whether a strategy is regime-dependent."
+when_to_use: "Use when aggregate metrics hide regime-dependent fragility"
 dependencies: [run-backtest]
 metadata:
   book_chapters: "16, 19"
   library: ""
+paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.py", "**/*cost*.py", "**/*regime*.py", "**/*tearsheet*.py"]
 ---
-
 # Regime-Conditional Backtesting
 
 An aggregate Sharpe of 1.2 might come from Sharpe 3.0 in bull markets and -0.5 in bear markets. Reporting only the aggregate hides the most important question: does the strategy survive the regimes that matter most?

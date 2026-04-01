@@ -1,12 +1,13 @@
 ---
 name: ml4t-shap-analysis
-description: Explain model predictions with SHAP values instead of biased built-in feature importance. Use when interpreting gradient boosting or black-box model behavior for trading decisions.
+description: "Explain model predictions with SHAP values instead of biased built-in feature importance. Use when interpreting which features drive model decisions."
+when_to_use: "Use when interpreting gradient boosting or black-box model behavior for trading decisions"
 dependencies: []
 metadata:
   book_chapters: "12, 15"
   library: "ml4t-diagnostic"
+paths: ["**/*cv*.py", "**/*valid*.py", "**/*eval*.py", "**/*drift*.py", "**/*sharpe*.py", "**/*shap*.py", "**/*stationar*.py", "**/*purge*.py", "**/*embargo*.py", "**/*walk_forward*.py"]
 ---
-
 # SHAP Analysis
 
 Built-in `feature_importances_` in tree models is biased toward high-cardinality and correlated features. SHAP values provide additive, consistent feature attributions grounded in game theory.

@@ -1,12 +1,13 @@
 ---
 name: ml4t-sensitivity-analysis
-description: Test strategy robustness to parameter variation and detect overfitting cliffs. Use when validating that performance is not fragile to exact parameter choices.
+description: "Test strategy robustness to parameter variation and detect overfitting cliffs. Use when validating that performance is stable across parameter perturbations."
+when_to_use: "Use when validating that performance is not fragile to exact parameter choices"
 dependencies: [run-backtest]
 metadata:
   book_chapters: "16"
   library: ""
+paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.py", "**/*cost*.py", "**/*regime*.py", "**/*tearsheet*.py"]
 ---
-
 # Parameter Sensitivity Analysis
 
 A strategy optimized to Sharpe 2.0 at lookback=21 that drops to 0.3 at lookback=20 or lookback=22 is not a strategy — it is a curve fit. Sensitivity analysis sweeps parameters to verify that performance is stable across a neighborhood, not balanced on a knife edge.
@@ -45,7 +46,8 @@ def parameter_sweep(prices, param_grid: dict, strategy_fn) -> pl.DataFrame:
         params = dict(zip(param_grid.keys(), combo))
         ret = strategy_fn(prices, **params)
         sr = ret.mean() / ret.std() * np.sqrt(252)
-        max_dd = (np.maximum.accumulate(np.cumsum(ret)) - np.cumsum(ret)).max()
+        cum = np.cumprod(1 + ret)
+        max_dd = ((np.maximum.accumulate(cum) - cum) / np.maximum.accumulate(cum)).max()
         rows.append({**params, "sharpe": sr, "max_dd": max_dd})
     return pl.DataFrame(rows)
 

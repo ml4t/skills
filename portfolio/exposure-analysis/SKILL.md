@@ -1,12 +1,13 @@
 ---
 name: ml4t-exposure-analysis
-description: Decompose portfolio into factor, sector, and concentration exposures to detect unintended bets. Use when reviewing portfolio construction or diagnosing unexpected drawdowns.
+description: "Decompose portfolio into factor, sector, and concentration exposures. Use when checking for unintended bets or risk concentrations."
+when_to_use: "Use when reviewing portfolio construction or diagnosing unexpected drawdowns"
 dependencies: []
 metadata:
   book_chapters: "17, 19"
-  library: ""
+  library: "ml4t-diagnostic"
+paths: ["**/*portfolio*.py", "**/*position*.py", "**/*risk*.py", "**/*optim*.py", "**/*exposure*.py", "**/*kill*.py", "**/*stress*.py"]
 ---
-
 # Exposure Analysis
 
 A portfolio of 50 stocks can look diversified by count while having 80% of its risk in a single factor. Without exposure decomposition, you cannot distinguish between intended alpha bets and unintended factor tilts.
@@ -92,6 +93,19 @@ def rolling_betas(port_ret, factor_ret, window=63):
 - Sector weights should align with investment thesis — large unintended tilts signal construction error
 - HHI above 0.10 (effective N < 10) means the portfolio is concentrated regardless of position count
 - Compare exposures to benchmark — net active bets should be intentional
+
+## Production Implementation
+
+`ml4t-diagnostic` provides factor exposure and rolling attribution tools:
+
+```python
+from ml4t.diagnostic.evaluation.factor import FactorAnalysis, FactorData
+
+factor_data = FactorData.from_dataframe(factors_df, rf_column="RF")
+analysis = FactorAnalysis(strategy_returns, factor_data)
+static = analysis.static_model()
+rolling = analysis.rolling_model(window=63)
+```
 
 ## Checklist
 

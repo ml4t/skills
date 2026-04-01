@@ -1,15 +1,15 @@
 ---
 name: ml4t-case-study-development
-description: End-to-end case study development from trading setup through models to backtest results. Use when building a new case study for a dataset/asset class or auditing an existing pipeline for missing stages or broken artifact chains.
-dependencies: [strategy-term-sheet, triple-barrier, compute-features, cpcv, run-backtest, evaluate-factor]
+description: "Stage-gated research workflow from hypothesis through data prep, feature engineering, modeling, and backtest. Use when developing a trading strategy end-to-end with disciplined gate checks."
+when_to_use: "Use when deciding what a case study should test next, which gate failed, or whether the study is ready to advance"
+dependencies: [strategy-term-sheet, case-study-pipeline, triple-barrier, compute-features, cpcv, run-backtest, evaluate-factor]
 metadata:
   book_chapters: "6, 7, 8, 11, 16, 20"
   library: "ml4t-backtest"
 ---
+# Case Study Development Workflow
 
-# Case Study Development
-
-A case study is a multi-stage pipeline where each stage produces artifacts consumed by the next. Breaking the chain — by skipping a stage, hardcoding paths, or running everything in one notebook — produces results that cannot be reproduced or extended.
+A case study is not just a pipeline; it is a sequence of research decisions. Clean artifacts are necessary, but the real question is whether each stage earned the right to move to the next one.
 
 ## The Problem
 
@@ -68,32 +68,32 @@ print(f"Sharpe: {sharpe(cumulative_return):.2f}")  # Meaningless number
 # → Output: results/*.json with provenance back to registry
 ```
 
-## The Artifact Chain
+## Stage Gates
 
-| Stage | Reads | Writes | Registry |
-|-------|-------|--------|----------|
-| Setup | Raw data | `config/setup.yaml` | -- |
-| Labels | Config, prices | `data/labels/*.parquet` | -- |
-| Features | Config, prices | `data/features/*.parquet` | -- |
-| Models | Labels, features, CV config | `run_log/models/{hash}/` | `training_runs`, `prediction_sets` |
-| Backtest | Predictions, cost model | `run_log/strategy/{hash}/` | `backtest_runs`, `backtest_metrics` |
-| Synthesis | Registry queries | `results/*.json` | -- |
+| Gate | Core question | Advance only if |
+|------|---------------|-----------------|
+| Setup | Is the hypothesis falsifiable? | Universe, costs, and success criteria are explicit |
+| Labels | Is the target economically meaningful? | Horizon and label logic match holding period |
+| Features | Do the signals survive diagnostics? | IC is stable, joins are clean, leakage checks pass |
+| Models | Is validation credible? | CPCV or holdout beats a baseline without leakage |
+| Backtest | Does the economics survive friction? | Costs, turnover, and capacity remain acceptable |
+| Synthesis | Is there a decision? | Best config and rejection reasons are documented |
 
-If any stage reads from a hardcoded path instead of the canonical location, config changes will not propagate and results silently go stale. `setup.yaml` is the SSOT — every notebook reads it for universe, label horizon, cost model, and CV scheme. No notebook defines these values locally.
+Artifact contracts still matter; use `ml4t-case-study-pipeline` to define them. This skill governs whether the study should advance.
 
 ## Guardrails
 
-- If a notebook defines `horizon = 21` locally instead of reading from `setup.yaml`, the pipeline will silently diverge when the config changes
-- If model training runs without a registry entry, downstream stages cannot trace which config produced which predictions
-- If backtest Sharpe > 2.0 on daily data, suspect lookahead in the artifact chain (see `ml4t-lookahead-bias`)
-- If features and labels have different row counts, a join mismatch has corrupted the pipeline
+- If the hypothesis changes materially, restart at Setup instead of patching downstream results
+- If model training runs without a registry entry, downstream conclusions are not auditable
+- If backtest Sharpe > 2.0 on daily data, suspect leakage before celebrating
+- If a gate fails, record the rejection reason instead of quietly continuing
 
 ## Production Implementation
 
-`ml4t-backtest` provides the strategy simulation layer and `ml4t-engineer` handles feature computation:
+`ml4t-engineer` and `ml4t-backtest` cover the feature and simulation handoff:
 
 ```python
-from ml4t.backtest import run_backtest, BacktestConfig, DataFeed
+from ml4t.backtest import BacktestConfig, run_backtest
 from ml4t.engineer import compute_features
 
 features = compute_features(data, "configs/features.yaml")
@@ -103,11 +103,8 @@ results = run_backtest(prices=prices, signals=signals, strategy=strategy, config
 
 ## Checklist
 
-- [ ] `setup.yaml` exists and defines universe, frequency, label, cost model, CV scheme
-- [ ] Labels notebook reads horizon from config, not hardcoded
-- [ ] Features notebook writes to `data/features/`, not ad-hoc paths
-- [ ] Feature IC validated with HAC t-stat > 2.0 before modeling
-- [ ] Every model config registered in `run_log/registry.db` with hash
-- [ ] Backtest uses cost model from `setup.yaml`, not zero-cost default
-- [ ] Results JSON includes provenance (registry hashes, config snapshot)
-- [ ] Changing `setup.yaml` and re-running produces consistent end-to-end results
+- [ ] Setup gate defines universe, horizon, costs, and success criteria
+- [ ] Feature gate passes IC, stability, and leakage checks before modeling
+- [ ] Model gate beats a baseline on CPCV or holdout, not one lucky split
+- [ ] Backtest gate survives realistic costs and turnover constraints
+- [ ] Final synthesis records the chosen configuration and rejected alternatives

@@ -1,12 +1,13 @@
 ---
 name: ml4t-position-sizing
-description: Convert signals to position sizes using volatility targeting and risk budgets. Use when sizing positions from model predictions or alpha signals.
+description: "Convert signals to position sizes using volatility targeting and risk budgets. Use when scaling trade size relative to conviction and portfolio risk."
+when_to_use: "Use when sizing positions from model predictions or alpha signals"
 dependencies: [transaction-costs]
 metadata:
   book_chapters: "17"
   library: "ml4t-backtest"
+paths: ["**/*portfolio*.py", "**/*position*.py", "**/*risk*.py", "**/*optim*.py", "**/*exposure*.py", "**/*kill*.py", "**/*stress*.py"]
 ---
-
 # Position Sizing
 
 Equal-weight portfolios ignore that a 1% position in a 40-vol crypto asset carries 8x the risk of a 1% position in a 5-vol bond ETF. Without volatility-aware sizing, portfolio risk is dominated by the noisiest assets.

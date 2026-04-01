@@ -1,12 +1,12 @@
 ---
 name: ml4t-backtest-overfitting
-description: Detect and prevent overfitting to historical data via multiple testing corrections and pre-registration. Use when evaluating strategy backtests, tuning hyperparameters, or comparing multiple strategies.
+description: "Detect and prevent overfitting to historical data via multiple testing corrections and pre-registration. Use when evaluating strategy variants to ensure performance is not a data-mining artifact."
+when_to_use: "Use when evaluating strategy backtests, tuning hyperparameters, or comparing multiple strategies"
 dependencies: [lookahead-bias]
 metadata:
   book_chapters: "7, 16"
   library: "ml4t-diagnostic"
 ---
-
 # Backtest Overfitting
 
 Testing many strategies on the same data guarantees finding one that looks profitable by chance. With 100 independent trials at p < 0.05, you expect five false positives.
@@ -59,22 +59,24 @@ print(f"Observed: {best_sharpe:.2f}, Deflated: {deflated_sharpe:.2f}, Trials: {n
 
 ## Probability of Backtest Overfitting (PBO)
 
-PBO uses combinatorial cross-validation to estimate the chance that the best in-sample strategy underperforms out-of-sample:
+PBO uses combinatorial CV (CSCV; see `cpcv` skill) to generate multiple train/test paths, then checks how often the IS-best strategy underperforms OOS:
 
 ```python
-from sklearn.model_selection import TimeSeriesSplit
 import numpy as np
+from itertools import combinations
 
-# Simplified PBO: rank correlation between IS and OOS Sharpe across folds
-is_ranks, oos_ranks = [], []
-tscv = TimeSeriesSplit(n_splits=8)
-for train_idx, test_idx in tscv.split(data):
-    is_sharpe = [backtest(p, data[train_idx])["sharpe"] for p in param_grid]
-    oos_sharpe = [backtest(p, data[test_idx])["sharpe"] for p in param_grid]
-    is_ranks.append(np.argsort(is_sharpe))
-    oos_ranks.append(np.argsort(oos_sharpe))
+# PBO via CPCV paths: for each combination, rank strategies IS and OOS
+n_groups, n_test = 8, 2
+logits = []  # normalized OOS rank of IS-best strategy
+for test_groups in combinations(range(n_groups), n_test):
+    is_sharpe = [backtest(p, train_data)["sharpe"] for p in param_grid]
+    oos_sharpe = [backtest(p, test_data)["sharpe"] for p in param_grid]
+    best_is = np.argmax(is_sharpe)
+    # Relative OOS rank of IS-best strategy
+    oos_rank = np.argsort(oos_sharpe)[::-1].tolist().index(best_is)
+    logits.append(oos_rank / len(param_grid))
 
-# PBO > 0.5 = best IS strategy is more likely to underperform OOS
+pbo = np.mean(np.array(logits) > 0.5)  # PBO > 0.5 = no edge
 ```
 
 ## Red Flags

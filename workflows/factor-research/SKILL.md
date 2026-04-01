@@ -1,12 +1,12 @@
 ---
 name: ml4t-factor-research
-description: Systematic factor research process from hypothesis through IC analysis, decay profiling, and capacity assessment. Use when evaluating a new alpha factor or auditing an existing factor for deployment readiness.
+description: "Systematic factor research from hypothesis through IC analysis, decay profiling, and capacity assessment. Use when developing a new alpha factor end-to-end."
+when_to_use: "Use when evaluating a new alpha factor or auditing an existing factor for deployment readiness"
 dependencies: [information-coefficient, feature-families, feature-validation, horizon-design, evaluate-factor]
 metadata:
   book_chapters: "7, 8"
   library: "ml4t-diagnostic"
 ---
-
 # Factor Research Workflow
 
 Testing one factor on one period and deploying is data mining. Systematic factor research requires IC significance, stability across subperiods, decay profiling, and capacity estimation before any factor enters a model.

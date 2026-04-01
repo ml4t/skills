@@ -1,12 +1,13 @@
 ---
 name: ml4t-microstructure-features
-description: Features from order flow and market microstructure — bid-ask spread, VPIN, order imbalance, Kyle's lambda. Use when building intraday or short-horizon models with tick/quote data.
+description: "Features from order flow and market microstructure — bid-ask spread, VPIN, order imbalance. Use when building signals from intraday trade and quote data."
+when_to_use: "Use when building intraday or short-horizon models with tick/quote data"
 dependencies: []
 metadata:
   book_chapters: "3, 8"
   library: ""
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Microstructure Features
 
 OHLCV bars discard 99% of the information in the order book. Microstructure features extract signals from trade flow, spread dynamics, and price impact that daily data cannot capture.

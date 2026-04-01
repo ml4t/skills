@@ -1,12 +1,13 @@
 ---
 name: ml4t-cpcv
-description: Combinatorial Purged Cross-Validation generates a distribution of backtest paths instead of a single estimate. Use when evaluating strategy robustness or detecting overfitting in time-series models.
+description: "Combinatorial Purged CV generates a distribution of backtest paths instead of a single estimate. Use when quantifying strategy robustness and overfitting probability."
+when_to_use: "Use when evaluating strategy robustness or detecting overfitting in time-series models"
 dependencies: [purging-embargo]
 metadata:
-  book_chapters: "7"
+  book_chapters: "6, 7"
   library: "ml4t-diagnostic"
+paths: ["**/*cv*.py", "**/*valid*.py", "**/*eval*.py", "**/*drift*.py", "**/*sharpe*.py", "**/*shap*.py", "**/*stationar*.py", "**/*purge*.py", "**/*embargo*.py", "**/*walk_forward*.py"]
 ---
-
 # Combinatorial Purged Cross-Validation
 
 Standard k-fold CV on time series produces one biased performance estimate. CPCV generates C(N,k) train/test combinations with purging and embargo, yielding a **distribution** of results that reveals overfitting.
@@ -73,14 +74,15 @@ print(f"Mean: {np.mean(scores):.3f}, Std: {np.std(scores):.3f}")
 | 8 | 2 | 28 | Standard |
 | 10 | 3 | 120 | Deep analysis |
 
+- Heuristic: set `n_groups` = desired paths + 1, `n_test_groups` = 2 (de Prado)
 - `label_horizon`: must match label construction (5-day returns = 5)
-- `embargo_size`: ~10-20% of label_horizon
+- `embargo_size`: ~10-20% of label_horizon (prevents serial correlation post-test)
 
 ## Guardrails
 
-- High variance across folds signals lack of robustness — report std alongside mean
+- More paths → lower variance of the mean Sharpe estimate (var ∝ 1/φ when paths are uncorrelated), directly reducing false discovery
 - Verify training set size after purging is still sufficient (>60% of data)
-- Combine with Deflated Sharpe Ratio (see `deflated-sharpe` skill) for statistical significance
+- Combine with PBO / Deflated Sharpe Ratio (see `deflated-sharpe` skill) for statistical significance
 - Never report the best fold — report the full distribution
 
 ## Production Implementation

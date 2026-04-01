@@ -1,12 +1,12 @@
 ---
 name: ml4t-strategy-term-sheet
-description: Document strategy hypotheses before backtesting with falsifiable, pre-registered specifications. Use when starting strategy research, defining a new signal, or preparing for backtest evaluation.
+description: "Document strategy hypotheses before backtesting with falsifiable, pre-registered specs. Use when starting a new strategy to prevent post-hoc rationalization."
+when_to_use: "Use when starting strategy research, defining a new signal, or preparing for backtest evaluation"
 dependencies: [backtest-overfitting]
 metadata:
   book_chapters: "1, 6"
   library: ""
 ---
-
 # Strategy Term Sheet
 
 A version-controlled specification that documents a strategy's hypothesis, implementation, and success criteria BEFORE any backtest is run. Without pre-registration, every positive result is indistinguishable from post-hoc rationalization.

@@ -1,12 +1,13 @@
 ---
 name: ml4t-meta-labels
-description: Two-stage labeling where a secondary model predicts whether a primary signal will be profitable. Use when a signal has decent recall but too many false positives.
+description: "Secondary model predicts whether a primary signal will be profitable. Use when sizing positions or filtering low-conviction trades from a base alpha model."
+when_to_use: "Use when a signal has decent recall but too many false positives"
 dependencies: [triple-barrier]
 metadata:
   book_chapters: "7"
   library: "ml4t-engineer"
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Meta-Labels
 
 A momentum signal fires 1,000 times per year but only 40% are profitable. Instead of discarding the signal, train a second model to predict *which* of those 1,000 trades will work.

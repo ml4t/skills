@@ -1,19 +1,20 @@
 ---
 name: ml4t-cost-model
-description: Model all trading costs — commission, spread, slippage, market impact. Use when estimating net performance and strategy capacity.
-dependencies: [run-backtest]
+description: "Commission, slippage, and market-impact cost models for realistic strategy simulation. Use when backtesting to ensure P&L accounts for transaction costs."
+when_to_use: "Use when wiring realistic execution costs into a simulation after a strategy has already cleared basic cost-feasibility screening"
+dependencies: [transaction-costs, run-backtest]
 metadata:
   book_chapters: "18"
   library: "ml4t-backtest"
+paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.py", "**/*cost*.py", "**/*regime*.py", "**/*tearsheet*.py"]
 ---
+# Backtest Cost Model
 
-# Transaction Cost Modeling
-
-A strategy with zero-cost Sharpe of 1.5 may have net Sharpe of 0.3. Trading costs are not a detail — they are the primary constraint on whether alpha survives. Every backtest must include commission, spread, slippage, and (for larger size) market impact.
+Once a strategy passes the feasibility screen, the backtest engine still needs explicit cost settings. If commission, slippage, and impact are left at optimistic defaults, the simulation is still fiction.
 
 ## The Problem
 
-Zero-cost backtests overstate performance by the full round-trip cost times turnover. A strategy trading 200% annual turnover at 20 bps round-trip loses 40 bps/year to costs alone. For high-frequency or small-cap strategies, costs can exceed gross alpha entirely. Without a cost model, you cannot estimate capacity — the AUM where costs eat all profit.
+Most mistakes at this stage are implementation mistakes: missing volume in the feed, flat slippage for every asset, or no participation cap on large orders. The result is a backtest that claims to include costs while still materially understating them.
 
 ## The Pattern
 
@@ -71,14 +72,16 @@ def estimate_capacity(gross_sharpe, turnover, cost_bps_per_turn):
 | Spread | 1 - 50 bps | Asset liquidity |
 | Slippage | 1 - 20 bps | Order urgency |
 | Market impact | 5 - 100+ bps | Order size / ADV |
+| Financing | 25 - 300+ bps/yr | Short positions, leverage |
 
 **Impact model**: $\text{impact} = \eta \cdot \sigma \cdot \sqrt{\frac{Q}{\text{ADV}}}$ where $Q$ is order size, $\sigma$ is daily volatility, $\eta$ is a calibration constant (typically 0.05-0.3).
 
 ## Guardrails
 
-- A strategy where net Sharpe < 0.5 after realistic costs is not tradeable
+- Feed volume is required for volume-based slippage and participation limits
 - Impact grows with the square root of participation rate — doubling AUM does not double cost
 - Use asset-class appropriate estimates: crypto spread is 5-50 bps, US large-cap is 1-3 bps
+- Short-side strategies must include borrow fees and financing — these can dominate total costs
 - Validate cost assumptions against actual fill data (TCA) when available
 
 ## Production Implementation
@@ -108,8 +111,8 @@ engine = Engine(
 
 ## Checklist
 
-- [ ] Commission, spread, and slippage all included (not just one)
+- [ ] Feed includes volume so impact and participation limits are meaningful
 - [ ] Market impact modeled for order sizes > 1% ADV
 - [ ] Cost assumptions match asset class (not a single number for everything)
-- [ ] Net Sharpe reported alongside gross Sharpe
-- [ ] Capacity estimate computed (AUM where net Sharpe drops below threshold)
+- [ ] Zero-cost and cost-aware runs compared to quantify implementation drag
+- [ ] TCA or broker fill data used to calibrate rates when available

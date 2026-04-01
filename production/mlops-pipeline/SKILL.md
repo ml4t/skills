@@ -1,12 +1,13 @@
 ---
 name: ml4t-mlops-pipeline
-description: Automated ML pipeline for model retraining, versioning, and deployment. Use when moving from ad-hoc model updates to a reproducible production workflow.
+description: "Automated ML pipeline for model retraining, versioning, and deployment. Use when operationalizing a model that needs periodic retraining and monitoring."
+when_to_use: "Use when moving from ad-hoc model updates to a reproducible production workflow"
 dependencies: [drift-detection, feature-store]
 metadata:
-  book_chapters: "27"
+  book_chapters: "26"
   library: ""
+paths: ["**/*live*.py", "**/*deploy*.py", "**/*monitor*.py", "**/*govern*.py", "**/*mlops*.py", "**/*pipeline*.py"]
 ---
-
 # MLOps for Trading Models
 
 Manual model updates — retrain on a laptop, copy weights to production — break reproducibility and create silent model drift. Automated pipelines ensure the same code and data always produce the same model.

@@ -1,12 +1,13 @@
 ---
 name: ml4t-compute-features
-description: Systematic feature computation across multiple assets with group-aware operations. Use when engineering features for a cross-sectional panel of symbols.
+description: "Systematic feature computation across multiple assets with group-aware operations. Use when computing technical or fundamental features for a panel of securities."
+when_to_use: "Use when engineering features for a cross-sectional panel of symbols"
 dependencies: [lookahead-bias]
 metadata:
   book_chapters: "8"
   library: "ml4t-engineer"
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Compute Features
 
 Computing features across a panel of assets requires group-aware operations — a global rolling mean mixes Apple's history with Tesla's. Every windowed statistic must be computed per symbol.
@@ -32,11 +33,11 @@ df = df.with_columns(
 ```python
 import polars as pl
 
-# Per-symbol expanding window — no cross-contamination, no lookahead
+# Per-symbol rolling window — no cross-contamination, no lookahead
 df = df.sort("symbol", "timestamp").with_columns(
     mom_zscore=(
-        (pl.col("returns") - pl.col("returns").expanding().mean().shift(1))
-        / pl.col("returns").expanding().std().shift(1)
+        (pl.col("returns") - pl.col("returns").rolling_mean(504).shift(1))
+        / pl.col("returns").rolling_std(504).shift(1)
     ).over("symbol")
 )
 ```
@@ -49,8 +50,8 @@ Three window types, each with different use cases:
 # Rolling: fixed lookback, discards old data
 pl.col("close").pct_change(21).over("symbol")              # 21-day momentum
 
-# Expanding: growing window, uses all history
-pl.col("returns").expanding().mean().shift(1).over("symbol")  # Historical mean
+# Long-horizon rolling: large window approximates expanding
+pl.col("returns").rolling_mean(504).shift(1).over("symbol")   # 2-year rolling mean
 
 # Cross-sectional: rank across all symbols at each timestamp
 pl.col("momentum").rank().over("timestamp")                 # Peer rank

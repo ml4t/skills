@@ -1,12 +1,13 @@
 ---
 name: ml4t-rl-execution
-description: Reinforcement learning for trade execution and hedging. Use when building adaptive execution strategies that minimize market impact beyond static TWAP/VWAP schedules.
+description: "Reinforcement learning for trade execution and hedging. Use when optimizing execution algorithms or dynamic hedging policies."
+when_to_use: "Use when building adaptive execution strategies that minimize market impact beyond static TWAP/VWAP schedules"
 dependencies: [run-backtest, cost-model]
 metadata:
-  book_chapters: "22"
+  book_chapters: "21"
   library: "ml4t-backtest"
+paths: ["**/*agent*.py", "**/*rl*.py", "**/*rag*.py", "**/*graph*.py", "**/*knowledge*.py", "**/*orchestrat*.py"]
 ---
-
 # RL for Trade Execution
 
 Fixed execution schedules (TWAP, VWAP) ignore real-time market conditions. An RL agent adapts its execution rate based on order book state, reducing implementation shortfall.
@@ -93,7 +94,7 @@ from ml4t.backtest.execution.limits import VolumeParticipationLimit
 
 config = BacktestConfig(
     commission_type=CommissionType.PER_SHARE,
-    commission_rate=0.005,
+    commission_per_share=0.005,
     slippage_type=SlippageType.VOLUME_BASED,
     slippage_rate=0.001,
 )

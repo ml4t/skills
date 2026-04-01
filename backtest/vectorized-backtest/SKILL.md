@@ -1,12 +1,13 @@
 ---
 name: ml4t-vectorized-backtest
-description: Fast array-based signal evaluation for factor strategies. Use when screening signals before committing to full event-driven simulation.
+description: "Fast array-based signal evaluation for factor strategies. Use when testing signal-to-return hypotheses before event-driven backtests."
+when_to_use: "Use when screening signals before committing to full event-driven simulation"
 dependencies: [run-backtest]
 metadata:
   book_chapters: "16"
   library: ""
+paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.py", "**/*cost*.py", "**/*regime*.py", "**/*tearsheet*.py"]
 ---
-
 # Vectorized Backtesting
 
 Matrix operations can evaluate a signal across thousands of assets in seconds — but only if you shift positions by one bar. Without the shift, you are trading on prices you have already seen, and the backtest is meaningless.

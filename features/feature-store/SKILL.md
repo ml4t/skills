@@ -1,12 +1,13 @@
 ---
 name: ml4t-feature-store
-description: Organize computed features in versioned parquet files with schema enforcement and point-in-time retrieval. Use when features are shared across models or need reproducible reconstruction.
+description: "Organize computed features in versioned storage with schema enforcement and point-in-time retrieval. Use when persisting features for reproducible ML experiments or sharing across pipelines."
+when_to_use: "Use when features are shared across models or need reproducible reconstruction"
 dependencies: []
 metadata:
   book_chapters: "8"
   library: "ml4t-engineer"
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Feature Store
 
 Scattered CSV files with undocumented columns create silent schema drift — yesterday's `momentum` column used a 60-day window, today's uses 20 days, and nothing recorded the change. A structured feature store prevents this.

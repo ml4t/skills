@@ -1,12 +1,13 @@
 ---
 name: ml4t-define-universe
-description: Define point-in-time tradeable universes with liquidity filters. Use when specifying which assets a strategy can trade at each historical date.
+description: "Define point-in-time tradeable universes with liquidity filters. Use when constructing the investable asset set that avoids survivorship and liquidity bias."
+when_to_use: "Use when specifying which assets a strategy can trade at each historical date"
 dependencies: []
 metadata:
   book_chapters: "2, 6"
   library: "ml4t-data"
+paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**/*calendar*.py", "**/*futures*.py", "**/*export*.py", "**/*synthetic*.py"]
 ---
-
 # Define Universe
 
 Using today's index constituents for a historical backtest introduces survivorship bias — you only trade winners that stayed in the index, inflating returns by 1-2% per year.

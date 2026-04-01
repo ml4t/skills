@@ -1,12 +1,13 @@
 ---
 name: ml4t-knowledge-graphs
-description: Knowledge graphs for financial entity relationships and alternative data signals. Use when modeling supply chains, ownership structures, or event propagation across interconnected entities.
+description: "Knowledge graphs for financial entity relationships and alternative data signals. Use when modeling supply chains, ownership, or sector linkages."
+when_to_use: "Use when modeling supply chains, ownership structures, or event propagation across interconnected entities"
 dependencies: []
 metadata:
-  book_chapters: "24"
+  book_chapters: "23"
   library: ""
+paths: ["**/*agent*.py", "**/*rl*.py", "**/*rag*.py", "**/*graph*.py", "**/*knowledge*.py", "**/*orchestrat*.py"]
 ---
-
 # Knowledge Graphs for Finance
 
 Flat tabular data treats each company as independent. In reality, a supplier's earnings miss propagates to its customers within hours. Knowledge graphs make these relationships queryable and tradeable.

@@ -1,12 +1,13 @@
 ---
 name: ml4t-monitoring-alerting
-description: Real-time monitoring and alerting for live trading systems. Use when running strategies in production and need automated health checks, performance tracking, and incident detection.
+description: "Real-time monitoring and alerting for live trading systems. Use when building observability for data pipelines, model drift, or execution quality."
+when_to_use: "Use when running strategies in production and need automated health checks, performance tracking, and incident detection"
 dependencies: [kill-switch, drift-detection, risk-metrics]
 metadata:
-  book_chapters: "26, 27"
+  book_chapters: "25, 26"
   library: "ml4t-live"
+paths: ["**/*live*.py", "**/*deploy*.py", "**/*monitor*.py", "**/*govern*.py", "**/*mlops*.py", "**/*pipeline*.py"]
 ---
-
 # Monitoring and Alerting
 
 Checking performance at end-of-day is too late. A stuck data feed, a rejected order, or a flash crash can cause irreversible losses in minutes. Automated real-time monitoring catches problems when they are still small.
@@ -99,10 +100,10 @@ Four levels: **INFO** (log only), **WARNING** (Slack), **CRITICAL** (page on-cal
 from ml4t.live import LiveEngine, SafeBroker, LiveRiskConfig
 
 config = LiveRiskConfig(
-    max_drawdown=0.05,
-    max_position_pct=0.10,
-    max_daily_loss=0.02,
-    data_stale_seconds=120,
+    max_drawdown_pct=0.05,
+    max_position_value=50_000.0,
+    max_daily_loss=5_000.0,
+    max_data_staleness_seconds=120.0,
 )
 # SafeBroker wraps any broker with real-time risk checks
 broker = SafeBroker(inner_broker, config)
@@ -116,5 +117,4 @@ broker = SafeBroker(inner_broker, config)
 - [ ] Drawdown and daily loss alerts configured and tested
 - [ ] Position concentration limits enforced
 - [ ] Fill rate tracked with 30-minute rolling window
-- [ ] Alert escalation path tested end-to-end (log, slack, page, kill)
-- [ ] All thresholds documented and approved before go-live
+- [ ] Alert escalation tested end-to-end; all thresholds documented before go-live

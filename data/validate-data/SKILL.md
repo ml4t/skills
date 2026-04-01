@@ -1,12 +1,13 @@
 ---
 name: ml4t-validate-data
-description: Systematic data quality validation before modeling. Use when ingesting new data or before any model training run.
+description: "Systematic data quality validation before modeling. Use when checking for gaps, outliers, stale prices, or schema violations in datasets."
+when_to_use: "Use when ingesting new data or before any model training run"
 dependencies: [fetch-data]
 metadata:
   book_chapters: "2, 3"
   library: "ml4t-data"
+paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**/*calendar*.py", "**/*futures*.py", "**/*export*.py", "**/*synthetic*.py"]
 ---
-
 # Validate Data
 
 Unvalidated data silently corrupts models — a single unadjusted stock split can make a momentum signal look 10x stronger than reality.

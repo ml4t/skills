@@ -1,12 +1,13 @@
 ---
 name: ml4t-drift-detection
-description: Detect when model inputs or predictions shift from the training distribution using PSI and statistical tests. Use when monitoring deployed models or diagnosing out-of-sample performance decay.
+description: "Detect when model inputs or predictions shift from the training distribution using PSI and statistical tests. Use when monitoring deployed models or diagnosing performance degradation."
+when_to_use: "Use when monitoring deployed models or diagnosing out-of-sample performance decay"
 dependencies: []
 metadata:
-  book_chapters: "9, 16"
+  book_chapters: "9, 26"
   library: "ml4t-diagnostic"
+paths: ["**/*cv*.py", "**/*valid*.py", "**/*eval*.py", "**/*drift*.py", "**/*sharpe*.py", "**/*shap*.py", "**/*stationar*.py", "**/*purge*.py", "**/*embargo*.py", "**/*walk_forward*.py"]
 ---
-
 # Drift Detection
 
 A model trained on 2018-2022 data may silently fail when the 2023 distribution shifts. Systematic drift detection catches degradation before it becomes a drawdown.
@@ -48,7 +49,7 @@ cur_data = X_live   # Most recent window
 for col_idx, col_name in enumerate(feature_names):
     psi = calculate_psi(ref_data[:, col_idx], cur_data[:, col_idx])
     ks_stat, ks_pval = ks_2samp(ref_data[:, col_idx], cur_data[:, col_idx])
-    flag = "DRIFT" if psi > 0.25 else "ok"
+    flag = "DRIFT" if psi > 0.20 else "ok"
     print(f"{col_name:>25}: PSI={psi:.3f}, KS p={ks_pval:.3f} [{flag}]")
 ```
 
@@ -57,8 +58,8 @@ for col_idx, col_name in enumerate(feature_names):
 | PSI | Interpretation | Action |
 |---|---|---|
 | < 0.10 | No significant drift | Continue |
-| 0.10 - 0.25 | Moderate drift | Investigate, increase monitoring |
-| > 0.25 | Significant drift | Consider retraining |
+| 0.10 - 0.20 | Moderate drift | Investigate, increase monitoring |
+| > 0.20 | Significant drift | Consider retraining |
 
 ## Detecting Concept Drift
 

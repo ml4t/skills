@@ -1,12 +1,13 @@
 ---
 name: ml4t-live-trading
-description: Transition from backtest to live trading with zero code changes. Use when deploying a validated strategy to paper or live markets.
+description: "Transition from backtest to live trading with zero code changes. Use when deploying a validated strategy to paper or live trading via broker APIs."
+when_to_use: "Use when deploying a validated strategy to paper or live markets"
 dependencies: [run-backtest, kill-switch]
 metadata:
-  book_chapters: "26"
+  book_chapters: "25"
   library: "ml4t-live"
+paths: ["**/*live*.py", "**/*deploy*.py", "**/*monitor*.py", "**/*govern*.py", "**/*mlops*.py", "**/*pipeline*.py"]
 ---
-
 # Backtest-to-Live Deployment
 
 Rewriting strategy logic for live trading introduces bugs and invalidates your backtest. The correct pattern is to reuse the exact Strategy class from backtesting — zero code changes between simulation and production.
@@ -99,7 +100,7 @@ import asyncio
 from ml4t.backtest import Strategy
 from ml4t.live import LiveEngine, AlpacaBroker, AlpacaDataFeed, SafeBroker, LiveRiskConfig
 
-broker = SafeBroker(AlpacaBroker(api_key, secret_key), LiveRiskConfig(max_drawdown=0.10))
+broker = SafeBroker(AlpacaBroker(api_key, secret_key), LiveRiskConfig(max_drawdown_pct=0.10))
 feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"])
 
 async def trade_live():
@@ -116,5 +117,4 @@ asyncio.run(trade_live())
 - [ ] Paper traded for minimum 4 weeks with live data
 - [ ] Kill switch configured with pre-approved thresholds
 - [ ] Partial fill handling verified
-- [ ] Data staleness detection active
-- [ ] Order audit log capturing every submission, fill, and rejection
+- [ ] Data staleness detection active; order audit log captures every submission and fill

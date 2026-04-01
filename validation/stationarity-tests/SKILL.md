@@ -1,12 +1,13 @@
 ---
 name: ml4t-stationarity-tests
-description: Test whether time series features are stationary before modeling using ADF and KPSS tests. Use when preparing features for ML models or diagnosing spurious regression.
+description: "Test whether time-series features are stationary using ADF and KPSS tests. Use when selecting or transforming features to verify stationarity assumptions for predictive models."
+when_to_use: "Use when preparing features for ML models or diagnosing spurious regression"
 dependencies: []
 metadata:
   book_chapters: "9"
   library: "ml4t-diagnostic"
+paths: ["**/*cv*.py", "**/*valid*.py", "**/*eval*.py", "**/*drift*.py", "**/*sharpe*.py", "**/*shap*.py", "**/*stationar*.py", "**/*purge*.py", "**/*embargo*.py", "**/*walk_forward*.py"]
 ---
-
 # Stationarity Tests
 
 Feeding non-stationary features (raw prices, trending volume) into ML models produces spurious correlations that vanish out of sample. Test stationarity first, transform if needed.

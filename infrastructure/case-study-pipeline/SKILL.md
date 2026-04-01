@@ -1,15 +1,16 @@
 ---
 name: ml4t-case-study-pipeline
-description: Structured ML pipeline from data to predictions with explicit stages and artifact contracts. Use when building an end-to-end case study or research pipeline that chains data, features, models, and backtests.
-dependencies: [fetch-data, triple-barrier, compute-features, run-backtest]
+description: "Filesystem and artifact-contract pattern for reproducible case studies. Use when organizing a research project for reproducibility and collaboration."
+when_to_use: "Use when refactoring notebooks into deterministic stages with stable inputs, outputs, and rerun boundaries"
+dependencies: [fetch-data, triple-barrier, compute-features, run-backtest, registry-system]
 metadata:
   book_chapters: "6, 7, 8, 11"
   library: ""
+paths: ["**/*schema*.py", "**/*registry*.py", "**/*pipeline*.py", "**/*polars*.py", "**/*case_study*.py"]
 ---
+# Case Study Artifact Pipeline
 
-# Case Study Pipeline
-
-Ad-hoc notebooks that load data, compute features, train models, and backtest in one file are impossible to debug, reproduce, or extend. A structured pipeline with explicit stages, artifact contracts, and config-driven parameters turns a mess of notebooks into a reproducible research workflow.
+Ad-hoc notebooks that load data, compute features, train models, and backtest in one file are impossible to debug, reproduce, or extend. This skill is about artifact boundaries and rerun rules, not about whether the research thesis is good.
 
 ## The Problem
 
@@ -98,7 +99,7 @@ Each stage reads only from its declared inputs and writes only to its declared o
 
 ## Config-Driven Design
 
-One `setup.yaml` file defines the entire case study: dataset, universe filters, label type and horizon, feature list, and CV method with fold counts and embargo. Every notebook reads this config and derives parameters from it. No hardcoded values scattered across files.
+One `setup.yaml` file defines the entire case study: dataset, universe filters, label type and horizon, feature list, and CV method with fold counts and embargo. Every notebook reads this config and derives parameters from it. Use `ml4t-case-study-development` for stage-gate decisions; this skill owns the artifact skeleton.
 
 ## Guardrails
 

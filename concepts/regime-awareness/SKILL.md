@@ -1,12 +1,12 @@
 ---
 name: ml4t-regime-awareness
-description: Use market regimes as conditioning features for risk scaling, not as timing signals. Use when building features, sizing positions, or evaluating strategy robustness across market conditions.
+description: "Market regimes as conditioning features for risk scaling, not timing signals. Use when incorporating regime detection into strategy logic."
+when_to_use: "Use when building features, sizing positions, or evaluating strategy robustness across market conditions"
 dependencies: []
 metadata:
-  book_chapters: "1, 9"
-  library: ""
+  book_chapters: "9"
+  library: "ml4t-engineer"
 ---
-
 # Regime Awareness
 
 Markets alternate between regimes (low/high volatility, trending/mean-reverting, risk-on/risk-off). Regime detection for diagnostics and risk scaling is reliable. Regime detection for market timing is not.
@@ -82,6 +82,23 @@ A strategy with Sharpe 1.5 that comes entirely from one regime is fragile. Robus
 - Report strategy metrics per regime in every backtest report.
 - Never use regime prediction for binary in/out decisions -- use it for continuous risk scaling.
 - Regime labels must use expanding or rolling windows to avoid lookahead bias.
+
+## Production Implementation
+
+`ml4t-engineer` exposes regime indicators as model inputs:
+
+```python
+from ml4t.engineer import compute_features
+
+regime_inputs = compute_features(data, [
+    "adx",
+    "choppiness_index",
+    "volatility_percentile_rank",
+])
+data = data.join(regime_inputs, on=["timestamp", "symbol"], how="left")
+```
+
+Use these as conditioning features or sizing inputs, not binary in/out switches.
 
 ## Checklist
 

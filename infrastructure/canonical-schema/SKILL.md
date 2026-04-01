@@ -1,12 +1,13 @@
 ---
 name: ml4t-canonical-schema
-description: Standardized data schema across all financial datasets. Use when loading, transforming, or storing market data to ensure consistent column names and types.
+description: "Standardized data schema across all financial datasets. Use when defining or enforcing column names, types, and index conventions."
+when_to_use: "Use when loading, transforming, or storing market data to ensure consistent column names and types"
 dependencies: [fetch-data, validate-data]
 metadata:
   book_chapters: "2, 3"
   library: "ml4t-data"
+paths: ["**/*schema*.py", "**/*registry*.py", "**/*pipeline*.py", "**/*polars*.py", "**/*case_study*.py"]
 ---
-
 # Canonical Schema
 
 When every dataset uses different column names — `date` vs `ts_event` vs `timestamp`, `asset` vs `ticker` vs `symbol` — every downstream notebook needs special-case handling.
@@ -116,5 +117,4 @@ panel = dm.batch_load(
 - [ ] Time column is `timestamp` for every dataset and frequency
 - [ ] Entity column is `symbol` (or `product` for CME futures only)
 - [ ] OHLCV columns are lowercase: `open`, `high`, `low`, `close`, `volume`
-- [ ] No legacy column names (`date`, `asset`, `ticker`, `pair`) in notebook code
-- [ ] Schema enforcement is at load time, not scattered across notebooks
+- [ ] No legacy names (`date`, `asset`, `ticker`) in notebooks; schema enforced at load time

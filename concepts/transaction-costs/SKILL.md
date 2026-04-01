@@ -1,19 +1,19 @@
 ---
 name: ml4t-transaction-costs
-description: Model spread, slippage, and market impact for realistic strategy simulation. Use when building backtests, sizing positions, or estimating strategy capacity.
+description: "Estimate whether a strategy can survive spread, slippage, and market impact before full simulation. Use when screening strategy feasibility early."
+when_to_use: "Use when screening a signal, setting a safety margin, or reasoning about capacity"
 dependencies: []
 metadata:
   book_chapters: "6, 18"
-  library: "ml4t-backtest"
+  library: ""
 ---
+# Transaction Cost Feasibility
 
-# Transaction Costs
-
-A strategy that ignores trading costs can show positive alpha that disappears entirely when realistic friction is applied. Costs are the single largest gap between backtested and live performance.
+Before you wire costs into a backtest engine, ask a simpler question: does the signal have enough gross edge to pay for trading at all? If not, the strategy should die early.
 
 ## The Problem
 
-The full cost of a trade has three layers: explicit costs (commissions, fees), implicit costs (half the bid-ask spread paid on every execution), and market impact (your own order moving the price against you). Most amateur backtests model only commissions or use a flat basis-point assumption. This misses the volume-dependent nature of market impact, which is the dominant cost for any strategy trading more than trivial size.
+The full cost of a trade has three layers: explicit costs (commissions, fees), implicit costs (half the bid-ask spread paid on every execution), and market impact (your own order moving the price against you). Most bad strategies fail this economic screen before any engine-specific implementation details matter.
 
 A strategy with 50 bps gross alpha and 30 bps round-trip costs has a safety margin of only 1.7x -- too thin to survive estimation error.
 
@@ -89,26 +89,15 @@ print(f"Estimated capacity: ${capacity/1e6:.0f}M")
 
 - Never backtest without at least spread costs -- it is the irreducible minimum.
 - Flat bps assumptions are only valid for very small portfolios trading liquid names.
-- Higher turnover amplifies cost sensitivity -- a 2x turnover increase can 4x the impact cost (square-root model).
+- Higher turnover amplifies cost sensitivity -- under the square-root model, 2x turnover ≈ 2.8x impact cost.
 - Validate cost model against Transaction Cost Analysis (TCA) data when available.
 - Crypto and options have much wider spreads than equities -- use asset-class-specific estimates.
 
-## Production Implementation
+## Hand-Off
 
-`ml4t-backtest` provides composable commission and slippage models:
-
-```python
-from ml4t.backtest import BacktestConfig, CommissionType, run_backtest
-from ml4t.backtest.config import SlippageType
-
-config = BacktestConfig(
-    commission_type=CommissionType.PERCENTAGE,
-    commission_rate=0.0001,         # 1 bp
-    slippage_type=SlippageType.VOLUME_BASED,
-    slippage_rate=0.001,
-)
-result = run_backtest(prices=prices, signals=signals, strategy=strategy, config=config)
-```
+If the strategy clears this feasibility screen, encode the actual commission,
+slippage, and impact assumptions with `ml4t-cost-model`. This skill is the
+economic go/no-go filter; `ml4t-cost-model` is the engine-configuration step.
 
 ## Checklist
 

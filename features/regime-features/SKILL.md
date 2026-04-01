@@ -1,12 +1,13 @@
 ---
 name: ml4t-regime-features
-description: Features that capture market regime — volatility state, trend strength, liquidity — used as conditioning variables for ML models. Use when model performance varies across market environments.
+description: "Features capturing market regime — volatility state, trend strength, and liquidity conditions. Use when building regime-aware models or conditioning on changing market environments."
+when_to_use: "Use when model performance varies across market environments"
 dependencies: [lookahead-bias]
 metadata:
   book_chapters: "8, 9"
   library: "ml4t-engineer"
+paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", "**/*horizon*.py", "**/*meta_label*.py", "**/*microstructure*.py", "**/*regime*.py", "**/*selection*.py"]
 ---
-
 # Regime Features
 
 Momentum works in trending markets, mean-reversion in range-bound ones. Instead of manually switching strategies, feed regime indicators as features and let the model learn when each signal works.
@@ -29,13 +30,14 @@ features = df.with_columns(regime_vix=pl.col("vix"))
 ```python
 import polars as pl
 
-# Percentile-ranked regime indicator — stationary, bounded [0, 1]
+# Rolling-ranked regime indicator — stationary, bounded [0, 1]
 features = df.sort("timestamp").with_columns(
-    regime_vix_pctl=pl.col("vix")
-    .expanding()
-    .rank()
-    .shift(1)
-    / pl.col("vix").expanding().count().shift(1),
+    regime_vix_pctl=(
+        pl.col("vix") - pl.col("vix").rolling_min(window_size=1260).shift(1)
+    ) / (
+        pl.col("vix").rolling_max(window_size=1260).shift(1)
+        - pl.col("vix").rolling_min(window_size=1260).shift(1)
+    ),
     regime_vol_zscore=(
         pl.col("realized_vol") - pl.col("realized_vol").rolling_mean(252).shift(1)
     )
@@ -47,7 +49,7 @@ features = df.sort("timestamp").with_columns(
 
 | Indicator | Captures | Computation |
 |-----------|----------|-------------|
-| VIX percentile | Fear vs complacency | Expanding rank of VIX |
+| VIX percentile | Fear vs complacency | Rolling min-max rank of VIX |
 | Realized vol z-score | Current turbulence vs history | Rolling z-score of 21d vol |
 | ADX level | Trend strength | 14-period ADX (0-100 scale) |
 | Yield curve slope | Growth expectations | 10Y - 2Y treasury rate |

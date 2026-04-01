@@ -1,13 +1,13 @@
 # ML4T Skills — Authoring Guide
 
-**Location**: `/home/stefan/ml4t/skills`
-**Purpose**: 66 standalone agent skills that teach quant ML techniques correctly
+**Location**: This repository
+**Purpose**: 70 standalone agent skills that teach quant ML techniques correctly
 **Distribution**: Standalone repo, ships via ML4T website as bonus resource for readers
 
 ## Current State
 
-- The repository currently contains 66 `SKILL.md` files across the 10 categories below.
-- The active maintenance objective is API accuracy: keep every `## Production Implementation` section aligned with the checked-in `ml4t-*` library source in `~/ml4t/libraries/`.
+- The repository currently contains 70 `SKILL.md` files across the 10 categories below.
+- The active maintenance objective is API accuracy: keep every `## Production Implementation` section aligned with the published `ml4t-*` library APIs.
 - The conceptual teaching pattern remains fixed: concept-first, library-recommended (80/20), with no `ml4t.*` imports before `## Production Implementation`.
 - If docs or existing skills conflict with current library source, treat library source as ground truth and update the skill/docs rather than preserving stale wrappers.
 - Repo-local agent onboarding lives in `AGENTS.md`, `.claude/CLAUDE.md`, and `.claude/settings.json`. There is no committed `.agents/` directory in this repo.
@@ -106,13 +106,13 @@ metadata:
 
 | # | Category | Skills | Coverage |
 |---|----------|--------|----------|
-| 1 | `concepts/` | 10 | Foundational pitfalls and principles |
+| 1 | `concepts/` | 11 | Foundational pitfalls and principles |
 | 2 | `data/` | 8 | Data sourcing, validation, management |
-| 3 | `features/` | 10 | Labels, feature engineering, selection |
+| 3 | `features/` | 12 | Labels, feature engineering, selection, text, latent factors |
 | 4 | `validation/` | 8 | CV, evaluation, multiple testing |
 | 5 | `backtest/` | 6 | Strategy simulation, cost modeling |
 | 6 | `portfolio/` | 6 | Position sizing, optimization, risk |
-| 7 | `advanced-ai/` | 5 | RL, RAG, knowledge graphs, agents |
+| 7 | `advanced-ai/` | 6 | RL, RAG, knowledge graphs, agents, DL time series |
 | 8 | `production/` | 4 | Live trading, MLOps, governance |
 | 9 | `infrastructure/` | 4 | Schema, registry, Polars, pipelines |
 | 10 | `workflows/` | 5 | End-to-end composite processes |
@@ -148,16 +148,22 @@ Ground truth for all Production Implementation sections. Verified from library s
 - `Strategy` (ABC) — `on_data(timestamp, data, context, broker)`, `on_start(broker)`, `on_end(broker)`
 - `Broker` — `submit_order()`, `get_position()`, `close_position()`, `cancel_order()`, `get_cash()`
 - `Engine`, `run_backtest()`, `DataFeed`
-- `BacktestConfig`, `BacktestResult`, `CommissionType`
+- `BacktestConfig`, `BacktestResult`, `CommissionType`, `SlippageType`
+- `CommissionType` enum (in `ml4t.backtest.config`): `NONE`, `PERCENTAGE`, `PER_SHARE`, `PER_CONTRACT`, `PER_TRADE`, `TIERED`
+- `SlippageType` enum (in `ml4t.backtest.config`): `NONE`, `PERCENTAGE`, `FIXED`, `VOLUME_BASED`
 - Current engine usage: `Engine(feed, strategy, config).run()` or `run_backtest(prices=..., strategy=..., signals=..., context=..., config=...)`
-- `BacktestConfig` uses primitive commission/slippage fields like `commission_type`, `commission_rate`, `slippage_type`, `slippage_rate`
+- `BacktestConfig` commission fields: `commission_type`, `commission_rate`, `commission_per_share`, `commission_per_trade`, `commission_minimum`
+- `BacktestConfig` slippage fields: `slippage_type`, `slippage_rate`, `slippage_fixed`, `stop_slippage_rate`
 - `BacktestResult` metrics live under `result.metrics[...]`; tearsheet/export helpers include `to_equity_dataframe()`, `to_daily_returns()`, and `to_tearsheet()`
 - Types: `OrderType`, `OrderSide`, `OrderStatus`, `ExecutionMode`
 - Risk: `StopLoss`, `TakeProfit`, `TrailingStop`, `RuleChain`
 - Execution: `RebalanceConfig`, `TargetWeightExecutor`
-- Cost models live in `ml4t.backtest.models`, not package root:
-  - Commission: `NoCommission`, `PercentageCommission`, `PerShareCommission`, `TieredCommission`, `FuturesCommission`
-  - Slippage: `NoSlippage`, `FixedSlippage`, `PercentageSlippage`, `VolumeShareSlippage`
+- Cost models live in `ml4t.backtest.models` (module, not subpackage):
+  - Commission: `NoCommission`, `PercentageCommission`, `PerShareCommission`, `TieredCommission`, `CombinedCommission`, `FuturesCommission`
+  - Slippage: `NoSlippage`, `FixedSlippage`, `PercentageSlippage`, `VolumeShareSlippage`, `FuturesSlippage`
+- Market impact and execution limits live in `ml4t.backtest.execution`:
+  - Impact: `NoImpact`, `LinearImpact`, `SquareRootImpact`, `PowerLawImpact`
+  - Limits: `NoLimits`, `VolumeParticipationLimit`, `AdaptiveParticipationLimit`
 
 ### ml4t-engineer
 - `compute_features(data, features)` — main API (list of names, list of dicts, YAML path)
@@ -198,6 +204,6 @@ Ground truth for all Production Implementation sections. Verified from library s
 
 ## Source Material
 
-- **Book chapters**: `~/ml4t/third_edition/book/`
-- **Code repo**: `~/ml4t/third_edition/code/`
-- **Libraries**: `~/ml4t/libraries/` — ml4t-data, ml4t-engineer, ml4t-backtest, ml4t-diagnostic, ml4t-live
+- **Book**: [*Machine Learning for Algorithmic Trading*](https://ml4trading.io) (27 chapters + case studies)
+- **Code**: [github.com/stefan-jansen/machine-learning-for-trading](https://github.com/stefan-jansen/machine-learning-for-trading)
+- **Libraries**: ml4t-data, ml4t-engineer, ml4t-backtest, ml4t-diagnostic, ml4t-live (all on PyPI)

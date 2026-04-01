@@ -1,12 +1,13 @@
 ---
 name: ml4t-rag-financial-research
-description: Retrieval-Augmented Generation for financial document analysis. Use when building research systems that ground LLM answers in source filings, earnings calls, or research reports.
+description: "Retrieval-Augmented Generation for financial document analysis. Use when building LLM pipelines over earnings calls, filings, or research reports."
+when_to_use: "Use when building research systems that ground LLM answers in source filings, earnings calls, or research reports"
 dependencies: []
 metadata:
-  book_chapters: "23"
+  book_chapters: "22"
   library: ""
+paths: ["**/*agent*.py", "**/*rl*.py", "**/*rag*.py", "**/*graph*.py", "**/*knowledge*.py", "**/*orchestrat*.py"]
 ---
-
 # RAG for Financial Research
 
 Naive RAG on financial documents produces hallucinated numbers and misattributed claims. Financial-specific chunking, metadata-aware retrieval, and source grounding turn RAG from a liability into a research tool.

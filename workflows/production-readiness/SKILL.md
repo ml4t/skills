@@ -1,12 +1,12 @@
 ---
 name: ml4t-production-readiness
-description: Pre-deployment checklist covering data pipelines, risk limits, monitoring, and governance. Use when a validated strategy is being prepared for live capital.
+description: "Pre-deployment checklist covering data pipelines, risk limits, monitoring, and governance. Use when preparing to go live with a new strategy or model."
+when_to_use: "Use when a validated strategy is being prepared for live capital"
 dependencies: [kill-switch, drift-detection, cost-model, risk-metrics]
 metadata:
-  book_chapters: "26, 27"
+  book_chapters: "25, 26"
   library: "ml4t-live"
 ---
-
 # Production Readiness
 
 A validated backtest is not a production system. The gap between "model works" and "strategy can run unattended with real money" requires infrastructure that most teams skip until the first incident.
@@ -100,9 +100,9 @@ from ml4t.backtest import Strategy  # Same Strategy class as backtest
 from ml4t.live import LiveEngine, AlpacaBroker, LiveRiskConfig, SafeBroker
 
 risk = LiveRiskConfig(
-    max_position_pct=0.05, max_drawdown_halt=0.10, max_gross_leverage=1.5
+    max_position_value=50_000.0, max_drawdown_pct=0.10, max_total_exposure=200_000.0
 )
-broker = SafeBroker(AlpacaBroker(), risk_config=risk)  # Wraps with limits
+broker = SafeBroker(AlpacaBroker(), risk)  # Wraps with limits
 engine = LiveEngine(strategy=MyStrategy(), broker=broker)
 engine.run()  # Includes built-in monitoring and kill switch
 ```

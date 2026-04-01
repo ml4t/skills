@@ -1,12 +1,13 @@
 ---
 name: ml4t-walk-forward-cv
-description: Rolling or expanding window cross-validation that preserves temporal order and simulates live deployment. Use when evaluating model stability across market regimes or comparing expanding vs rolling training.
+description: "Rolling or expanding window CV that preserves temporal order. Use when evaluating ML models on time-series data where standard k-fold causes temporal leakage."
+when_to_use: "Use when evaluating model stability across market regimes or comparing expanding vs rolling training"
 dependencies: [purging-embargo]
 metadata:
-  book_chapters: "7, 9"
+  book_chapters: "6, 7"
   library: "ml4t-diagnostic"
+paths: ["**/*cv*.py", "**/*valid*.py", "**/*eval*.py", "**/*drift*.py", "**/*sharpe*.py", "**/*shap*.py", "**/*stationar*.py", "**/*purge*.py", "**/*embargo*.py", "**/*walk_forward*.py"]
 ---
-
 # Walk-Forward Cross-Validation
 
 A single train/test split tells you nothing about how a model adapts over time. Walk-forward CV slides a window through the data, training and testing sequentially, revealing how performance evolves across market regimes.
@@ -56,15 +57,8 @@ print(f"Mean: {np.mean(scores):.3f}, Std: {np.std(scores):.3f}")
 ## Expanding vs Rolling
 
 ```
-Expanding: uses all available history (more data, slower adaptation)
-  [-------train-------][test]
-  [-----------train-----------][test]
-  [---------------train---------------][test]
-
-Rolling: fixed window size (less data, faster regime adaptation)
-       [----train----][test]
-            [----train----][test]
-                 [----train----][test]
+Expanding:  [-------train-------][test]  (more data, slower adaptation)
+Rolling:         [----train----][test]   (fixed window, faster adaptation)
 ```
 
 **Expanding** is the default with `TimeSeriesSplit`. For rolling, limit training size:
@@ -88,7 +82,7 @@ for train_idx, test_idx in tscv.split(X):
 ## Guardrails
 
 - Never shuffle time-series data in any CV scheme
-- `gap` parameter must be >= label horizon to prevent information leakage
+- When using `label_horizon`, purging is automatic; `gap` adds an extra buffer on top
 - Test folds should span different market conditions (bull, bear, sideways)
 - Expanding window scores should be compared to rolling — divergence signals non-stationarity
 - More splits = more variance in estimates; fewer splits = more bias

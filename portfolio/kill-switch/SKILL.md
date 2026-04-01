@@ -1,12 +1,13 @@
 ---
 name: ml4t-kill-switch
-description: Implement automated risk limits that halt trading when thresholds are breached. Use when building live trading systems or production risk management.
+description: "Automated risk limits that halt trading when thresholds are breached. Use when deploying live strategies that need drawdown or loss-limit protection."
+when_to_use: "Use when building live trading systems or production risk management"
 dependencies: [risk-metrics]
 metadata:
-  book_chapters: "19, 26"
+  book_chapters: "19, 25"
   library: "ml4t-live"
+paths: ["**/*portfolio*.py", "**/*position*.py", "**/*risk*.py", "**/*optim*.py", "**/*exposure*.py", "**/*kill*.py", "**/*stress*.py"]
 ---
-
 # Kill Switch
 
 A human monitoring a dashboard will not react fast enough to a flash crash. By the time you see the loss and decide to act, the drawdown has compounded. Automated kill switches are the last line of defense — they must be hard-coded, not ML-based, and not overridable without explicit manual intervention.
@@ -100,12 +101,12 @@ def risk_level(drawdown, realized_vol, target_vol=0.10):
 from ml4t.live import SafeBroker, LiveRiskConfig, AlpacaBroker
 
 config = LiveRiskConfig(
-    max_daily_loss=-0.03,
-    max_drawdown=-0.15,
-    max_gross_leverage=2.0,
-    max_position_pct=0.15,
+    max_daily_loss=5_000.0,
+    max_drawdown_pct=0.15,
+    max_position_value=50_000.0,
+    max_total_exposure=200_000.0,
 )
-broker = SafeBroker(inner=AlpacaBroker(...), risk_config=config)
+broker = SafeBroker(AlpacaBroker(...), config)
 # SafeBroker blocks orders that would breach limits — no code changes needed
 ```
 

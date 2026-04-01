@@ -1,0 +1,26 @@
+# IDE
+.idea/
+
+# Claude Code — local state and sensitive references
+.claude/attn_state.json
+.claude/hooks/
+.claude/transitions/
+.claude/work/
+.claude/settings.json
+.claude/reference/
+
+# Codex — local config and dev state
+.codex/
+.agents/backlog/
+.agents/transitions/
+
+# MCP — local server config
+.mcp.json
+
+# Internal development artifacts
+evals/
+reviews/
+SKILL_AUDIT.md
+SKILL_CHAPTER_MAP.md
+REVIEW_PROMPT.md
+VALIDATION_REPORT.md

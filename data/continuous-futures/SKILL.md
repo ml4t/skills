@@ -1,12 +1,13 @@
 ---
 name: ml4t-continuous-futures
-description: Build roll-adjusted continuous futures series without artificial price jumps. Use when constructing futures time series for backtesting or feature engineering.
+description: "Build roll-adjusted continuous futures series without artificial price jumps. Use when backtesting futures strategies that span contract rollovers."
+when_to_use: "Use when constructing futures time series for backtesting or feature engineering"
 dependencies: [fetch-data]
 metadata:
   book_chapters: "2, 3"
   library: "ml4t-data"
+paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**/*calendar*.py", "**/*futures*.py", "**/*export*.py", "**/*synthetic*.py"]
 ---
-
 # Continuous Futures
 
 Naively concatenating front-month futures contracts creates artificial price jumps at each roll, corrupting returns and every feature derived from price levels.
@@ -105,7 +106,7 @@ futures = manager.load_ohlcv("ES")
 continuous = ContinuousContractBuilder().build("ES", data_source="databento")
 
 # Access roll specifications
-es_spec = FUTURES_REGISTRY["ES"]  # Roll days, expiry rules, margin
+es_spec = FUTURES_REGISTRY["ES"]  # Multiplier, tick size, margin, exchange
 ```
 
 ## Checklist

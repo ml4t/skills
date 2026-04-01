@@ -1,12 +1,13 @@
 ---
 name: ml4t-synthetic-data
-description: Generate realistic synthetic financial data for pipeline testing and stress scenarios. Use when you need ground-truth data or want to test strategies under controlled conditions.
+description: "Generate realistic synthetic financial data for pipeline testing and stress scenarios. Use when real data is unavailable or insufficient for edge-case testing."
+when_to_use: "Use when you need ground-truth data or want to test strategies under controlled conditions"
 dependencies: []
 metadata:
   book_chapters: "5"
   library: ""
+paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**/*calendar*.py", "**/*futures*.py", "**/*export*.py", "**/*synthetic*.py"]
 ---
-
 # Synthetic Data
 
 Using i.i.d. normal returns to test a trading pipeline misses the features that break strategies in practice: volatility clustering, fat tails, and cross-asset correlation spikes during stress.
