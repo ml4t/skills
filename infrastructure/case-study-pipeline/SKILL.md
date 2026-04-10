@@ -105,6 +105,7 @@ One `setup.yaml` file defines the entire case study: dataset, universe filters, 
 
 - Each stage must be runnable independently given its upstream artifacts exist
 - Never read raw data in a model notebook — always read from the features stage output
+- Stage gates are quantitative: Features pass if IC_IR > 0.5 and worst-fold IC same sign as mean; Models pass if OOS Sharpe > 0 on ≥60% of walk-forward folds
 - Config changes require re-running all downstream stages, not just the changed one
 - Predictions must include fold identifiers — without them, you cannot reconstruct out-of-sample performance
 - Artifact paths use content-addressed hashes for model outputs, not sequential names

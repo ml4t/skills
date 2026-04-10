@@ -71,17 +71,11 @@ print(f"IC: {ic_mean:.4f}, IC_IR: {ic_ir:.2f}, t(HAC): {t_stat:.2f}")
 
 $$IR \approx IC \times \sqrt{BR}$$
 
-Where IR is the information ratio (Sharpe of active returns) and BR is breadth (independent bets per year). A modest IC = 0.03 across 500 stocks rebalanced monthly gives:
+Where IR is the information ratio and BR is breadth (independent bets per year). IC = 0.03 across 500 stocks rebalanced monthly: IR ≈ 0.03 × √6000 ≈ 2.3. Low IC is profitable with enough breadth.
 
-```python
-import numpy as np
+## Overlap Inflation
 
-ic = 0.03
-breadth = 500 * 12   # 500 stocks x 12 months
-expected_ir = ic * np.sqrt(breadth)  # ~2.3
-```
-
-Low IC strategies can still be highly profitable if breadth is large enough.
+Overlapping return labels (e.g., 21-day forward returns sampled daily) reduce effective sample size to ~N/H and inflate IC. A "significant" IC on 1,000 daily observations with H=21 overlap has only ~48 independent points. Always report IC_IR from non-overlapping periods or adjust standard errors for overlap.
 
 ## Guardrails
 

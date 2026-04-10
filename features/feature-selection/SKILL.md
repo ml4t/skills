@@ -96,6 +96,7 @@ stable = [f for f, count in fold_selections.items() if count >= len(list(tscv.sp
 - **Stability across folds matters** — a feature selected in 1/5 folds is noise
 - **IC > 0.1 is suspicious** — investigate for leakage before trusting
 - **Collinearity removal is safe pre-CV** — it uses only feature-feature correlation, not the target
+- **Log your search set** — each knob (lookback, threshold, feature family) multiplies candidates; apply Benjamini-Hochberg FDR when comparing selections
 
 ## Production Implementation
 

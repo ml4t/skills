@@ -80,6 +80,7 @@ pipe.predict(X_test)             # test data transformed with train stats
 - Sharpe ratio > 2.0 on daily data with a simple model
 - Feature values change when you recompute with more recent data appended
 - Performance degrades sharply when switching from k-fold to walk-forward CV
+- Labels use close-to-close returns but execution is next-open — this 50--100 bps gap per trade is hidden lookahead
 
 ## Guardrails
 

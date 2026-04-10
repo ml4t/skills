@@ -86,6 +86,7 @@ for train_idx, test_idx in tscv.split(X):
 - Test folds should span different market conditions (bull, bear, sideways)
 - Expanding window scores should be compared to rolling — divergence signals non-stationarity
 - More splits = more variance in estimates; fewer splits = more bias
+- Evaluate at three levels: model diagnostics (loss, R²), signal diagnostics (IC, turnover), strategy outcomes (Sharpe) — divergence across levels reveals translation failures
 
 ## Production Implementation
 

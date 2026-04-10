@@ -71,7 +71,7 @@ The ATR multiplier controls barrier width relative to current volatility. Typica
 ## Guardrails
 
 - **Purging required**: CV must purge `max_holding_period` bars around test boundaries to prevent leakage
-- **Label overlap**: labels with overlapping holding periods are not IID — use sample uniqueness weighting or sequential bootstrap for honest evaluation
+- **Label overlap**: labels with overlapping holding periods are not IID — effective sample size is ~N/H where H is holding period. Use sample uniqueness weighting or sequential bootstrap
 - **Class balance**: check label distribution — use class weights if imbalanced beyond 3:1
 - **ATR lookback**: must use only past data; `atr[i]` must not include bar `i+1`
 - **Tie-breaking**: when both barriers are crossed in the same bar, define a resolution rule (e.g., stop-loss takes priority)

@@ -83,7 +83,7 @@ A healthy strategy shows a broad plateau (many green cells). A fragile strategy 
 
 ## Guardrails
 
-- Robustness score below 50% means the strategy is fragile — most parameter settings lose money
+- Robustness score below 50% means the strategy is fragile — most parameter settings lose money. Target: >60% of grid has Sharpe > 0 for deployable strategies
 - Performance cliffs (Sharpe drops > 2 std between adjacent parameters) suggest overfitting to a boundary
 - Optimal parameters at the edge of the grid suggest the true optimum is outside your search range — extend it
 - Always check multiple metrics (Sharpe, max drawdown, Calmar) — a parameter set that maximizes Sharpe but doubles drawdown is not robust

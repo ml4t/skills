@@ -81,6 +81,7 @@ gdp_releases = pl.DataFrame({
 ## Guardrails
 
 - Every fundamental join must use a `filing_date` or `release_date` column, never `quarter_end` or `period_end`.
+- For SEC data, use `accepted_at` (filing acceptance timestamp), not the cover-page period date. Vendor "current" snapshots are NOT point-in-time safe.
 - FRED data: check the release calendar (`FRED/releases`), not the observation date.
 - Earnings data: available after market close on announcement day, not at open.
 - Add a 1-day buffer after filing date to account for data vendor processing lag.

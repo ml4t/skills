@@ -87,7 +87,7 @@ if np.mean(ic[-63:]) < baseline_ic * 0.5:
 - Baseline period must be representative and stable — do not use crisis periods as reference
 - PSI and KS test catch different things: PSI is binned (better for tails), KS is continuous
 - Some drift is normal in financial data — set thresholds based on historical drift rates, not arbitrary cutoffs
-- Retrain triggers should be predefined (not decided after seeing losses)
+- Retrain triggers should be predefined: PSI > 0.20 → flag for review; rolling IC < 50% of baseline for 63+ days → trigger retrain pipeline
 - Monitor prediction distribution too, not just features — a model can produce drifted outputs from stable inputs
 
 ## Production Implementation

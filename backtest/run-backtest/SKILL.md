@@ -64,7 +64,7 @@ def event_backtest(prices: np.ndarray, signal_fn, cost_bps: float = 10):
 
 ## Guardrails
 
-- Fill at `SAME_BAR` close is optimistic — prefer next-bar open for daily strategies
+- Fill at `SAME_BAR` close is optimistic — prefer next-bar open for daily strategies (close-to-open gap is 50-100 bps on equities)
 - Any Sharpe above 2.0 on daily data warrants checking for fill-timing bugs
 - Position sizing must respect available cash (no implicit margin)
 - Watch for survivorship bias in the universe — delisted symbols vanish from data

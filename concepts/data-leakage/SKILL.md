@@ -69,6 +69,7 @@ print(pipe.score(X_test, y_test))             # honest R^2
 ## Guardrails
 
 - Search codebase for `fit_transform` calls that precede `train_test_split` -- each one is a leak candidate.
+- Distinguish fit-requiring steps (scalers, encoders, selectors — must see train only) from stateless steps (column drops, type casts — safe on full data).
 - Compute feature-target correlation on the training fold only; correlation > 0.3 warrants investigation.
 - Any `SelectKBest` or `mutual_info_classif` call on the full dataset is leakage -- wrap in a pipeline.
 - Time-series splits must respect temporal order: no shuffled k-fold on sequential data.

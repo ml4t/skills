@@ -86,6 +86,7 @@ position_size = base_size * np.clip(edge, 0, 1)
 - **Separate CV for primary and meta** — meta-model must not see primary's test data
 - **Meta-model never overrides direction** — it only decides whether to act and how much
 - **Requires sufficient primary signals** — if primary fires <100 times, meta-model will overfit
+- **Primary must have fold-stable IC** — meta-labels cannot rescue a sign-flipping primary signal; validate IC stability across walk-forward folds before adding meta layer
 
 ## Production Implementation
 
@@ -109,7 +110,7 @@ meta = meta_labels(labeled, signal_col="signal", return_col="label_return")
 
 ## Checklist
 
-- [ ] Primary model generates directional signals with adequate recall
+- [ ] Primary model has persistent, fold-stable IC (check worst-fold, not just mean)
 - [ ] Meta-model trained only on samples where primary signal fired
 - [ ] CV is nested: primary and meta models use separate folds
 - [ ] Meta-model probability used for position sizing or filtering

@@ -83,7 +83,7 @@ print(f"Mean: {np.mean(scores):.3f}, Std: {np.std(scores):.3f}")
 - More paths → lower variance of the mean Sharpe estimate (var ∝ 1/φ when paths are uncorrelated), directly reducing false discovery
 - Verify training set size after purging is still sufficient (>60% of data)
 - Combine with PBO / Deflated Sharpe Ratio (see `deflated-sharpe` skill) for statistical significance
-- Never report the best fold — report the full distribution
+- Never report the best fold — report the full distribution (mean, std, worst-fold)
 
 ## Production Implementation
 

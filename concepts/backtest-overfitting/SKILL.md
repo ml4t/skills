@@ -90,19 +90,18 @@ pbo = np.mean(np.array(logits) > 0.5)  # PBO > 0.5 = no edge
 
 ## Guardrails
 
-- Document the total number of configurations tested -- each is a trial.
-- Pre-register the hypothesis and success threshold in version control before running any backtest.
+- Document total configurations tested -- each is a trial. Separate exploration from confirmation.
+- Pre-register hypothesis and success threshold in version control before any backtest.
 - Reserve a true holdout set that is touched exactly once, at the very end.
-- Minimum backtest length: 5 years of daily data (roughly 1,250 observations) for Sharpe estimation.
+- Minimum 5 years daily data (~1,250 observations) for Sharpe estimation.
 - If deflated Sharpe is negative, the strategy has no statistical evidence of alpha.
+- Apply Holm-Bonferroni or Benjamini-Hochberg when comparing multiple strategies.
 
 ## Production Implementation
 
 `ml4t-diagnostic` provides validated implementations of both corrections:
 
 ```python
-import numpy as np
-
 from ml4t.diagnostic.evaluation.stats import compute_pbo, benjamini_hochberg_fdr
 from ml4t.diagnostic.splitters import CombinatorialCV
 
@@ -113,8 +112,8 @@ rejected = benjamini_hochberg_fdr(p_values, alpha=0.05)
 
 ## Checklist
 
-- [ ] Strategy hypothesis written and committed to git BEFORE any backtest
-- [ ] Total number of trials documented (including informal exploration)
+- [ ] Strategy hypothesis committed to git BEFORE any backtest
+- [ ] Total trials documented (including informal exploration); multiple-testing correction applied
 - [ ] Deflated Sharpe Ratio computed and reported alongside observed Sharpe
 - [ ] PBO calculated from combinatorial CV folds (PBO < 0.50 required)
 - [ ] True holdout set preserved and used exactly once

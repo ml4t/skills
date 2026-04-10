@@ -84,6 +84,7 @@ for horizon in [1, 5, 10, 21, 63]:
 - High turnover (>30% daily) signals that transaction costs may consume the alpha
 - Always compute t-statistics with HAC (Newey-West) standard errors for autocorrelated IC series
 - Decay analysis determines rebalance frequency — rebalancing faster than the peak-IC horizon wastes costs
+- IC is a learnability screen, not a strategy — a positive IC only means the signal has information; tradability requires checking turnover, costs, and capacity
 
 ## Production Implementation
 
@@ -106,7 +107,7 @@ print(f"IC: {ic_stats['mean_ic']:.4f} (t={ic_stats['t_stat']:.2f})")
 
 ## Checklist
 
-- [ ] IC mean and IC IR computed (IC IR > 0.5 is a reasonable threshold)
+- [ ] IC mean, IC IR, and worst-fold IC computed (IC IR > 0.5; worst-fold IC same sign as mean)
 - [ ] Quantile returns checked for monotonicity
 - [ ] Turnover estimated and compared against cost model
 - [ ] Decay analysis performed to determine rebalance frequency
