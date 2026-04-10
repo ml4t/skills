@@ -2,7 +2,7 @@
 name: ml4t-strategy-workflow
 description: "End-to-end strategy development lifecycle from hypothesis to live trading. Use when starting a new strategy project or onboarding to the ML4T workflow."
 when_to_use: "Use when starting a new strategy or auditing an existing development process for missing stages"
-dependencies: [strategy-term-sheet, fetch-data, compute-features, run-backtest, transaction-costs]
+dependencies: [fetch-data, compute-features, run-backtest, transaction-costs]
 metadata:
   book_chapters: "1, 6, 16, 20"
   library: "ml4t-backtest"
@@ -69,7 +69,7 @@ hypothesis = {
 
 ## Guardrails
 
-- If Sharpe > 2.0 on daily data, assume lookahead bias until proven otherwise (see `ml4t-lookahead-bias`)
+- If Sharpe > 2.0 on daily equity data, assume lookahead bias or selection bias until proven otherwise — inspect with `ml4t-lookahead-bias` and `ml4t-deflated-sharpe`
 - If in-sample and out-of-sample performance match closely, suspect data leakage
 - If the strategy requires > 20% annual turnover to work, verify cost assumptions with `ml4t-transaction-costs`
 - If no documented hypothesis exists, stop and write one before any other work

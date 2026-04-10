@@ -33,7 +33,7 @@ import polars as pl
 # Rolling-ranked regime indicator — stationary, bounded [0, 1]
 features = df.sort("timestamp").with_columns(
     regime_vix_pctl=(
-        pl.col("vix") - pl.col("vix").rolling_min(window_size=1260).shift(1)
+        pl.col("vix") - pl.col("vix").rolling_min(window_size=1260).shift(1)  # 1260 ≈ 5 trading years
     ) / (
         pl.col("vix").rolling_max(window_size=1260).shift(1)
         - pl.col("vix").rolling_min(window_size=1260).shift(1)

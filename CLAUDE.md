@@ -7,7 +7,7 @@ This repository's authoritative agent guidance lives in:
 
 Current project state:
 
-- The repo contains 70 `SKILL.md` files across 10 categories.
+- The repo contains 56 `SKILL.md` files across 10 categories.
 - The active objective is to keep every skill concept-first and every `## Production Implementation` snippet aligned with the published `ml4t-*` library APIs.
 - When a skill snippet conflicts with library source, treat the library source as ground truth and update the skill/docs.
 - No `ml4t.*` imports may appear before `## Production Implementation`.

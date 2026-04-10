@@ -5,7 +5,7 @@ when_to_use: "Use when validating that performance is not fragile to exact param
 dependencies: [run-backtest]
 metadata:
   book_chapters: "16"
-  library: ""
+  library: "ml4t-backtest"
 paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.py", "**/*cost*.py", "**/*regime*.py", "**/*tearsheet*.py"]
 ---
 # Parameter Sensitivity Analysis
@@ -90,7 +90,18 @@ A healthy strategy shows a broad plateau (many green cells). A fragile strategy 
 
 ## Production Implementation
 
-For structured sweeps, combine with `ml4t-backtest`'s engine to run each parameter set through realistic execution. Use `BacktestConfig` variants in the grid instead of a simplified strategy function.
+Use `ml4t-backtest` for realistic execution in each grid cell:
+
+```python
+from ml4t.backtest import Engine, DataFeed, BacktestConfig
+
+results = []
+for lookback, threshold in itertools.product([10, 20, 30], [0.01, 0.03]):
+    config = BacktestConfig(commission_type="PER_SHARE", commission_per_share=0.005)
+    result = Engine(DataFeed(prices), MyStrategy(lookback, threshold), config).run()
+    results.append({"lookback": lookback, "threshold": threshold,
+                    "sharpe": result.metrics["sharpe_ratio"]})
+```
 
 ## Checklist
 

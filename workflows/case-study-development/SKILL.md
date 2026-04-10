@@ -2,7 +2,7 @@
 name: ml4t-case-study-development
 description: "Stage-gated research workflow from hypothesis through data prep, feature engineering, modeling, and backtest. Use when developing a trading strategy end-to-end with disciplined gate checks."
 when_to_use: "Use when deciding what a case study should test next, which gate failed, or whether the study is ready to advance"
-dependencies: [strategy-term-sheet, case-study-pipeline, triple-barrier, compute-features, cpcv, run-backtest, evaluate-factor]
+dependencies: [case-study-pipeline, triple-barrier, compute-features, cpcv, run-backtest, evaluate-factor]
 metadata:
   book_chapters: "6, 7, 8, 11, 16, 20"
   library: "ml4t-backtest"
@@ -40,7 +40,7 @@ print(f"Sharpe: {sharpe(cumulative_return):.2f}")  # Meaningless number
 # All config lives in setup.yaml (SSOT), not scattered across notebooks
 
 # Stage 1: SETUP (Ch6) — define universe, frequency, costs, evaluation protocol
-# → Use ml4t-strategy-term-sheet skill
+# → Document hypothesis, kill criteria, and capacity estimate in setup.yaml
 # → Output: setup.yaml with universe, frequency, cost_model, cv_config
 
 # Stage 2: LABELS (Ch7) — forward returns and/or triple-barrier labels

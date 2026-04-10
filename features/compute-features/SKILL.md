@@ -36,7 +36,7 @@ import polars as pl
 # Per-symbol rolling window — no cross-contamination, no lookahead
 df = df.sort("symbol", "timestamp").with_columns(
     mom_zscore=(
-        (pl.col("returns") - pl.col("returns").rolling_mean(504).shift(1))
+        (pl.col("returns") - pl.col("returns").rolling_mean(504).shift(1))  # 504 ≈ 2 trading years
         / pl.col("returns").rolling_std(504).shift(1)
     ).over("symbol")
 )
@@ -51,7 +51,7 @@ Three window types, each with different use cases:
 pl.col("close").pct_change(21).over("symbol")              # 21-day momentum
 
 # Long-horizon rolling: large window approximates expanding
-pl.col("returns").rolling_mean(504).shift(1).over("symbol")   # 2-year rolling mean
+pl.col("returns").rolling_mean(504).shift(1).over("symbol")   # 504 days ≈ 2 trading years
 
 # Cross-sectional: rank across all symbols at each timestamp
 pl.col("momentum").rank().over("timestamp")                 # Peer rank

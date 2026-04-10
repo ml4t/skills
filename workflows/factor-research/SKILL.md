@@ -75,7 +75,7 @@ assert ic_first_half * ic_second_half > 0, "IC sign flipped across subperiods"
 
 ## Guardrails
 
-- If IC > 0.10 on daily equity data, suspect lookahead bias — real equity ICs are typically 0.02-0.05
+- If IC > 0.10 on daily equity data, suspect lookahead bias — cross-sectional equity ICs are typically 0.02-0.05 (Grinold & Kahn, Kakushadze)
 - If factor turnover exceeds 50% monthly, capacity is likely constrained — check with `ml4t-evaluate-factor`
 - If IC is high but quantile returns are non-monotonic, the signal is noisy and may not translate to returns
 - If subperiod ICs disagree in sign, the factor is likely spurious regardless of full-period IC

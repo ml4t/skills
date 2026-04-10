@@ -6,7 +6,7 @@
 
 ## Current State
 
-- The repository currently contains 70 `SKILL.md` files across the 10 categories below.
+- The repository currently contains 56 `SKILL.md` files across the 10 categories below.
 - The active maintenance objective is API accuracy: keep every `## Production Implementation` section aligned with the published `ml4t-*` library APIs.
 - The conceptual teaching pattern remains fixed: concept-first, library-recommended (80/20), with no `ml4t.*` imports before `## Production Implementation`.
 - If docs or existing skills conflict with current library source, treat library source as ground truth and update the skill/docs rather than preserving stale wrappers.
@@ -106,16 +106,15 @@ metadata:
 
 | # | Category | Skills | Coverage |
 |---|----------|--------|----------|
-| 1 | `concepts/` | 11 | Foundational pitfalls and principles |
-| 2 | `data/` | 8 | Data sourcing, validation, management |
-| 3 | `features/` | 12 | Labels, feature engineering, selection, text, latent factors |
+| 1 | `concepts/` | 10 | Foundational pitfalls and principles |
+| 2 | `data/` | 7 | Data sourcing, validation, management |
+| 3 | `features/` | 10 | Labels, feature engineering, selection, latent factors |
 | 4 | `validation/` | 8 | CV, evaluation, multiple testing |
-| 5 | `backtest/` | 6 | Strategy simulation, cost modeling |
-| 6 | `portfolio/` | 6 | Position sizing, optimization, risk |
-| 7 | `advanced-ai/` | 6 | RL, RAG, knowledge graphs, agents, DL time series |
-| 8 | `production/` | 4 | Live trading, MLOps, governance |
-| 9 | `infrastructure/` | 4 | Schema, registry, Polars, pipelines |
-| 10 | `workflows/` | 5 | End-to-end composite processes |
+| 5 | `backtest/` | 5 | Strategy simulation, cost modeling, RL execution |
+| 6 | `portfolio/` | 5 | Position sizing, risk, exposure |
+| 7 | `production/` | 2 | Live trading, monitoring |
+| 8 | `infrastructure/` | 4 | Schema, registry, Polars, pipelines |
+| 9 | `workflows/` | 5 | End-to-end composite processes |
 
 ## Quality Gates
 

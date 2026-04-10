@@ -6,7 +6,7 @@ dependencies: [run-backtest, cost-model]
 metadata:
   book_chapters: "21"
   library: "ml4t-backtest"
-paths: ["**/*agent*.py", "**/*rl*.py", "**/*rag*.py", "**/*graph*.py", "**/*knowledge*.py", "**/*orchestrat*.py"]
+paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*execution*.py", "**/*rl*.py", "**/*impact*.py"]
 ---
 # RL for Trade Execution
 

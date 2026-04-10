@@ -104,6 +104,10 @@ Dollar bars are preferred because they normalize for both price level and activi
 - Overnight gaps should be handled (exclude or flag the first bar of each session)
 - Bar counts drop on quiet days, increase on volatile days — this is the intended behavior
 
+## Production Implementation
+
+No `ml4t-*` library covers bar construction. Use `ml4t-data` to fetch tick data, then apply the dollar-bar logic above. The canonical schema (`timestamp`, `open`, `high`, `low`, `close`, `volume`) from `ml4t-data` applies to the output bars.
+
 ## Checklist
 
 - [ ] Tick data available with timestamp, price, and size columns

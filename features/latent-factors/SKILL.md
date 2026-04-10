@@ -42,7 +42,7 @@ from sklearn.decomposition import PCA
 import numpy as np
 
 # Walk-forward PCA: fit on training window only
-def walk_forward_pca(returns, n_components=5, train_window=504):
+def walk_forward_pca(returns, n_components=5, train_window=504):  # 504 ≈ 2 trading years
     """Fit PCA per fold, project test data with training eigenvectors."""
     factors = np.full((len(returns), n_components), np.nan)
     for t in range(train_window, len(returns)):
