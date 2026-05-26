@@ -16,4 +16,4 @@ Agent infrastructure in this repo:
 
 - Claude config: `.claude/CLAUDE.md` and `.claude/settings.json`
 - Codex/OpenAI config: `AGENTS.md`
-- There is no repo-local `.agents/` directory checked in here.
+- There is no repo-local `.workspace/` directory checked in here.

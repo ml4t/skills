@@ -11,8 +11,8 @@
 
 # Codex — local config and dev state
 .codex/
-.agents/backlog/
-.agents/transitions/
+.workspace/backlog/
+.workspace/transitions/
 
 # MCP — local server config
 .mcp.json
