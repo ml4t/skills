@@ -1,0 +1,195 @@
+# ML4T Agent Skills
+
+61 standalone skills that teach AI coding assistants the Machine Learning for Trading workflow from [*Machine Learning for Algorithmic Trading, 3rd Edition*](https://ml4trading.io).
+
+This repository turns the book's quant research discipline into runtime guidance for coding agents. Each skill gives an agent the pattern it needs to avoid common ML4T failures: leakage, lookahead bias, overfit backtests, stale data joins, broken cross-validation, unrealistic transaction costs, and unsafe autonomous workflows.
+
+Each skill is a plain `SKILL.md` file with YAML frontmatter and concise procedural guidance. The skills work as Markdown files: clone this repo into your agent's skill search path, or copy the category directories from a release archive.
+
+## Why Use These Skills
+
+Coding agents are strong at writing code, but financial ML has failure modes that are easy to miss and expensive to discover late. These skills package the reviewer-grade checks that should happen before a strategy result is trusted:
+
+- **Method discipline**: every skill teaches a concept-first WRONG/CORRECT pattern.
+- **Book alignment**: skills map to the chapters and case-study workflow in *Machine Learning for Algorithmic Trading*.
+- **Production handoff**: stable patterns point to the corresponding `ml4t-data`, `ml4t-engineer`, `ml4t-backtest`, `ml4t-diagnostic`, or `ml4t-live` API.
+- **Agent portability**: the files are standard Markdown and can be used by Claude Code, Codex/OpenAI agents, or any tool that can discover and read local skill files.
+
+## Distribution
+
+The canonical distribution is this Git repository. There is no npm, Python package, or build step because the runtime artifact is the Markdown file itself.
+
+Recommended installation:
+
+```bash
+# Claude Code user-level skills
+git clone https://github.com/ml4t/skills.git ~/.claude/skills/ml4t
+
+# Project-local Codex/OpenAI skills
+git clone https://github.com/ml4t/skills.git .agents/skills/ml4t
+```
+
+Manual installation is also valid: download a release archive and copy the category directories into the skill directory used by your agent.
+
+## How Skills Work
+
+Every skill follows the same concept-first pattern:
+
+1. **The Problem** -- what goes wrong without this knowledge
+2. **WRONG code** -- the naive approach that looks right but fails
+3. **CORRECT code** -- the right pattern using standard tools
+4. **Guardrails** -- specific red flags to watch for
+5. **Production Implementation** -- optional `ml4t-*` library handoff when a stable API exists
+6. **Checklist** -- verification steps the agent can follow
+
+The first 80% teaches the method with standard Python tools such as `polars`, `numpy`, `scikit-learn`, `scipy`, `statsmodels`, `pytorch`, and `lightgbm`. The final section, when present, points to the production-grade `ml4t-*` library implementation.
+
+## Skill Catalog
+
+### Concepts (10)
+
+| Skill | What it prevents |
+|-------|-----------------|
+| [backtest-overfitting](concepts/backtest-overfitting/) | Selecting the best historical result without multiple-testing correction |
+| [causal-identification](concepts/causal-identification/) | Treating confounded associations as tradable causal effects |
+| [data-leakage](concepts/data-leakage/) | Train-test contamination via preprocessing, features, or labels |
+| [information-coefficient](concepts/information-coefficient/) | Miscalculating or misinterpreting factor predictive power |
+| [lookahead-bias](concepts/lookahead-bias/) | Using future information in features, labels, or evaluation |
+| [non-stationarity](concepts/non-stationarity/) | Ignoring changing statistical properties in financial time series |
+| [point-in-time](concepts/point-in-time/) | Using revised data that was not known at decision time |
+| [regime-awareness](concepts/regime-awareness/) | Treating regimes as timing signals instead of conditioning variables |
+| [survivorship-bias](concepts/survivorship-bias/) | Excluding failed or delisted assets from historical analysis |
+| [transaction-costs](concepts/transaction-costs/) | Backtesting signals that cannot survive spread, slippage, and impact |
+
+### Data (7)
+
+| Skill | What it does |
+|-------|-------------|
+| [build-bars](data/build-bars/) | Aggregates tick data into time, volume, and dollar bars |
+| [calendar-ops](data/calendar-ops/) | Aligns data across trading calendars, holidays, and frequencies |
+| [continuous-futures](data/continuous-futures/) | Builds roll-adjusted continuous futures series |
+| [data-export](data/data-export/) | Exports schema-validated datasets to efficient columnar storage |
+| [define-universe](data/define-universe/) | Constructs point-in-time tradeable universes with liquidity filters |
+| [fetch-data](data/fetch-data/) | Fetches market data through provider abstractions with schema checks |
+| [validate-data](data/validate-data/) | Checks gaps, stale prices, outliers, and OHLCV integrity |
+
+### Features (10)
+
+| Skill | What it does |
+|-------|-------------|
+| [compute-features](features/compute-features/) | Computes panel-aware financial features without cross-asset leakage |
+| [feature-families](features/feature-families/) | Balances momentum, mean-reversion, volatility, carry, and value signals |
+| [feature-selection](features/feature-selection/) | Selects features inside CV folds using IC, MI, or RFE |
+| [feature-store](features/feature-store/) | Stores versioned features with point-in-time retrieval |
+| [feature-validation](features/feature-validation/) | Audits IC significance, stability, redundancy, and leakage |
+| [horizon-design](features/horizon-design/) | Chooses prediction horizons from IC decay, turnover, and costs |
+| [latent-factors](features/latent-factors/) | Extracts latent factors with PCA, IPCA, or autoencoders |
+| [meta-labels](features/meta-labels/) | Uses a secondary model to filter or size primary trading signals |
+| [regime-features](features/regime-features/) | Builds stationary volatility, trend, and liquidity regime features |
+| [triple-barrier](features/triple-barrier/) | Labels trades with volatility-adaptive profit, stop, and time barriers |
+
+### Validation (8)
+
+| Skill | What it does |
+|-------|-------------|
+| [cpcv](validation/cpcv/) | Runs Combinatorial Purged Cross-Validation |
+| [deflated-sharpe](validation/deflated-sharpe/) | Adjusts Sharpe ratios for multiple testing bias |
+| [drift-detection](validation/drift-detection/) | Detects input, prediction, and concept drift |
+| [evaluate-factor](validation/evaluate-factor/) | Evaluates factor IC, quantile spreads, turnover, and decay |
+| [purging-embargo](validation/purging-embargo/) | Removes overlapping labels and adds embargo buffers |
+| [shap-analysis](validation/shap-analysis/) | Explains model predictions with SHAP values |
+| [stationarity-tests](validation/stationarity-tests/) | Applies ADF/KPSS tests and transformation decisions |
+| [walk-forward-cv](validation/walk-forward-cv/) | Evaluates time-series models with rolling or expanding windows |
+
+### Backtest (5)
+
+| Skill | What it does |
+|-------|-------------|
+| [cost-model](backtest/cost-model/) | Models commissions, slippage, and market impact |
+| [rl-execution](backtest/rl-execution/) | Applies reinforcement learning to execution and hedging |
+| [run-backtest](backtest/run-backtest/) | Runs event-driven backtests with Strategy/Broker/Engine contracts |
+| [sensitivity-analysis](backtest/sensitivity-analysis/) | Tests parameter robustness and overfitting cliffs |
+| [tearsheet](backtest/tearsheet/) | Generates performance reports from backtest returns |
+
+### Portfolio (5)
+
+| Skill | What it does |
+|-------|-------------|
+| [exposure-analysis](portfolio/exposure-analysis/) | Decomposes portfolios by factor, sector, and concentration exposure |
+| [kill-switch](portfolio/kill-switch/) | Adds automated drawdown and loss-limit controls |
+| [position-sizing](portfolio/position-sizing/) | Converts signals into volatility-targeted position sizes |
+| [risk-metrics](portfolio/risk-metrics/) | Computes drawdown, VaR, CVaR, Sharpe, and tail metrics |
+| [stress-test](portfolio/stress-test/) | Tests portfolios against historical and hypothetical shocks |
+
+### Advanced AI (5)
+
+| Skill | What it does |
+|-------|-------------|
+| [agent-governance](advanced-ai/agent-governance/) | Adds policy, warden, approval, and audit controls around agents |
+| [agent-state-memory](advanced-ai/agent-state-memory/) | Designs checkpointable state, evidence memory, and replay traces |
+| [agent-tool-contracts](advanced-ai/agent-tool-contracts/) | Defines typed tool schemas, provenance, and execution policies |
+| [multi-agent-forecasting](advanced-ai/multi-agent-forecasting/) | Combines agent forecasts with diversity, aggregation, and debate controls |
+| [research-operator](advanced-ai/research-operator/) | Builds thin autonomous research operators over tools, skills, and artifacts |
+
+### Production (2)
+
+| Skill | What it does |
+|-------|-------------|
+| [live-trading](production/live-trading/) | Transitions validated backtest strategies to live trading |
+| [monitoring-alerting](production/monitoring-alerting/) | Monitors live data, model drift, risk, execution, and alerts |
+
+### Infrastructure (4)
+
+| Skill | What it does |
+|-------|-------------|
+| [canonical-schema](infrastructure/canonical-schema/) | Enforces standard market-data columns, types, and index conventions |
+| [case-study-pipeline](infrastructure/case-study-pipeline/) | Organizes reproducible case-study artifacts and rerun boundaries |
+| [polars-patterns](infrastructure/polars-patterns/) | Uses Polars idioms for grouped, windowed financial data processing |
+| [registry-system](infrastructure/registry-system/) | Tracks experiments and artifacts with content-addressed metadata |
+
+### Workflows (5)
+
+| Skill | What it does |
+|-------|-------------|
+| [case-study-development](workflows/case-study-development/) | Runs a stage-gated case study from hypothesis to backtest |
+| [factor-research](workflows/factor-research/) | Develops alpha factors from hypothesis through capacity assessment |
+| [model-validation](workflows/model-validation/) | Applies multi-gate validation before production sign-off |
+| [production-readiness](workflows/production-readiness/) | Checks data, model, risk, monitoring, and governance before go-live |
+| [strategy-workflow](workflows/strategy-workflow/) | Covers the full strategy lifecycle from idea to deployment |
+
+## ML4T Libraries
+
+Some skills reference these optional production libraries:
+
+```bash
+uv pip install ml4t-data ml4t-engineer ml4t-backtest ml4t-diagnostic ml4t-live
+```
+
+| Package | Purpose |
+|---------|---------|
+| [ml4t-data](https://pypi.org/project/ml4t-data/) | Data providers, schema enforcement, futures contracts |
+| [ml4t-engineer](https://pypi.org/project/ml4t-engineer/) | Feature computation, labeling, feature store |
+| [ml4t-backtest](https://pypi.org/project/ml4t-backtest/) | Event-driven backtesting with cost models |
+| [ml4t-diagnostic](https://pypi.org/project/ml4t-diagnostic/) | Cross-validation, IC analysis, drift detection |
+| [ml4t-live](https://pypi.org/project/ml4t-live/) | Live trading with SafeBroker risk controls |
+
+The libraries are optional for reading the skills. The production snippets show how to move from the teaching pattern to validated library code.
+
+## Authoring Rules
+
+New skills should follow [AGENTS.md](AGENTS.md):
+
+- Use `name: ml4t-{directory-name}`
+- Include trigger language in `description`
+- Keep examples concept-first and library-agnostic until `## Production Implementation`
+- Include `### WRONG`, `### CORRECT`, guardrails, and a final checklist
+- Keep each `SKILL.md` under 120 lines
+- Do not include local agent state, memory, transitions, credentials, or workspace artifacts
+
+## Book
+
+These skills distill techniques from [*Machine Learning for Algorithmic Trading*](https://ml4trading.io) (3rd Edition) by Stefan Jansen. Each skill's `metadata.book_chapters` field maps the skill to the relevant chapter.
+
+## License
+
+Copyright (c) 2026 Stefan Jansen. All rights reserved.

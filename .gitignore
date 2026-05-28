@@ -1,0 +1,19 @@
+# IDE
+.idea/
+
+# Local agent/runtime state
+.agents/
+.claude/
+.codex/
+.workspace/
+
+# MCP/local server config
+.mcp.json
+
+# Internal development artifacts
+evals/
+reviews/
+SKILL_AUDIT.md
+SKILL_CHAPTER_MAP.md
+REVIEW_PROMPT.md
+VALIDATION_REPORT.md
