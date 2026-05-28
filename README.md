@@ -1,5 +1,7 @@
 # ML4T Agent Skills
 
+[![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+
 61 standalone skills that teach AI coding assistants the Machine Learning for Trading workflow from [*Machine Learning for Algorithmic Trading, 3rd Edition*](https://ml4trading.io).
 
 This repository turns the book's quant research discipline into runtime guidance for coding agents. Each skill gives an agent the pattern it needs to avoid common ML4T failures: leakage, lookahead bias, overfit backtests, stale data joins, broken cross-validation, unrealistic transaction costs, and unsafe autonomous workflows.
@@ -192,4 +194,7 @@ These skills distill techniques from [*Machine Learning for Algorithmic Trading*
 
 ## License
 
-Copyright (c) 2026 Stefan Jansen. All rights reserved.
+This repository is licensed under [Apache-2.0](LICENSE).
+
+The license applies to the repository contents. It does not grant trademark rights
+in ML4T, Machine Learning for Algorithmic Trading, or related project branding.
