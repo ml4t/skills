@@ -8,6 +8,10 @@ This repository turns the book's quant research discipline into runtime guidance
 
 Each skill is a plain `SKILL.md` file with YAML frontmatter and concise procedural guidance. The skills work as Markdown files: clone this repo into your agent's skill search path, or copy the category directories from a release archive.
 
+<!-- offerings:next start -->
+> **Next free session:** [Managing Your Strategy Research Process](https://maven.com/p/bc9fd4), a 30-minute live session on **Wednesday, September 2, 2026, 12:00 PM ET / 16:00 UTC**. [All courses, workshops, and free lessons](https://ml4trading.io/courses/?utm_source=github&utm_medium=readme&utm_campaign=skills&utm_content=offerings).
+<!-- offerings:next end -->
+
 ## Why Use These Skills
 
 Coding agents are strong at writing code, but financial ML has failure modes that are easy to miss and expensive to discover late. These skills package the reviewer-grade checks that should happen before a strategy result is trusted:
@@ -177,6 +181,38 @@ uv pip install ml4t-data ml4t-engineer ml4t-backtest ml4t-diagnostic ml4t-live
 
 The libraries are optional for reading the skills. The production snippets show how to move from the teaching pattern to validated library code.
 
+## The Harness These Run In
+
+A skill tells an agent what is correct in quantitative research. It says nothing about how the agent works: how a task gets scoped before any code is written, where state lives across a compaction, how a half-finished job is handed to a different agent. That is a separate concern in a separate repository.
+
+- [coding-agent-toolkit](https://github.com/stefan-jansen/coding-agent-toolkit) gives Claude Code and Codex one set of verbs (align, plan, ship, handoff) over a shared `.workspace/` directory, so work survives a swap between hosts.
+- [coding-agent-plugins](https://github.com/stefan-jansen/coding-agent-plugins) packages those verbs, along with memory, transition, and code-quality plugins, as an installable Claude Code marketplace.
+
+## Courses, Workshops, and Free Lessons
+
+The method in these files is also taught live, worked through on a real strategy with feedback on your own research question.
+
+<!-- offerings:all start -->
+**Cohorts and workshops.** Live, scheduled, and worked through with direct feedback on your own research.
+
+| Starts | Offering | What you leave with |
+|--------|----------|---------------------|
+| Sep 16 – Dec 2, 2026 | [Machine Learning for Trading: From Research to Production](https://maven.com/stefan-jansen/research-to-production) | Take one research idea from a question to a costed, monitored strategy, with the evidence trail that makes the result checkable. |
+| Sep 19, 2026 | [Engineering a Multi-Agent Forecasting System](https://maven.com/stefan-jansen/agent-engineering) | Build a multi-agent forecasting system whose reasoning is auditable end to end. |
+| Oct 10, 2026 | [Loop Engineering: Reliable Work From Coding Agents](https://maven.com/stefan-jansen/loop-engineering) | Get reliable work out of coding agents: harness design, verification, and recovery from a bad run. |
+
+**Free live sessions.** Thirty minutes to an hour, no cost, recording sent to everyone who registers.
+
+| When | Session |
+|------|---------|
+| Wed, Sep 2, 12:00 PM ET / 16:00 UTC | [Managing Your Strategy Research Process](https://maven.com/p/bc9fd4) |
+| Wed, Sep 9, 12:00 PM ET / 16:00 UTC | [How to Engineer a Multi-Agent System](https://maven.com/p/c7565e) |
+| Wed, Sep 30, 12:00 PM ET / 16:00 UTC | [How to Be Productive with Coding Agents, Beyond Code](https://maven.com/p/efe730) |
+| Wed, Nov 4, 12:00 PM ET / 17:00 UTC | [Why Multi-Agent Systems Break, and How To Fix It](https://maven.com/p/393eee) |
+
+*Between cohorts, the [**Insights** newsletter](https://insights.ml4trading.io/) covers the same ground weekly, source by source.*
+<!-- offerings:all end -->
+
 ## Authoring Rules
 
 New skills should follow [AGENTS.md](AGENTS.md):
@@ -190,7 +226,11 @@ New skills should follow [AGENTS.md](AGENTS.md):
 
 ## Book
 
-These skills distill techniques from [*Machine Learning for Algorithmic Trading*](https://ml4trading.io) (3rd Edition) by Stefan Jansen. Each skill's `metadata.book_chapters` field maps the skill to the relevant chapter.
+These skills distill techniques from [*Machine Learning for Algorithmic Trading*](https://ml4trading.io), 3rd Edition, by Stefan Jansen. Each skill's `metadata.book_chapters` field maps it to the chapter that develops the method in full, and [SKILL_CHAPTER_MAP.md](SKILL_CHAPTER_MAP.md) is the whole mapping in one table.
+
+- The book: [Amazon](https://amzn.to/44FVkGq), or [ml4trading.io](https://ml4trading.io)
+- The code, 27 chapters of executed notebooks: [stefan-jansen/machine-learning-for-trading](https://github.com/stefan-jansen/machine-learning-for-trading)
+- Weekly research writing on the same subjects: [ML4T Insights](https://insights.ml4trading.io/)
 
 ## License
 

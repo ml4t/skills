@@ -1,0 +1,52 @@
+# Keep the README's courses, workshops, and free lessons current.
+#
+# Dates in a README go stale silently. In the book repository a lesson callout
+# sat at the top of the file for four weeks after the lesson had run and readers
+# kept signing up for it. So the offerings block is generated, not written: this
+# job reads the public Maven profile every morning, drops what is past, and
+# commits when the rendered block no longer matches the file.
+#
+# It commits to main directly. Unlike the book repository, nothing here is
+# protected and no status check gates the change, and the block itself is the
+# same generated copy that repository already reviews. A pull request per day
+# would be ceremony over a machine-written table.
+
+name: README Offerings
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # daily 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: readme-offerings
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Render the offerings block
+        run: python .github/scripts/update_offerings.py
+
+      - name: Commit if it changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- README.md; then
+            echo "README offerings are current; nothing to do."
+            exit 0
+          fi
+          git config user.name  "ml4t-offerings[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "Refresh the README offerings block from the Maven schedule"
+          git push origin HEAD:main
