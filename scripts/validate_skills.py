@@ -30,7 +30,6 @@ FORBIDDEN_TRACKED_PATTERNS = (
     ".mcp.json",
     "REVIEW_PROMPT.md",
     "SKILL_AUDIT.md",
-    "SKILL_CHAPTER_MAP.md",
     "VALIDATION_REPORT.md",
     "evals/",
     "reviews/",

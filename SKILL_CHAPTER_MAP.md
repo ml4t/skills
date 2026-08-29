@@ -1,0 +1,162 @@
+# Skill Chapter Map
+
+Every skill in this repository maps to the chapter of *Machine Learning for
+Algorithmic Trading, 3rd Edition* that develops the method in full. The mapping
+is generated from each skill's `metadata.book_chapters` field, so it cannot
+drift from the files.
+
+Generated 2026-08-29 from 61 skills against the 27-chapter outline.
+
+## By skill
+
+### Concepts (10)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-backtest-overfitting`](concepts/backtest-overfitting/) | 7 Defining the Learning Task; 16 Strategy Simulation |
+| [`ml4t-causal-identification`](concepts/causal-identification/) | 7 Defining the Learning Task; 15 Causal Machine Learning |
+| [`ml4t-data-leakage`](concepts/data-leakage/) | 2 The Financial Data Universe; 7 Defining the Learning Task; 8 Financial Feature Engineering |
+| [`ml4t-information-coefficient`](concepts/information-coefficient/) | 7 Defining the Learning Task; 8 Financial Feature Engineering |
+| [`ml4t-lookahead-bias`](concepts/lookahead-bias/) | 6 Strategy Research Framework; 7 Defining the Learning Task |
+| [`ml4t-non-stationarity`](concepts/non-stationarity/) | 9 Model-Based Feature Extraction |
+| [`ml4t-point-in-time`](concepts/point-in-time/) | 2 The Financial Data Universe; 4 Fundamental and Alternative Data |
+| [`ml4t-regime-awareness`](concepts/regime-awareness/) | 9 Model-Based Feature Extraction |
+| [`ml4t-survivorship-bias`](concepts/survivorship-bias/) | 2 The Financial Data Universe; 6 Strategy Research Framework |
+| [`ml4t-transaction-costs`](concepts/transaction-costs/) | 6 Strategy Research Framework; 18 Transaction Costs |
+
+### Data (7)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-build-bars`](data/build-bars/) | 3 Market Microstructure |
+| [`ml4t-calendar-ops`](data/calendar-ops/) | 2 The Financial Data Universe; 3 Market Microstructure |
+| [`ml4t-continuous-futures`](data/continuous-futures/) | 2 The Financial Data Universe; 3 Market Microstructure |
+| [`ml4t-data-export`](data/data-export/) | 2 The Financial Data Universe |
+| [`ml4t-define-universe`](data/define-universe/) | 2 The Financial Data Universe; 6 Strategy Research Framework |
+| [`ml4t-fetch-data`](data/fetch-data/) | 2 The Financial Data Universe; 3 Market Microstructure |
+| [`ml4t-validate-data`](data/validate-data/) | 2 The Financial Data Universe; 3 Market Microstructure |
+
+### Features (10)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-compute-features`](features/compute-features/) | 8 Financial Feature Engineering |
+| [`ml4t-feature-families`](features/feature-families/) | 8 Financial Feature Engineering |
+| [`ml4t-feature-selection`](features/feature-selection/) | 7 Defining the Learning Task; 8 Financial Feature Engineering |
+| [`ml4t-feature-store`](features/feature-store/) | 8 Financial Feature Engineering |
+| [`ml4t-feature-validation`](features/feature-validation/) | 7 Defining the Learning Task; 8 Financial Feature Engineering |
+| [`ml4t-horizon-design`](features/horizon-design/) | 7 Defining the Learning Task |
+| [`ml4t-latent-factors`](features/latent-factors/) | 14 Latent Factor Models |
+| [`ml4t-meta-labels`](features/meta-labels/) | 7 Defining the Learning Task |
+| [`ml4t-regime-features`](features/regime-features/) | 8 Financial Feature Engineering; 9 Model-Based Feature Extraction |
+| [`ml4t-triple-barrier`](features/triple-barrier/) | 7 Defining the Learning Task |
+
+### Validation (8)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-cpcv`](validation/cpcv/) | 6 Strategy Research Framework; 7 Defining the Learning Task |
+| [`ml4t-deflated-sharpe`](validation/deflated-sharpe/) | 7 Defining the Learning Task; 16 Strategy Simulation |
+| [`ml4t-drift-detection`](validation/drift-detection/) | 9 Model-Based Feature Extraction; 26 MLOps and Governance |
+| [`ml4t-evaluate-factor`](validation/evaluate-factor/) | 7 Defining the Learning Task; 8 Financial Feature Engineering |
+| [`ml4t-purging-embargo`](validation/purging-embargo/) | 6 Strategy Research Framework; 7 Defining the Learning Task |
+| [`ml4t-shap-analysis`](validation/shap-analysis/) | 12 Advanced Models for Tabular Data; 15 Causal Machine Learning |
+| [`ml4t-stationarity-tests`](validation/stationarity-tests/) | 9 Model-Based Feature Extraction |
+| [`ml4t-walk-forward-cv`](validation/walk-forward-cv/) | 6 Strategy Research Framework; 7 Defining the Learning Task |
+
+### Backtest (5)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-cost-model`](backtest/cost-model/) | 18 Transaction Costs |
+| [`ml4t-rl-execution`](backtest/rl-execution/) | 21 Reinforcement Learning for Execution and Hedging |
+| [`ml4t-run-backtest`](backtest/run-backtest/) | 16 Strategy Simulation |
+| [`ml4t-sensitivity-analysis`](backtest/sensitivity-analysis/) | 16 Strategy Simulation |
+| [`ml4t-tearsheet`](backtest/tearsheet/) | 16 Strategy Simulation |
+
+### Portfolio (5)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-exposure-analysis`](portfolio/exposure-analysis/) | 17 Portfolio Construction; 19 Risk Management |
+| [`ml4t-kill-switch`](portfolio/kill-switch/) | 19 Risk Management; 25 Live Trading Systems |
+| [`ml4t-position-sizing`](portfolio/position-sizing/) | 17 Portfolio Construction |
+| [`ml4t-risk-metrics`](portfolio/risk-metrics/) | 19 Risk Management |
+| [`ml4t-stress-test`](portfolio/stress-test/) | 19 Risk Management |
+
+### Advanced AI (5)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-agent-governance`](advanced-ai/agent-governance/) | 24 Autonomous Agents; 25 Live Trading Systems; 26 MLOps and Governance |
+| [`ml4t-agent-state-memory`](advanced-ai/agent-state-memory/) | 24 Autonomous Agents |
+| [`ml4t-agent-tool-contracts`](advanced-ai/agent-tool-contracts/) | 24 Autonomous Agents |
+| [`ml4t-multi-agent-forecasting`](advanced-ai/multi-agent-forecasting/) | 24 Autonomous Agents |
+| [`ml4t-research-operator`](advanced-ai/research-operator/) | 24 Autonomous Agents |
+
+### Production (2)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-live-trading`](production/live-trading/) | 25 Live Trading Systems |
+| [`ml4t-monitoring-alerting`](production/monitoring-alerting/) | 25 Live Trading Systems; 26 MLOps and Governance |
+
+### Infrastructure (4)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-canonical-schema`](infrastructure/canonical-schema/) | 2 The Financial Data Universe; 3 Market Microstructure |
+| [`ml4t-case-study-pipeline`](infrastructure/case-study-pipeline/) | 6 Strategy Research Framework; 7 Defining the Learning Task; 8 Financial Feature Engineering; 11 The ML Pipeline |
+| [`ml4t-polars-patterns`](infrastructure/polars-patterns/) | 2 The Financial Data Universe; 3 Market Microstructure |
+| [`ml4t-registry-system`](infrastructure/registry-system/) | 11 The ML Pipeline; 12 Advanced Models for Tabular Data |
+
+### Workflows (5)
+
+| Skill | Chapters |
+|---|---|
+| [`ml4t-case-study-development`](workflows/case-study-development/) | 6 Strategy Research Framework; 7 Defining the Learning Task; 8 Financial Feature Engineering; 11 The ML Pipeline; 16 Strategy Simulation; 20 Strategy Synthesis |
+| [`ml4t-factor-research`](workflows/factor-research/) | 7 Defining the Learning Task; 8 Financial Feature Engineering |
+| [`ml4t-model-validation`](workflows/model-validation/) | 7 Defining the Learning Task; 12 Advanced Models for Tabular Data |
+| [`ml4t-production-readiness`](workflows/production-readiness/) | 25 Live Trading Systems; 26 MLOps and Governance |
+| [`ml4t-strategy-workflow`](workflows/strategy-workflow/) | 1 The Process Is Your Edge; 6 Strategy Research Framework; 16 Strategy Simulation; 20 Strategy Synthesis |
+
+## By chapter
+
+| Chapter | Skills |
+|---|---|
+| **1** The Process Is Your Edge | `ml4t-strategy-workflow` |
+| **2** The Financial Data Universe | `ml4t-calendar-ops`, `ml4t-canonical-schema`, `ml4t-continuous-futures`, `ml4t-data-export`, `ml4t-data-leakage`, `ml4t-define-universe`, `ml4t-fetch-data`, `ml4t-point-in-time`, `ml4t-polars-patterns`, `ml4t-survivorship-bias`, `ml4t-validate-data` |
+| **3** Market Microstructure | `ml4t-build-bars`, `ml4t-calendar-ops`, `ml4t-canonical-schema`, `ml4t-continuous-futures`, `ml4t-fetch-data`, `ml4t-polars-patterns`, `ml4t-validate-data` |
+| **4** Fundamental and Alternative Data | `ml4t-point-in-time` |
+| **5** Synthetic Financial Data | none |
+| **6** Strategy Research Framework | `ml4t-case-study-development`, `ml4t-case-study-pipeline`, `ml4t-cpcv`, `ml4t-define-universe`, `ml4t-lookahead-bias`, `ml4t-purging-embargo`, `ml4t-strategy-workflow`, `ml4t-survivorship-bias`, `ml4t-transaction-costs`, `ml4t-walk-forward-cv` |
+| **7** Defining the Learning Task | `ml4t-backtest-overfitting`, `ml4t-case-study-development`, `ml4t-case-study-pipeline`, `ml4t-causal-identification`, `ml4t-cpcv`, `ml4t-data-leakage`, `ml4t-deflated-sharpe`, `ml4t-evaluate-factor`, `ml4t-factor-research`, `ml4t-feature-selection`, `ml4t-feature-validation`, `ml4t-horizon-design`, `ml4t-information-coefficient`, `ml4t-lookahead-bias`, `ml4t-meta-labels`, `ml4t-model-validation`, `ml4t-purging-embargo`, `ml4t-triple-barrier`, `ml4t-walk-forward-cv` |
+| **8** Financial Feature Engineering | `ml4t-case-study-development`, `ml4t-case-study-pipeline`, `ml4t-compute-features`, `ml4t-data-leakage`, `ml4t-evaluate-factor`, `ml4t-factor-research`, `ml4t-feature-families`, `ml4t-feature-selection`, `ml4t-feature-store`, `ml4t-feature-validation`, `ml4t-information-coefficient`, `ml4t-regime-features` |
+| **9** Model-Based Feature Extraction | `ml4t-drift-detection`, `ml4t-non-stationarity`, `ml4t-regime-awareness`, `ml4t-regime-features`, `ml4t-stationarity-tests` |
+| **10** Text Feature Engineering | none |
+| **11** The ML Pipeline | `ml4t-case-study-development`, `ml4t-case-study-pipeline`, `ml4t-registry-system` |
+| **12** Advanced Models for Tabular Data | `ml4t-model-validation`, `ml4t-registry-system`, `ml4t-shap-analysis` |
+| **13** Deep Learning for Time Series | none |
+| **14** Latent Factor Models | `ml4t-latent-factors` |
+| **15** Causal Machine Learning | `ml4t-causal-identification`, `ml4t-shap-analysis` |
+| **16** Strategy Simulation | `ml4t-backtest-overfitting`, `ml4t-case-study-development`, `ml4t-deflated-sharpe`, `ml4t-run-backtest`, `ml4t-sensitivity-analysis`, `ml4t-strategy-workflow`, `ml4t-tearsheet` |
+| **17** Portfolio Construction | `ml4t-exposure-analysis`, `ml4t-position-sizing` |
+| **18** Transaction Costs | `ml4t-cost-model`, `ml4t-transaction-costs` |
+| **19** Risk Management | `ml4t-exposure-analysis`, `ml4t-kill-switch`, `ml4t-risk-metrics`, `ml4t-stress-test` |
+| **20** Strategy Synthesis | `ml4t-case-study-development`, `ml4t-strategy-workflow` |
+| **21** Reinforcement Learning for Execution and Hedging | `ml4t-rl-execution` |
+| **22** RAG for Financial Research | none |
+| **23** Knowledge Graphs | none |
+| **24** Autonomous Agents | `ml4t-agent-governance`, `ml4t-agent-state-memory`, `ml4t-agent-tool-contracts`, `ml4t-multi-agent-forecasting`, `ml4t-research-operator` |
+| **25** Live Trading Systems | `ml4t-agent-governance`, `ml4t-kill-switch`, `ml4t-live-trading`, `ml4t-monitoring-alerting`, `ml4t-production-readiness` |
+| **26** MLOps and Governance | `ml4t-agent-governance`, `ml4t-drift-detection`, `ml4t-monitoring-alerting`, `ml4t-production-readiness` |
+| **27** The Systematic Edge | none |
+
+## Chapters with no mapped skill
+
+Six chapters have no skill pointing at them: 5 (Synthetic Financial Data), 10 (Text Feature Engineering), 13 (Deep Learning for Time Series), 22 (RAG for Financial Research), 23 (Knowledge Graphs), 27 (The Systematic Edge).
+
+Chapters 5, 10, 13, 14, 22 and 23 develop methods whose failure modes are
+either well covered by general ML practice or not yet reduced to a procedure
+worth writing down. Chapter 27 is a synthesis chapter with no method of its
+own. These are gaps in the collection, recorded here rather than hidden.

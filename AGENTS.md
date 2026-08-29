@@ -1,4 +1,4 @@
-# ML4T Skills — Authoring Guide
+# ML4T Skills, Authoring Guide
 
 **Location**: This repository
 **Purpose**: 61 standalone agent skills that teach quant ML techniques correctly
@@ -16,18 +16,22 @@
 
 The canonical distribution is this Git repository: category directories at the repo root, each containing standalone `SKILL.md` files. Skills are plain Markdown with YAML frontmatter, so release archives or direct file copies also work. There is no package-manager build step and no generated registry required.
 
-Typical installation is a local clone into the consuming agent's configured skill directory, for example:
+Skill discovery is one level deep, at `<skills-dir>/<skill-name>/SKILL.md`, so the
+category directories in this repo have to be flattened at install time. That is
+what `scripts/install.sh` does; do not document a bare clone into a skills
+directory, because it silently installs nothing.
 
 ```bash
-git clone https://github.com/ml4t/skills.git ~/.claude/skills/ml4t
-git clone https://github.com/ml4t/skills.git .agents/skills/ml4t
+git clone https://github.com/ml4t/skills.git ~/.ml4t-skills
+~/.ml4t-skills/scripts/install.sh              # ~/.claude/skills
+~/.ml4t-skills/scripts/install.sh .agents/skills
 ```
 
 The repo itself must not check in runtime folders such as `.agents/`, `.claude/`, `.codex/`, or `.workspace/`. Those are local-only state.
 
 ### Frontmatter portability
-- `name`, `description`, `metadata` — portable across all runtimes
-- `when_to_use`, `paths`, `dependencies` — Claude Code extensions, ignored by Codex
+- `name`, `description`, `metadata`, portable across all runtimes
+- `when_to_use`, `paths`, `dependencies`, Claude Code extensions, ignored by Codex
 - `description` includes "Use when..." trigger language so Codex implicit matching works without `when_to_use`
 
 ## Design Philosophy: Concept-First, Library-Recommended (80/20)
@@ -97,14 +101,14 @@ from ml4t.{module} import {Class}
 ## Design Rules
 
 1. **80/20 split**: No `ml4t.*` imports before the Production Implementation section
-2. **WRONG/CORRECT pair is mandatory** — the single highest-value pattern for agents
+2. **WRONG/CORRECT pair is mandatory**, the single highest-value pattern for agents
 3. **Under 120 lines** (5000 tokens). Use `references/` subdirectory if more detail needed
-4. **Checklist at the end** — agents use these as verification steps
+4. **Checklist at the end**, agents use these as verification steps
 5. **Description is third-person** with trigger keywords ("Use when...")
 6. **File named `SKILL.md`** (uppercase, per agentskills.io standard)
-7. **Book reference in metadata only** — content is self-contained
-8. **No "QuantLab" branding** — use actual library names (`ml4t-data`, `ml4t-engineer`, etc.)
-9. **`quantlab_module` field is BANNED** — use `metadata.library` instead
+7. **Book reference in metadata only**, content is self-contained
+8. **No "QuantLab" branding**, use actual library names (`ml4t-data`, `ml4t-engineer`, etc.)
+9. **`quantlab_module` field is BANNED**, use `metadata.library` instead
 10. **Standard tools in examples**: sklearn, polars, numpy, scipy, pytorch, lightgbm, statsmodels
 
 ## Frontmatter Schema
@@ -162,12 +166,12 @@ Ground truth for all Production Implementation sections. Verified from library s
   - `from ml4t.data.futures import FuturesDataManager, ContinuousContractBuilder, build_continuous_contract`
 - `WikiPricesProvider` is the survivorship-bias-free historical US equities source through 2018.
 - `FREDProvider.fetch_ohlcv(..., vintage_date=...)` is the current point-in-time macro API.
-- `ContractSpec`, `FUTURES_REGISTRY` — futures contract specs
+- `ContractSpec`, `FUTURES_REGISTRY`, futures contract specs
 - `Config`, `BaseProvider`, `AssetClass`
 
 ### ml4t-backtest
-- `Strategy` (ABC) — `on_data(timestamp, data, context, broker)`, `on_start(broker)`, `on_end(broker)`
-- `Broker` — `submit_order()`, `get_position()`, `close_position()`, `cancel_order()`, `get_cash()`
+- `Strategy` (ABC), `on_data(timestamp, data, context, broker)`, `on_start(broker)`, `on_end(broker)`
+- `Broker`, `submit_order()`, `get_position()`, `close_position()`, `cancel_order()`, `get_cash()`
 - `Engine`, `run_backtest()`, `DataFeed`
 - `BacktestConfig`, `BacktestResult`, `CommissionType`
 - Current engine usage: `Engine(feed, strategy, config).run()` or `run_backtest(prices=..., strategy=..., signals=..., context=..., config=...)`
@@ -181,8 +185,8 @@ Ground truth for all Production Implementation sections. Verified from library s
   - Slippage: `NoSlippage`, `FixedSlippage`, `PercentageSlippage`, `VolumeShareSlippage`
 
 ### ml4t-engineer
-- `compute_features(data, features)` — main API (list of names, list of dicts, YAML path)
-- `FeatureCatalog`, `feature_catalog` — 120+ feature discovery
+- `compute_features(data, features)`, main API (list of names, list of dicts, YAML path)
+- `FeatureCatalog`, `feature_catalog`, 120+ feature discovery
 - `feature_catalog.list(...)` is the current discovery method
 - `MLDatasetBuilder`, `create_dataset_builder(features, labels, dates=None, scaler="standard")`
 - Use `builder.split(cv)` for CV folds; older helper patterns like `walk_forward()` / `get_train()` are stale
@@ -199,7 +203,7 @@ Ground truth for all Production Implementation sections. Verified from library s
 
 ### ml4t-diagnostic
 - Splitters: `CombinatorialCV`, `WalkForwardCV` (in `ml4t.diagnostic.splitters`)
-  - **NOT** `CombinatorialPurgedCV` — that name does not exist
+  - **NOT** `CombinatorialPurgedCV`, that name does not exist
 - Stable integration surface for metrics/workflows is `ml4t.diagnostic.api`
 - Package root reliably exports `Evaluator`, `EvaluationResult`, `ValidatedCrossValidation`, `FeatureSelector`, `SelectionReport`
 - Metrics from `ml4t.diagnostic.api`: `cross_sectional_ic_series`, `compute_ic_hac_stats`, `compute_permutation_importance`, `compute_shap_importance`
@@ -211,11 +215,11 @@ Ground truth for all Production Implementation sections. Verified from library s
 - `TradeAnalysis`, `PortfolioAnalysis`, `BarrierAnalysis`, `TradeShapAnalyzer`, `FeatureDiagnostics`, `FactorAnalysis`
 
 ### ml4t-live (`from ml4t.live import ...`)
-- `LiveEngine` — live trading engine
+- `LiveEngine`, live trading engine
 - Brokers: `AlpacaBroker`, `IBBroker`
 - Feeds: `AlpacaDataFeed`, `IBDataFeed`, `DataBentoFeed`, `CryptoFeed`, `OKXFundingFeed`
 - Safety: `SafeBroker`, `LiveRiskConfig`, `VirtualPortfolio`
-- **Key**: Reuses `Strategy` from `ml4t.backtest` — zero code changes for live deployment
+- **Key**: Reuses `Strategy` from `ml4t.backtest`, zero code changes for live deployment
 
 ## Source Material
 

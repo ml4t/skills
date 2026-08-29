@@ -21,21 +21,28 @@ Coding agents are strong at writing code, but financial ML has failure modes tha
 - **Production handoff**: stable patterns point to the corresponding `ml4t-data`, `ml4t-engineer`, `ml4t-backtest`, `ml4t-diagnostic`, or `ml4t-live` API.
 - **Agent portability**: the files are standard Markdown and can be used by Claude Code, Codex/OpenAI agents, or any tool that can discover and read local skill files.
 
-## Distribution
+## Installation
 
-The canonical distribution is this Git repository. There is no npm, Python package, or build step because the runtime artifact is the Markdown file itself.
+The canonical distribution is this Git repository. There is no npm package, Python package, or build step, because the runtime artifact is the Markdown file itself.
 
-Recommended installation:
+Agents discover skills one directory level deep, at `<skills-dir>/<skill-name>/SKILL.md`. This repository groups skills into category directories so it can be read, so cloning it into a skills directory as a single folder will not work: the `SKILL.md` files end up three levels down and nothing finds them. `scripts/install.sh` flattens the categories for you.
 
 ```bash
-# Claude Code user-level skills
-git clone https://github.com/ml4t/skills.git ~/.claude/skills/ml4t
+git clone https://github.com/ml4t/skills.git ~/.ml4t-skills
+cd ~/.ml4t-skills
 
-# Project-local Codex/OpenAI skills
-git clone https://github.com/ml4t/skills.git .agents/skills/ml4t
+./scripts/install.sh                    # ~/.claude/skills, the default
+./scripts/install.sh .agents/skills     # Codex, project-local
+./scripts/install.sh ~/.claude/skills --copy   # copies instead of symlinking
 ```
 
-Manual installation is also valid: download a release archive and copy the category directories into the skill directory used by your agent.
+The script symlinks each skill in as `ml4t-<skill-name>`, so `git pull` updates every installed skill at once, and the `ml4t-` prefix keeps them from colliding with skills you already have. It is idempotent and never overwrites a directory it did not create. Pass `--copy` when the install must not depend on the checkout.
+
+Copying by hand works too. Move each of the 61 skill directories, not the category directories, into your agent's skills directory.
+
+### What these files can do
+
+Nothing on their own. Every skill in this repository is Markdown: no executable scripts, no hooks, no MCP servers, no network calls. An empirical study of 31,132 public skills found that [26.1% contained at least one vulnerability](https://arxiv.org/abs/2601.10338), and that skills shipping executable scripts were 2.12 times more likely to be among them. Reading a skill before you install it is a reasonable habit, and here reading it is the whole audit.
 
 ## How Skills Work
 
