@@ -8,11 +8,6 @@ on:
 permissions:
   contents: read
 
-env:
-  # Renovate/Dependabot bump the pinned SHAs; the comment records the tag.
-  CHECKOUT: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-  SETUP_PYTHON: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-
 jobs:
   validate:
     runs-on: ubuntu-latest
