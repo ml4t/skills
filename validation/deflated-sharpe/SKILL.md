@@ -42,7 +42,7 @@ from scipy import stats
 
 def deflated_sharpe_ratio(observed_sr, n_trials, sr_std, n_obs,
                           skew=0.0, kurtosis=3.0):
-    """Deflate Sharpe ratio for multiple testing (Bailey & de Prado)."""
+    """Deflate a per-period (not annualised) Sharpe (Bailey & de Prado)."""
     # Expected max SR under null (Euler-Mascheroni approximation)
     euler_mascheroni = 0.5772
     e_max_sr = sr_std * (
@@ -58,16 +58,16 @@ def deflated_sharpe_ratio(observed_sr, n_trials, sr_std, n_obs,
     test_stat = (observed_sr - e_max_sr) / sr_se
     return stats.norm.cdf(test_stat)  # probability the skill is real
 
-# Apply to strategy search
-n_trials = len(sharpes)
+# sr_se is the standard error of a PER-PERIOD Sharpe. Passing annualised values
+# shrinks it by sqrt(252) and saturates DSR at 0.00 or 1.00 instead of measuring.
+per_period = np.array(sharpes) / np.sqrt(252)
 dsr = deflated_sharpe_ratio(
-    observed_sr=max(sharpes),
-    n_trials=n_trials,
-    sr_std=np.std(sharpes),
+    observed_sr=per_period.max(),
+    n_trials=len(per_period),
+    sr_std=per_period.std(),
     n_obs=252 * 5,  # 5 years daily
 )
-print(f"Observed Sharpe: {max(sharpes):.2f}")
-print(f"Trials tested: {n_trials}")
+print(f"Best of {len(sharpes)} trials: {max(sharpes):.2f} annualised")
 print(f"DSR: {dsr:.3f}")  # a probability, not a p-value: high is good
 ```
 

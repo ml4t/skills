@@ -38,6 +38,7 @@ print(f"R2: {score:.3f}")  # 0.15 - good enough, deploy
 # Five-gate validation: CPCV → PBO → Deflated Sharpe → SHAP → OOS holdout
 import numpy as np
 import lightgbm as lgb
+from scipy.stats import norm
 
 # Gate 1: CPCV - multiple train/test paths, not one split (see ml4t-cpcv)
 cv_sharpes = []
@@ -48,13 +49,19 @@ for train_idx, test_idx in time_aware_cv_splits:  # C(10,2) = 45 paths
     sharpe = np.mean(preds * y[test_idx]) / np.std(preds * y[test_idx]) * np.sqrt(252)
     cv_sharpes.append(sharpe)
 
-# Gate 2: PBO - fraction of paths with negative OOS Sharpe (see ml4t-backtest-overfitting)
-pbo = np.mean([s < 0 for s in cv_sharpes])
-assert pbo < 0.50, f"PBO {pbo:.0%} - model is likely overfit"
+# Gate 2: fraction of paths that lose money. This is NOT PBO, which ranks the
+# in-sample winner out of sample across splits (see ml4t-backtest-overfitting).
+loss_rate = np.mean([s < 0 for s in cv_sharpes])
+assert loss_rate < 0.50, f"{loss_rate:.0%} of paths negative - likely overfit"
 
-# Gate 3: Deflated Sharpe - adjust for number of trials (see ml4t-deflated-sharpe)
-expected_max = np.sqrt(2 * np.log(len(cv_sharpes)))
-dsr = (max(cv_sharpes) - expected_max) / (np.std(cv_sharpes) / np.sqrt(len(cv_sharpes)))
+# Gate 3: deflate the best path for the number of trials, in the same units as
+# cv_sharpes (see ml4t-deflated-sharpe for the full probability form)
+n = len(cv_sharpes)
+expected_max = np.std(cv_sharpes) * (
+    (1 - np.euler_gamma) * norm.ppf(1 - 1 / n)
+    + np.euler_gamma * norm.ppf(1 - 1 / (n * np.e))
+)
+assert max(cv_sharpes) > expected_max, "best path is inside the selection bound"
 
 # Gate 4: SHAP - verify features match hypothesis (see ml4t-shap-analysis)
 import shap

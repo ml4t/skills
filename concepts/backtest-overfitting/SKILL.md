@@ -65,18 +65,19 @@ PBO uses combinatorial CV (CSCV; see `cpcv` skill) to generate multiple train/te
 import numpy as np
 from itertools import combinations
 
-# PBO via CPCV paths: for each combination, rank strategies IS and OOS
 n_groups, n_test = 8, 2
-logits = []  # normalized OOS rank of IS-best strategy
-for test_groups in combinations(range(n_groups), n_test):
-    is_sharpe = [backtest(p, train_data)["sharpe"] for p in param_grid]
-    oos_sharpe = [backtest(p, test_data)["sharpe"] for p in param_grid]
-    best_is = np.argmax(is_sharpe)
-    # Relative OOS rank of IS-best strategy
-    oos_rank = np.argsort(oos_sharpe)[::-1].tolist().index(best_is)
-    logits.append(oos_rank / len(param_grid))
+groups = np.array_split(np.arange(len(data)), n_groups)
+ranks = []  # relative OOS rank of the strategy chosen in sample
+for test_g in combinations(range(n_groups), n_test):
+    test = np.concatenate([groups[g] for g in test_g])
+    train = np.concatenate([groups[g] for g in range(n_groups) if g not in test_g])
+    is_sharpe = [backtest(p, data[train])["sharpe"] for p in param_grid]
+    oos_sharpe = [backtest(p, data[test])["sharpe"] for p in param_grid]
+    best_is = int(np.argmax(is_sharpe))  # the one you would have shipped
+    rank = np.argsort(oos_sharpe)[::-1].tolist().index(best_is)
+    ranks.append(rank / (len(param_grid) - 1))  # 0 = best OOS, 1 = worst
 
-pbo = np.mean(np.array(logits) > 0.5)  # PBO > 0.5 = no edge
+pbo = np.mean(np.array(ranks) > 0.5)  # how often the IS winner is below median
 ```
 
 ## Red Flags
