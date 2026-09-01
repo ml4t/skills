@@ -36,7 +36,7 @@ cd ~/.ml4t-skills
 ./scripts/install.sh ~/.claude/skills --copy   # copies instead of symlinking
 ```
 
-The script symlinks each skill in as `ml4t-<skill-name>`, so `git pull` updates every installed skill at once, and the `ml4t-` prefix keeps them from colliding with skills you already have. It is idempotent and never overwrites a directory it did not create. Pass `--copy` when the install must not depend on the checkout.
+The script symlinks each skill in as `ml4t-<skill-name>`, so `git pull` updates every installed skill at once, and the `ml4t-` prefix keeps them from colliding with skills you already have. It is idempotent and never overwrites a directory it did not create: a copy install carries a `.ml4t-installed` marker, and only a marked directory is ever replaced. Pass `--copy` when the install must not depend on the checkout.
 
 Copying by hand works too. Move each of the 61 skill directories, not the category directories, into your agent's skills directory.
 

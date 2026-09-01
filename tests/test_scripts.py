@@ -214,6 +214,22 @@ class InstallerFlattensCategories(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((target / "ml4t-data-leakage").is_symlink())
 
+    def test_a_hand_copied_skill_is_never_deleted(self):
+        # Same directory name, same `name:` frontmatter, plus local edits and no
+        # installer marker. Only the marker may authorise a delete.
+        target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        mine = target / "ml4t-data-leakage"
+        mine.mkdir(parents=True)
+        source = (ROOT / "concepts" / "data-leakage" / "SKILL.md").read_text()
+        (mine / "SKILL.md").write_text(source + "\n<!-- my notes -->\n")
+        for argv in ([], ["--copy"]):
+            result = __import__("subprocess").run(
+                ["bash", str(self.SCRIPT), str(target), *argv],
+                capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("conflict: ml4t-data-leakage", result.stderr)
+            self.assertTrue((mine / "SKILL.md").read_text().endswith("<!-- my notes -->\n"))
+
     def test_a_foreign_directory_using_our_prefix_is_still_a_conflict(self):
         target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
         squatted = target / "ml4t-data-leakage"
@@ -332,16 +348,31 @@ class ExportsAreModuleLevel(unittest.TestCase):
         """)
         self.assertIn("DataManager", exports)
 
-    def test_all_extended_after_a_literal_assignment_still_exports_both(self):
+    def test_a_name_only_listed_in_all_is_not_an_export(self):
+        # Listing a name in __all__ does not bind it. Trusting the list would
+        # let a misspelled or removed library export pass the API check.
         exports = self.exports("""
-            __all__ = ["ContractSpec"]
-            try:
-                from m.core import DataManager
-                __all__.extend(["DataManager"])
-            except ImportError:
-                pass
+            __all__ = ["ContractSpec", "Removed"]
+            from m.contracts import ContractSpec
         """)
-        self.assertEqual({"ContractSpec", "DataManager"}, exports & {"ContractSpec", "DataManager"})
+        self.assertIn("ContractSpec", exports)
+        self.assertNotIn("Removed", exports)
+
+    def test_a_type_checking_only_import_is_not_a_runtime_export(self):
+        exports = self.exports("""
+            from typing import TYPE_CHECKING
+            if TYPE_CHECKING:
+                from m.core import Frame
+            else:
+                Frame = object
+        """)
+        self.assertIn("Frame", exports)  # bound by the else branch
+        exports = self.exports("""
+            from typing import TYPE_CHECKING
+            if TYPE_CHECKING:
+                from m.core import Frame
+        """)
+        self.assertNotIn("Frame", exports)
 
 
 class QuotedFrontmatterKeysAreNormalized(unittest.TestCase):

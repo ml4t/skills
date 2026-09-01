@@ -18,6 +18,7 @@ set -euo pipefail
 shopt -s nullglob
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MARKER=".ml4t-installed"   # written into every copy, so a rerun knows it is ours
 TARGET=""
 COPY=0
 
@@ -64,12 +65,10 @@ for skill in "${skills[@]}"; do
             current=$((current + 1))
             continue
         fi
-        # A plain directory holding a SKILL.md whose `name:` is this skill's is
-        # a previous --copy install, so it is ours to refresh. Without this test
-        # every rerun of --copy would report the whole install as conflicting.
-        if [ ! -L "$dest" ] && [ -f "$dest/SKILL.md" ] &&
-           grep -qx "name: $name" "$dest/SKILL.md"; then
-            rm -rf "$dest"
+        # A marker this script wrote is the only proof a copy is ours. Matching
+        # on the SKILL.md contents instead would delete a skill someone copied
+        # in by hand and edited, since that file carries the same `name:`.
+        if [ ! -L "$dest" ] && [ -f "$dest/$MARKER" ]; then
             replaced=$((replaced + 1))
         else
             # Not ours: leave it alone, but this skill is now missing from the
@@ -81,13 +80,19 @@ for skill in "${skills[@]}"; do
     fi
 
     if [ "$COPY" -eq 1 ]; then
-        # Copy beside the destination and move into place, so an interrupted
-        # run cannot leave a half-written skill where a complete one was.
-        staging="$(mktemp -d "$TARGET/.$name.XXXXXX")"
+        # Stage the whole copy first and only then swap, keeping the previous
+        # install until the new one is in place: an interrupted or failed run
+        # must never leave the target without a working skill.
+        staging="$(mktemp -d "$TARGET/.staging-$name.XXXXXX")"
         cp -r "$dir" "$staging/$name"
+        printf 'installed by %s\n' "$REPO/scripts/install.sh" > "$staging/$name/$MARKER"
+        if [ -e "$dest" ]; then
+            mv "$dest" "$staging/previous"
+        fi
         mv "$staging/$name" "$dest"
-        rmdir "$staging"
+        rm -rf "$staging"
     else
+        rm -rf "$dest"       # only ever a marked copy of ours; see above
         ln -s "$dir" "$dest"
     fi
     installed=$((installed + 1))
