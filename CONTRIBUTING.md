@@ -67,10 +67,14 @@ at the directory holding the `ml4t-*` repositories.
   four fifths of a skill teaches the method in standard tools; the library is
   the handoff, not the lesson.
 - Every name imported from `ml4t.*` must exist in the published package, and
-  every call to one of those names must fit its signature: no unknown keyword
-  arguments, no missing required ones. This is a static check against the
-  library source, so it catches a call that cannot run, not one that runs and
-  then raises on a value it was given.
+  every call made directly through an imported name must fit its signature: no
+  unknown keyword arguments, no missing required ones. Two limits are worth
+  knowing before relying on it. It is static, so it catches a call that cannot
+  run, not one that runs and then raises on a value it was given -
+  `execution_mode` and `experimental` are both validated at runtime and both
+  were wrong in shipped skills for months. And it follows imported names only,
+  so a method reached through an instance - `engine.run()`, `builder.build()` -
+  is not checked at all. Run a snippet before you trust it.
 - `dependencies` naming skills that exist, with no cycles.
 
 ## Library versions

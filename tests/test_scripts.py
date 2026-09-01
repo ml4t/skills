@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.util
 import re
 import sys
+import textwrap
 import unittest
 from datetime import UTC, datetime
 from pathlib import Path
@@ -187,6 +188,42 @@ class InstallerFlattensCategories(unittest.TestCase):
         self.assertIn("ml4t-data-leakage", result.stderr)
         self.assertEqual(list(squatted.iterdir()), [])  # the existing directory is untouched
 
+    def test_rerunning_a_copy_install_refreshes_it_instead_of_conflicting(self):
+        target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        run = __import__("subprocess").run
+        argv = ["bash", str(self.SCRIPT), str(target), "--copy"]
+        run(argv, capture_output=True, text=True, check=True)
+        stale = target / "ml4t-data-leakage" / "SKILL.md"
+        stale.write_text("name: ml4t-data-leakage\nstale\n")
+        second = run(argv, capture_output=True, text=True)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertNotIn("conflict", second.stderr)
+        self.assertIn("61 replaced", second.stdout)
+        self.assertEqual(
+            stale.read_text(),
+            (ROOT / "concepts" / "data-leakage" / "SKILL.md").read_text(),
+        )
+        self.assertEqual([p for p in target.iterdir() if p.name.startswith(".")], [])
+
+    def test_a_symlink_install_replaces_an_earlier_copy_install(self):
+        target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        run = __import__("subprocess").run
+        run(["bash", str(self.SCRIPT), str(target), "--copy"],
+            capture_output=True, text=True, check=True)
+        result = run(["bash", str(self.SCRIPT), str(target)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((target / "ml4t-data-leakage").is_symlink())
+
+    def test_a_foreign_directory_using_our_prefix_is_still_a_conflict(self):
+        target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        squatted = target / "ml4t-data-leakage"
+        squatted.mkdir(parents=True)
+        (squatted / "SKILL.md").write_text("name: someone-elses-skill\n")
+        result = __import__("subprocess").run(
+            ["bash", str(self.SCRIPT), str(target), "--copy"], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual((squatted / "SKILL.md").read_text(), "name: someone-elses-skill\n")
+
     def test_an_unknown_option_is_refused(self):
         target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
         result = __import__("subprocess").run(
@@ -255,3 +292,67 @@ class DependencyGraphIsAcyclic(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExportsAreModuleLevel(unittest.TestCase):
+    """A name only counts as an export if `from module import name` would work."""
+
+    def exports(self, source: str) -> set[str]:
+        tmp = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        module = tmp / "m.py"
+        module.write_text(textwrap.dedent(source))
+        return validate.exported_names(module)
+
+    def test_a_method_is_not_an_export(self):
+        exports = self.exports("""
+            class Broker:
+                def submit(self):
+                    helper = 1
+                    return helper
+        """)
+        self.assertIn("Broker", exports)
+        self.assertNotIn("submit", exports)
+        self.assertNotIn("helper", exports)
+
+    def test_a_function_local_import_is_not_an_export(self):
+        exports = self.exports("""
+            def build():
+                from decimal import Decimal
+                return Decimal
+        """)
+        self.assertIn("build", exports)
+        self.assertNotIn("Decimal", exports)
+
+    def test_a_conditional_module_level_import_is_an_export(self):
+        exports = self.exports("""
+            try:
+                from m.inner import DataManager
+            except ImportError:
+                DataManager = None
+        """)
+        self.assertIn("DataManager", exports)
+
+    def test_all_extended_after_a_literal_assignment_still_exports_both(self):
+        exports = self.exports("""
+            __all__ = ["ContractSpec"]
+            try:
+                from m.core import DataManager
+                __all__.extend(["DataManager"])
+            except ImportError:
+                pass
+        """)
+        self.assertEqual({"ContractSpec", "DataManager"}, exports & {"ContractSpec", "DataManager"})
+
+
+class QuotedFrontmatterKeysAreNormalized(unittest.TestCase):
+    def test_a_quoted_banned_key_is_still_rejected(self):
+        tmp = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        skill = tmp / "concepts" / "widget"
+        skill.mkdir(parents=True)
+        source = (ROOT / "concepts" / "data-leakage" / "SKILL.md").read_text()
+        source = source.replace("name: ml4t-data-leakage", 'name: ml4t-widget\n"category": concepts')
+        (skill / "SKILL.md").write_text(source)
+        errors: list = []
+        validate.validate_skill(skill / "SKILL.md", {"widget"}, errors)
+        self.assertTrue(any("banned frontmatter field: category" in e.message for e in errors),
+                        [e.message for e in errors])

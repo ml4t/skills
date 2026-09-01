@@ -20,6 +20,9 @@ reviews/
 SKILL_AUDIT.md
 REVIEW_PROMPT.md
 VALIDATION_REPORT.md
+# Runtime state written by ml4t-live during API checks
+/.ml4t_risk_state*
+
 # roborev local state
 /.roborev/
 /.roborev.toml

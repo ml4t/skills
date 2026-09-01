@@ -52,6 +52,7 @@ mkdir -p "$TARGET"
 
 installed=0
 current=0
+replaced=0
 conflicts=0
 for skill in "${skills[@]}"; do
     dir="$(dirname "$skill")"
@@ -63,22 +64,36 @@ for skill in "${skills[@]}"; do
             current=$((current + 1))
             continue
         fi
-        # Not ours: leave it alone, but this skill is now missing from the
-        # install, so the run must not report success.
-        echo "conflict: $name already exists at $dest and is not ours" >&2
-        conflicts=$((conflicts + 1))
-        continue
+        # A plain directory holding a SKILL.md whose `name:` is this skill's is
+        # a previous --copy install, so it is ours to refresh. Without this test
+        # every rerun of --copy would report the whole install as conflicting.
+        if [ ! -L "$dest" ] && [ -f "$dest/SKILL.md" ] &&
+           grep -qx "name: $name" "$dest/SKILL.md"; then
+            rm -rf "$dest"
+            replaced=$((replaced + 1))
+        else
+            # Not ours: leave it alone, but this skill is now missing from the
+            # install, so the run must not report success.
+            echo "conflict: $name already exists at $dest and is not ours" >&2
+            conflicts=$((conflicts + 1))
+            continue
+        fi
     fi
 
     if [ "$COPY" -eq 1 ]; then
-        cp -r "$dir" "$dest"
+        # Copy beside the destination and move into place, so an interrupted
+        # run cannot leave a half-written skill where a complete one was.
+        staging="$(mktemp -d "$TARGET/.$name.XXXXXX")"
+        cp -r "$dir" "$staging/$name"
+        mv "$staging/$name" "$dest"
+        rmdir "$staging"
     else
         ln -s "$dir" "$dest"
     fi
     installed=$((installed + 1))
 done
 
-echo "installed $installed skills into $TARGET ($current already current)"
+echo "installed $installed skills into $TARGET ($current already current, $replaced replaced)"
 echo "each is available as ml4t-<skill-name>, for example /ml4t-data-leakage"
 
 if [ "$conflicts" -gt 0 ]; then

@@ -8,6 +8,7 @@ import ast
 import os
 import re
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -71,13 +72,19 @@ def parse_frontmatter(path: Path, text: str, errors: list[Error]) -> tuple[dict[
         if in_metadata and line.startswith("  "):
             key, sep, value = line.strip().partition(":")
             if sep:
-                fields[f"metadata.{key}"] = value.strip().strip('"')
+                fields[f"metadata.{normalize_key(key)}"] = value.strip().strip('"')
             continue
         in_metadata = False
         key, sep, value = line.partition(":")
         if sep:
-            fields[key.strip()] = value.strip().strip('"')
+            fields[normalize_key(key)] = value.strip().strip('"')
     return fields, body
+
+
+def normalize_key(key: str) -> str:
+    """`"category": x` is valid YAML for the key `category`, so unquote before
+    comparing. Otherwise a banned field slips through by being quoted."""
+    return key.strip().strip("'\"").strip()
 
 
 def parse_dependencies(value: str) -> list[str]:
@@ -233,14 +240,56 @@ def module_name(root: Path, path: Path) -> str:
     return ".".join(parts)
 
 
+def _module_level(body: list[ast.stmt]) -> Iterator[ast.stmt]:
+    """Yield module-level statements, descending only into conditional blocks.
+
+    `ast.walk` would also yield methods, comprehension variables and every
+    function-local import, none of which a caller can import from the module.
+    `if TYPE_CHECKING:` and `try: ... except ImportError:` do define real
+    module-level names, so those bodies are followed.
+    """
+    for node in body:
+        if isinstance(node, ast.If | ast.Try):
+            for block in (node.body, node.orelse, getattr(node, "finalbody", [])):
+                yield from _module_level(block)
+            for handler in getattr(node, "handlers", []):
+                yield from _module_level(handler.body)
+            continue
+        yield node
+
+
+def literal_all(body: list[ast.stmt]) -> set[str]:
+    """Names in a literal `__all__`, which may re-export a submodule symbol.
+
+    Only the literal assignment is read. Several `ml4t` packages then build the
+    list up with `.extend()` inside a `try/except ImportError`, so this is a
+    contribution to the export set, never the whole of it.
+    """
+    for node in _module_level(body):
+        if not isinstance(node, ast.Assign | ast.AnnAssign):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if not any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets):
+            continue
+        if node.value is None:
+            continue
+        try:
+            value = ast.literal_eval(node.value)
+        except ValueError:
+            continue
+        if isinstance(value, list | tuple) and all(isinstance(v, str) for v in value):
+            return set(value)
+    return set()
+
+
 def exported_names(path: Path) -> set[str]:
     try:
         tree = ast.parse(path.read_text(encoding="utf-8"))
     except SyntaxError:
         return set()
 
-    names: set[str] = set()
-    for node in ast.walk(tree):
+    names: set[str] = literal_all(tree.body)
+    for node in _module_level(tree.body):
         if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
             names.add(node.name)
         elif isinstance(node, ast.Assign):
