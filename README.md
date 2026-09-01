@@ -48,12 +48,12 @@ Nothing on their own. Every skill in this repository is Markdown: no executable 
 
 Every skill follows the same concept-first pattern:
 
-1. **The Problem** -- what goes wrong without this knowledge
-2. **WRONG code** -- the naive approach that looks right but fails
-3. **CORRECT code** -- the right pattern using standard tools
-4. **Guardrails** -- specific red flags to watch for
-5. **Production Implementation** -- optional `ml4t-*` library handoff when a stable API exists
-6. **Checklist** -- verification steps the agent can follow
+1. **The Problem** - what goes wrong without this knowledge
+2. **WRONG code** - the naive approach that looks right but fails
+3. **CORRECT code** - the right pattern using standard tools
+4. **Guardrails** - specific red flags to watch for
+5. **Production Implementation** - optional `ml4t-*` library handoff when a stable API exists
+6. **Checklist** - verification steps the agent can follow
 
 The first 80% teaches the method with standard Python tools such as `polars`, `numpy`, `scikit-learn`, `scipy`, `statsmodels`, `pytorch`, and `lightgbm`. The final section, when present, points to the production-grade `ml4t-*` library implementation.
 
@@ -220,9 +220,12 @@ The method in these files is also taught live, worked through on a real strategy
 *Between cohorts, the [**Insights** newsletter](https://insights.ml4trading.io/) covers the same ground weekly, source by source.*
 <!-- offerings:all end -->
 
-## Authoring Rules
+## Contributing
 
-New skills should follow [AGENTS.md](AGENTS.md):
+Outside contributions are welcome, and a correction to a skill that is subtly
+wrong is the most useful kind. [CONTRIBUTING.md](CONTRIBUTING.md) covers what
+belongs here and how to run the checks locally; [AGENTS.md](AGENTS.md) is the
+full authoring specification. In short:
 
 - Use `name: ml4t-{directory-name}`
 - Include trigger language in `description`
@@ -230,6 +233,13 @@ New skills should follow [AGENTS.md](AGENTS.md):
 - Include `### WRONG`, `### CORRECT`, guardrails, and a final checklist
 - Keep each `SKILL.md` to 120 lines or fewer
 - Do not include local agent state, memory, transitions, credentials, or workspace artifacts
+
+CI enforces all of the above, checks every `ml4t.*` name in a Production
+Implementation snippet against the published packages, and rejects a stale
+[SKILL_CHAPTER_MAP.md](SKILL_CHAPTER_MAP.md).
+
+Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+Security problems go through [SECURITY.md](SECURITY.md), not a public issue.
 
 ## Book
 
@@ -239,9 +249,12 @@ These skills distill techniques from [*Machine Learning for Algorithmic Trading*
 - The code, 27 chapters of executed notebooks: [stefan-jansen/machine-learning-for-trading](https://github.com/stefan-jansen/machine-learning-for-trading)
 - Weekly research writing on the same subjects: [ML4T Insights](https://insights.ml4trading.io/)
 
-## License
+## License and Citation
 
 This repository is licensed under [Apache-2.0](LICENSE).
 
 The license applies to the repository contents. It does not grant trademark rights
 in ML4T, Machine Learning for Algorithmic Trading, or related project branding.
+
+If you use these skills in published work, [CITATION.cff](CITATION.cff) has the
+citation metadata for the repository and the book.

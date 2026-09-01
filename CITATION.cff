@@ -1,0 +1,35 @@
+cff-version: 1.2.0
+title: ML4T Agent Skills
+message: >-
+  If you use these skills in your work, please cite both this
+  repository and the book the method comes from.
+type: software
+authors:
+  - given-names: Stefan
+    family-names: Jansen
+    email: pm@ml4trading.io
+    website: 'https://ml4trading.io'
+repository-code: 'https://github.com/ml4t/skills'
+url: 'https://ml4trading.io'
+abstract: >-
+  61 standalone agent skills that teach AI coding assistants the
+  Machine Learning for Trading workflow: leakage-safe quant ML,
+  point-in-time data handling, purged cross-validation, cost-aware
+  backtesting, and autonomous research workflows. Each skill is a
+  Markdown file pairing a wrong pattern with the correct one.
+keywords:
+  - machine learning
+  - algorithmic trading
+  - quantitative finance
+  - backtesting
+  - data leakage
+  - agent skills
+license: Apache-2.0
+references:
+  - type: book
+    title: Machine Learning for Algorithmic Trading
+    edition: '3'
+    authors:
+      - given-names: Stefan
+        family-names: Jansen
+    url: 'https://ml4trading.io'

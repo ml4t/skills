@@ -1,0 +1,38 @@
+name: Correction to an existing skill
+description: A skill teaches something wrong, stale, or misleading.
+labels: [correction]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Corrections are the most valuable contribution here, especially when a
+        `### CORRECT` block is subtly wrong.
+  - type: input
+    id: skill
+    attributes:
+      label: Skill
+      description: Path to the file, for example `features/triple-barrier/SKILL.md`.
+      placeholder: category/skill-name/SKILL.md
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong
+      description: Quote the line or block, and say what it does that it should not.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: How you established it
+      description: >
+        A short numerical demonstration, a pointer to library source, or a
+        citation. An assertion alone is hard to act on.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested correction
+      description: Optional. A pull request is welcome instead.

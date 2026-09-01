@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question about the book or the ml4t-* libraries
+    url: https://github.com/stefan-jansen/machine-learning-for-trading/discussions
+    about: Ask about the book's chapters, notebooks, or the Python packages there.
+  - name: Report a security problem
+    url: https://github.com/ml4t/skills/security/policy
+    about: Report privately instead of opening a public issue.

@@ -1,0 +1,60 @@
+name: Propose a new skill
+description: A failure mode that no existing skill prevents.
+labels: [new-skill]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Read the "What belongs in this repository" section of
+        [CONTRIBUTING.md](https://github.com/ml4t/skills/blob/main/CONTRIBUTING.md)
+        first. The bar is a specific mistake a capable agent makes anyway, whose
+        result looks plausible enough to ship.
+  - type: textarea
+    id: failure
+    attributes:
+      label: The failure mode
+      description: What does an agent do wrong, and why does the result look fine?
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: The correction
+      description: >
+        The pattern that fixes it, in standard tools (polars, numpy,
+        scikit-learn, scipy, statsmodels, pytorch, lightgbm).
+    validations:
+      required: true
+  - type: input
+    id: chapters
+    attributes:
+      label: Book chapters
+      description: >
+        Which chapters of Machine Learning for Algorithmic Trading, 3rd Edition
+        develop this? Used for `metadata.book_chapters`.
+      placeholder: "7, 16"
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - concepts
+        - data
+        - features
+        - validation
+        - backtest
+        - portfolio
+        - advanced-ai
+        - production
+        - infrastructure
+        - workflows
+    validations:
+      required: true
+  - type: textarea
+    id: overlap
+    attributes:
+      label: Why an existing skill does not already cover this
+    validations:
+      required: true
