@@ -101,7 +101,7 @@ from ml4t.backtest import Strategy  # Same Strategy class as backtest
 from ml4t.live import AlpacaDataFeed, AlpacaBroker, LiveEngine, LiveRiskConfig, SafeBroker
 
 risk = LiveRiskConfig(execution_mode="shadow", max_drawdown_pct=0.10)
-broker = SafeBroker(AlpacaBroker(), risk)  # pre-trade limits and kill switch
+broker = SafeBroker(AlpacaBroker(api_key, secret_key), risk)  # pre-trade limits and kill switch
 feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"], experimental=True)
 engine = LiveEngine(MyStrategy(), broker, feed)  # run() is a coroutine
 asyncio.run(engine.run())

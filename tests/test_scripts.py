@@ -139,6 +139,100 @@ class BannedFrontmatterFieldsAreRejected(unittest.TestCase):
         self.assertFalse([m for m in self.check(self.BASE) if "banned" in m])
 
 
+class InstallerFlattensCategories(unittest.TestCase):
+    """install.sh is the executable surface a reader is told to run."""
+
+    SCRIPT = ROOT / "scripts" / "install.sh"
+
+    def run_install(self, *args):
+        target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        return target, __import__("subprocess").run(
+            ["bash", str(self.SCRIPT), str(target), *args],
+            capture_output=True, text=True,
+        )
+
+    def test_symlink_install_flattens_every_skill_one_level_deep(self):
+        target, result = self.run_install()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        expected = {f"ml4t-{p.parent.name}" for p in ROOT.glob("*/*/SKILL.md")}
+        self.assertEqual({d.name for d in target.iterdir()}, expected)
+        for directory in target.iterdir():
+            self.assertTrue(directory.is_symlink())
+            self.assertTrue((directory / "SKILL.md").is_file())
+
+    def test_copy_install_does_not_depend_on_the_checkout(self):
+        target, result = self.run_install("--copy")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        one = next(target.iterdir())
+        self.assertFalse(one.is_symlink())
+        self.assertTrue((one / "SKILL.md").is_file())
+
+    def test_rerunning_over_its_own_install_is_a_no_op(self):
+        target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        run = __import__("subprocess").run
+        first = run(["bash", str(self.SCRIPT), str(target)], capture_output=True, text=True)
+        second = run(["bash", str(self.SCRIPT), str(target)], capture_output=True, text=True)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertIn("installed 0 skills", second.stdout)
+        self.assertIn("already current", second.stdout)
+        self.assertIn("installed 61 skills", first.stdout)
+
+    def test_a_taken_name_fails_the_run_instead_of_reporting_success(self):
+        target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        squatted = target / "ml4t-data-leakage"
+        squatted.mkdir(parents=True)
+        result = __import__("subprocess").run(
+            ["bash", str(self.SCRIPT), str(target)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("ml4t-data-leakage", result.stderr)
+        self.assertEqual(list(squatted.iterdir()), [])  # the existing directory is untouched
+
+    def test_an_unknown_option_is_refused(self):
+        target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        result = __import__("subprocess").run(
+            ["bash", str(self.SCRIPT), str(target), "--wipe"], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("unknown option", result.stderr)
+
+
+class RepositoryShapeIsEnforced(unittest.TestCase):
+    def tree(self, *skills: tuple[str, ...]) -> Path:
+        tmp = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        for parts in skills:
+            directory = tmp.joinpath(*parts)
+            directory.mkdir(parents=True)
+            (directory / "SKILL.md").write_text("---\n---\n")
+        return tmp
+
+    def discover(self, root: Path):
+        errors: list = []
+        skills = validate.discover_skills(root, errors)
+        return skills, [e.message for e in errors]
+
+    def test_a_skill_nested_too_deep_is_reported(self):
+        root = self.tree(("category", "alpha"), ("category", "group", "beta"))
+        skills, messages = self.discover(root)
+        self.assertEqual([p.parent.name for p in skills], ["alpha"])
+        self.assertEqual(messages, ["SKILL.md must live at <category>/<skill>/SKILL.md"])
+
+    def test_duplicate_names_across_categories_are_reported(self):
+        root = self.tree(("data", "alpha"), ("features", "alpha"))
+        _, messages = self.discover(root)
+        self.assertEqual(messages, ["duplicate skill name, also at data/alpha"])
+
+    def test_a_well_shaped_tree_reports_nothing(self):
+        root = self.tree(("data", "alpha"), ("features", "beta"))
+        skills, messages = self.discover(root)
+        self.assertEqual([p.parent.name for p in skills], ["alpha", "beta"])
+        self.assertEqual(messages, [])
+
+    def test_hidden_directories_are_ignored(self):
+        root = self.tree(("data", "alpha"), (".worktrees", "copy", "alpha"))
+        skills, messages = self.discover(root)
+        self.assertEqual([p.parent.name for p in skills], ["alpha"])
+        self.assertEqual(messages, [])
+
+
 class DependencyGraphIsAcyclic(unittest.TestCase):
     def test_the_repository_graph_has_no_cycle(self):
         skills = sorted(ROOT.glob("*/*/SKILL.md"))

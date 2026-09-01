@@ -106,7 +106,7 @@ config = LiveRiskConfig(
     max_drawdown_pct=0.15,     # positive fraction below the high-water mark
     max_position_value=50_000.0,
 )
-broker = SafeBroker(AlpacaBroker(...), config)
+broker = SafeBroker(AlpacaBroker(api_key, secret_key), config)
 # A breach latches the switch and blocks risk-increasing orders. Flattening is
 # a separate call: await broker.close_all_positions()
 ```

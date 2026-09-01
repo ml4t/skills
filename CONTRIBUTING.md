@@ -52,10 +52,12 @@ at the directory holding the `ml4t-*` repositories.
 
 ## The rules the validator enforces
 
-- One file, `SKILL.md`, in its own directory under an existing category.
+- One file, `SKILL.md`, at `<category>/<skill-name>/SKILL.md` and nowhere else.
+  Install flattens the categories away, so the directory name has to be unique
+  across the whole repository.
 - `name: ml4t-<directory-name>`, matching the directory exactly.
-- `description` written in the third person and containing "Use when", so
-  runtimes that match implicitly can find it.
+- `description` containing "Use when", so runtimes that match implicitly can
+  find it.
 - `metadata.book_chapters` naming at least one chapter between 1 and 27.
 - 120 lines or fewer, including frontmatter. Longer material goes in a
   `references/` subdirectory.
@@ -64,11 +66,17 @@ at the directory holding the `ml4t-*` repositories.
 - No `ml4t.*` import anywhere before `## Production Implementation`. The first
   four fifths of a skill teaches the method in standard tools; the library is
   the handoff, not the lesson.
-- Every name imported from `ml4t.*` must exist in the published package.
+- Every name imported from `ml4t.*` must exist in the published package, and
+  every call to one of those names must fit its signature: no unknown keyword
+  arguments, no missing required ones. This is a static check against the
+  library source, so it catches a call that cannot run, not one that runs and
+  then raises on a value it was given.
 - `dependencies` naming skills that exist, with no cycles.
 
 ## Style
 
+- Write descriptions in the third person: what the skill does, then when to
+  reach for it. No check enforces this; a reviewer will ask.
 - Teach the method, not the library. A reader without the `ml4t-*` packages
   installed should still learn something they can apply.
 - The WRONG example has to be code someone would plausibly write. An obviously

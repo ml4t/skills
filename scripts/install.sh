@@ -51,7 +51,8 @@ fi
 mkdir -p "$TARGET"
 
 installed=0
-skipped=0
+current=0
+conflicts=0
 for skill in "${skills[@]}"; do
     dir="$(dirname "$skill")"
     name="ml4t-$(basename "$dir")"
@@ -59,11 +60,13 @@ for skill in "${skills[@]}"; do
 
     if [ -e "$dest" ] || [ -L "$dest" ]; then
         if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$dir")" ]; then
-            skipped=$((skipped + 1))
+            current=$((current + 1))
             continue
         fi
-        echo "skip: $name already exists at $dest and is not ours" >&2
-        skipped=$((skipped + 1))
+        # Not ours: leave it alone, but this skill is now missing from the
+        # install, so the run must not report success.
+        echo "conflict: $name already exists at $dest and is not ours" >&2
+        conflicts=$((conflicts + 1))
         continue
     fi
 
@@ -75,5 +78,10 @@ for skill in "${skills[@]}"; do
     installed=$((installed + 1))
 done
 
-echo "installed $installed skills into $TARGET ($skipped skipped)"
+echo "installed $installed skills into $TARGET ($current already current)"
 echo "each is available as ml4t-<skill-name>, for example /ml4t-data-leakage"
+
+if [ "$conflicts" -gt 0 ]; then
+    echo "$conflicts skill(s) not installed: the name was taken. Resolve and re-run." >&2
+    exit 1
+fi

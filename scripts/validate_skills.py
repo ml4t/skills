@@ -136,8 +136,11 @@ def validate_skill(path: Path, skill_names: set[str], errors: list[Error]) -> No
         fail(errors, path, "missing ### CORRECT heading")
     if "## Guardrails" not in text:
         fail(errors, path, "missing ## Guardrails section")
-    if "## Checklist" not in text:
+    sections = re.findall(r"^## (.+?)\s*$", text, flags=re.MULTILINE)
+    if "Checklist" not in sections:
         fail(errors, path, "missing ## Checklist section")
+    elif sections[-1] != "Checklist":
+        fail(errors, path, f"## Checklist must be the last section, not ## {sections[-1]}")
 
     before_production = text.split("## Production Implementation", 1)[0]
     if re.search(r"^(from|import)\s+ml4t\.", before_production, flags=re.MULTILINE):
@@ -275,6 +278,77 @@ def discover_ml4t_modules(library_root: Path) -> dict[str, Path]:
     return module_files
 
 
+def callable_signature(tree: ast.AST, symbol: str) -> tuple[list[str], set[str], bool, bool] | None:
+    """Return (positional names, required names, takes *args, takes **kwargs).
+
+    Resolves a plain function, a class through its own ``__init__``, or a
+    dataclass through its annotated fields. Returns None when the target is
+    anything else - an inherited ``__init__``, a re-export, a decorated factory
+    - because a signature we cannot see is not a signature we can check.
+    """
+    node = next(
+        (n for n in tree.body
+         if isinstance(n, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
+         and n.name == symbol),
+        None,
+    )
+    if node is None:
+        return None
+
+    if isinstance(node, ast.ClassDef):
+        init = next(
+            (n for n in node.body
+             if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef) and n.name == "__init__"),
+            None,
+        )
+        if init is not None:
+            node = init
+        elif any(
+            (isinstance(d, ast.Name) and d.id == "dataclass")
+            or (isinstance(d, ast.Attribute) and d.attr == "dataclass")
+            or (isinstance(d, ast.Call) and "dataclass" in ast.dump(d.func))
+            for d in node.decorator_list
+        ):
+            fields = [n for n in node.body if isinstance(n, ast.AnnAssign)
+                      and isinstance(n.target, ast.Name)
+                      and not str(getattr(n.annotation, "id", "")).startswith("ClassVar")
+                      and "ClassVar" not in ast.dump(n.annotation)]
+            names = [n.target.id for n in fields]
+            required = {n.target.id for n in fields if n.value is None}
+            return names, required, False, False
+        else:
+            return None
+
+    args = node.args
+    positional = [a.arg for a in args.posonlyargs + args.args if a.arg != "self"]
+    defaulted = set(positional[len(positional) - len(args.defaults):]) if args.defaults else set()
+    required = set(positional) - defaulted
+    keyword_only = [a.arg for a in args.kwonlyargs]
+    for name, default in zip(keyword_only, args.kw_defaults, strict=True):
+        if default is None:
+            required.add(name)
+    return positional + keyword_only, required, args.vararg is not None, args.kwarg is not None
+
+
+def check_call(skill: Path, call: ast.Call, target: str, sig, errors: list[Error]) -> None:
+    names, required, has_varargs, has_kwargs = sig
+    keywords = {kw.arg for kw in call.keywords if kw.arg}
+    if any(kw.arg is None for kw in call.keywords):
+        return  # **spread: we cannot tell what was supplied
+
+    if not has_kwargs:
+        for keyword in sorted(keywords - set(names)):
+            fail(errors, skill, f"{target}() has no parameter {keyword!r}")
+
+    positional = len(call.args)
+    if not has_varargs and positional > len(names):
+        fail(errors, skill, f"{target}() takes {len(names)} arguments, {positional} given")
+
+    supplied = set(names[:positional]) | keywords
+    for missing in sorted(required - supplied):
+        fail(errors, skill, f"{target}() is missing required argument {missing!r}")
+
+
 def validate_ml4t_imports(skills: list[Path], library_root: Path, errors: list[Error]) -> None:
     module_files = discover_ml4t_modules(library_root)
 
@@ -283,6 +357,23 @@ def validate_ml4t_imports(skills: list[Path], library_root: Path, errors: list[E
         return
 
     module_exports = {module: exported_names(path) for module, path in module_files.items()}
+    module_trees: dict[str, ast.AST] = {}
+
+    def signature_of(module: str, symbol: str):
+        """Locate the definition, following one hop through a re-export."""
+        for candidate in (module, *(m for m in module_files if m.startswith(f"{module}."))):
+            if candidate not in module_trees:
+                try:
+                    module_trees[candidate] = ast.parse(
+                        module_files[candidate].read_text(encoding="utf-8")
+                    )
+                except SyntaxError:
+                    continue
+            found = callable_signature(module_trees[candidate], symbol)
+            if found is not None:
+                return found
+        return None
+
     for skill in skills:
         text = skill.read_text(encoding="utf-8")
         for block in re.findall(r"```python\n(.*?)```", text, flags=re.DOTALL):
@@ -290,6 +381,7 @@ def validate_ml4t_imports(skills: list[Path], library_root: Path, errors: list[E
                 tree = ast.parse(block)
             except SyntaxError:
                 continue  # already reported against this file by validate_skill
+            imported: dict[str, tuple[str, str]] = {}
             for node in ast.walk(tree):
                 is_from_ml4t = isinstance(node, ast.ImportFrom) and (node.module or "").startswith(
                     "ml4t"
@@ -299,12 +391,55 @@ def validate_ml4t_imports(skills: list[Path], library_root: Path, errors: list[E
                         fail(errors, skill, f"unknown ml4t module: {node.module}")
                         continue
                     for alias in node.names:
-                        if alias.name != "*" and alias.name not in module_exports[node.module]:
+                        if alias.name == "*":
+                            continue
+                        if alias.name not in module_exports[node.module]:
                             fail(errors, skill, f"unknown export {alias.name} from {node.module}")
+                        else:
+                            imported[alias.asname or alias.name] = (node.module, alias.name)
                 elif isinstance(node, ast.Import):
                     for alias in node.names:
                         if alias.name.startswith("ml4t") and alias.name not in module_files:
                             fail(errors, skill, f"unknown ml4t module: {alias.name}")
+
+            # Names alone do not catch a call that cannot run. Check the ones we
+            # can resolve: unknown keywords, too many arguments, missing required.
+            for node in ast.walk(tree):
+                if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
+                    continue
+                if node.func.id not in imported:
+                    continue
+                module, symbol = imported[node.func.id]
+                signature = signature_of(module, symbol)
+                if signature is not None:
+                    check_call(skill, node, node.func.id, signature, errors)
+
+
+def discover_skills(root: Path, errors: list[Error]) -> list[Path]:
+    """Return the skills, and report anything the installer would not install.
+
+    `<category>/<skill>/SKILL.md` is the only shape `install.sh` installs and
+    the only shape the chapter map reads, so it is the only shape that
+    validates. Because install flattens the categories away, two skills sharing
+    a directory name in different categories collide on the same install target.
+    """
+    skills = sorted(root.glob("*/*/SKILL.md"))
+    for path in sorted(root.rglob("SKILL.md")):
+        if any(part.startswith(".") for part in path.relative_to(root).parts):
+            continue
+        if path not in skills:
+            fail(errors, path, "SKILL.md must live at <category>/<skill>/SKILL.md")
+
+    seen: dict[str, Path] = {}
+    for path in skills:
+        name = path.parent.name
+        if name in seen:
+            fail(errors, path, f"duplicate skill name, also at {seen[name]}")
+        seen[name] = path.parent.relative_to(root)
+
+    if not skills:
+        fail(errors, root, "no SKILL.md files found")
+    return skills
 
 
 def main() -> int:
@@ -321,15 +456,8 @@ def main() -> int:
     args = parser.parse_args()
 
     errors: list[Error] = []
-    skills = sorted(
-        path
-        for path in ROOT.rglob("SKILL.md")
-        if not any(part.startswith(".") for part in path.relative_to(ROOT).parts)
-    )
+    skills = discover_skills(ROOT, errors)
     skill_names = {path.parent.name for path in skills}
-
-    if not skills:
-        fail(errors, ROOT, "no SKILL.md files found")
     for path in skills:
         validate_skill(path, skill_names, errors)
 
