@@ -100,13 +100,14 @@ def risk_level(drawdown, realized_vol, target_vol=0.10):
 from ml4t.live import SafeBroker, LiveRiskConfig, AlpacaBroker
 
 config = LiveRiskConfig(
+    execution_mode="shadow",   # required: "shadow", "paper" or "live"
     max_daily_loss=5_000.0,
-    max_drawdown_pct=0.15,
+    max_drawdown_pct=0.15,     # positive fraction below the high-water mark
     max_position_value=50_000.0,
-    max_total_exposure=200_000.0,
 )
 broker = SafeBroker(AlpacaBroker(...), config)
-# SafeBroker blocks orders that would breach limits - no code changes needed
+# A breach latches the switch and blocks risk-increasing orders. Flattening is
+# a separate call: await broker.close_all_positions()
 ```
 
 ## Checklist

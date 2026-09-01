@@ -96,12 +96,12 @@ Never skip paper trading. If paper diverges materially from backtest, diagnose b
 
 ```python
 import asyncio
-
 from ml4t.backtest import Strategy
 from ml4t.live import LiveEngine, AlpacaBroker, AlpacaDataFeed, SafeBroker, LiveRiskConfig
 
-broker = SafeBroker(AlpacaBroker(api_key, secret_key), LiveRiskConfig(max_drawdown_pct=0.10))
-feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"])
+risk = LiveRiskConfig(execution_mode="shadow", max_drawdown_pct=0.10)
+broker = SafeBroker(AlpacaBroker(api_key, secret_key), risk)
+feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"], experimental=True)
 
 async def trade_live():
     engine = LiveEngine(Momentum(), broker, feed)

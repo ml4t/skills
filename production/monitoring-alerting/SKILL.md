@@ -100,14 +100,14 @@ Four levels: **INFO** (log only), **WARNING** (Slack), **CRITICAL** (page on-cal
 from ml4t.live import SafeBroker, LiveRiskConfig
 
 config = LiveRiskConfig(
-    max_drawdown_pct=0.05,
-    max_position_value=50_000.0,
+    execution_mode="shadow",   # required: "shadow", "paper" or "live"
+    max_drawdown_pct=0.05,     # positive fraction below the high-water mark
     max_daily_loss=5_000.0,
     max_data_staleness_seconds=120.0,
 )
-# SafeBroker wraps any broker with real-time risk checks
 broker = SafeBroker(inner_broker, config)
-# Alerts fire automatically when thresholds breach
+# A breach raises RiskLimitError and latches the kill switch. Delivering the
+# alert is yours: catch it and route to your pager from the loop above.
 ```
 
 ## Checklist

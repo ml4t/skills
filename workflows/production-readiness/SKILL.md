@@ -96,15 +96,15 @@ No strategy goes live without minimum 4 weeks of paper trading covering at least
 `ml4t-live` provides the infrastructure for safe live deployment:
 
 ```python
+import asyncio
 from ml4t.backtest import Strategy  # Same Strategy class as backtest
-from ml4t.live import LiveEngine, AlpacaBroker, LiveRiskConfig, SafeBroker
+from ml4t.live import AlpacaDataFeed, AlpacaBroker, LiveEngine, LiveRiskConfig, SafeBroker
 
-risk = LiveRiskConfig(
-    max_position_value=50_000.0, max_drawdown_pct=0.10, max_total_exposure=200_000.0
-)
-broker = SafeBroker(AlpacaBroker(), risk)  # Wraps with limits
-engine = LiveEngine(strategy=MyStrategy(), broker=broker)
-engine.run()  # Includes built-in monitoring and kill switch
+risk = LiveRiskConfig(execution_mode="shadow", max_drawdown_pct=0.10)
+broker = SafeBroker(AlpacaBroker(), risk)  # pre-trade limits and kill switch
+feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"], experimental=True)
+engine = LiveEngine(MyStrategy(), broker, feed)  # run() is a coroutine
+asyncio.run(engine.run())
 ```
 
 ## Checklist

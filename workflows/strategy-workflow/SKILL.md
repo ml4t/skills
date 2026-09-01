@@ -88,7 +88,7 @@ results = run_backtest(
 
 async def trade_live():
     broker = AlpacaBroker(api_key, secret_key, paper=True)
-    feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"])
+    feed = AlpacaDataFeed(api_key, secret_key, symbols=["SPY"], experimental=True)
     engine = LiveEngine(MyStrategy(), broker, feed)
     await engine.connect()
     await engine.run()

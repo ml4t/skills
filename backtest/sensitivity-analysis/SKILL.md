@@ -98,9 +98,10 @@ from ml4t.backtest import Engine, DataFeed, BacktestConfig
 results = []
 for lookback, threshold in itertools.product([10, 20, 30], [0.01, 0.03]):
     config = BacktestConfig(commission_type="PER_SHARE", commission_per_share=0.005)
-    result = Engine(DataFeed(prices), MyStrategy(lookback, threshold), config).run()
+    feed = DataFeed(prices_df=prices)  # first positional arg is a path, not a frame
+    result = Engine(feed, MyStrategy(lookback, threshold), config).run()
     results.append({"lookback": lookback, "threshold": threshold,
-                    "sharpe": result.metrics["sharpe_ratio"]})
+                    "sharpe": result.metrics["sharpe"]})
 ```
 
 ## Checklist
