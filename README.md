@@ -6,7 +6,7 @@
 
 This repository turns the book's quant research discipline into runtime guidance for coding agents. Each skill gives an agent the pattern it needs to avoid common ML4T failures: leakage, lookahead bias, overfit backtests, stale data joins, broken cross-validation, unrealistic transaction costs, and unsafe autonomous workflows.
 
-Each skill is a plain `SKILL.md` file with YAML frontmatter and concise procedural guidance. The skills work as Markdown files: clone this repo into your agent's skill search path, or copy the category directories from a release archive.
+Each skill is a plain `SKILL.md` file with YAML frontmatter and concise procedural guidance. Installing them means putting each individual skill directory where your agent looks for skills, which `scripts/install.sh` does from a clone or from an unpacked [release archive](https://github.com/ml4t/skills/releases).
 
 <!-- offerings:next start -->
 > **Next free session:** [Managing Your Strategy Research Process](https://maven.com/p/bc9fd4), a 30-minute live session on **Wednesday, September 2, 2026, 12:00 PM ET / 16:00 UTC**. [All courses, workshops, and free lessons](https://ml4trading.io/courses/?utm_source=github&utm_medium=readme&utm_campaign=skills&utm_content=offerings).
