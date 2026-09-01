@@ -226,7 +226,9 @@ def splice(text: str, name: str, body: str) -> str:
     pattern = re.compile(re.escape(start) + r".*?" + re.escape(end), re.S)
     if not pattern.search(text):
         raise SystemExit(f"markers {start} / {end} not found in {README}")
-    return pattern.sub(f"{start}\n{body}\n{end}", text)
+    # A callable replacement, because re.sub reads backslashes in a string
+    # replacement as escapes and would undo the escaping text() just applied.
+    return pattern.sub(lambda _: f"{start}\n{body}\n{end}", text)
 
 
 def main() -> int:

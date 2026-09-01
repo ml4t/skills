@@ -14,7 +14,6 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -113,8 +112,8 @@ def collect() -> dict[str, list[tuple[str, Path, list[int]]]]:
 
 def render(by_category: dict[str, list[tuple[str, Path, list[int]]]]) -> str:
     total = sum(len(v) for v in by_category.values())
-    out = [HEADER, f"Generated {date.today().isoformat()} from {total} skills "
-           f"against the {len(CHAPTERS)}-chapter outline.", "", "## By skill", ""]
+    out = [HEADER, f"Generated from {total} skills against the "
+           f"{len(CHAPTERS)}-chapter outline.", "", "## By skill", ""]
 
     for category, display in CATEGORIES.items():
         entries = by_category[category]

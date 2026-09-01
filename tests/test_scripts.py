@@ -85,6 +85,60 @@ class ScrapedFieldsAreNeutralised(unittest.TestCase):
         self.assertIn("](https://maven.com/p/abc123)", row)
 
 
+class SplicePreservesEscaping(unittest.TestCase):
+    """render() escapes, but splice() is what actually reaches the README."""
+
+    README = "before\n<!-- offerings:t start -->\nold\n<!-- offerings:t end -->\nafter\n"
+
+    def spliced(self, title: str) -> str:
+        body = f"| [{offerings.text(title)}](https://maven.com/p/abc123) | 30 min |"
+        out = offerings.splice(self.README, "t", body)
+        return next(line for line in out.splitlines() if "maven.com/p/abc123" in line)
+
+    def test_a_backslash_in_the_title_does_not_reopen_the_link(self):
+        # A literal backslash escapes to \\; a string replacement collapses that
+        # back to \, which re-arms the ] the escaping had just neutralised.
+        row = live(self.spliced(r"Bootcamp\](https://evil.example) ["))
+        self.assertEqual(row.count("]("), 1)
+        self.assertIn("](https://maven.com/p/abc123)", row)
+        self.assertNotIn("evil.example)", live(row).split("](")[1])
+
+    def test_group_references_are_not_expanded(self):
+        row = self.spliced(r"Session \g<0> and \1")
+        self.assertIn(r"\g\<0\>", row)
+        self.assertNotIn("maven.com/p/abc123 and", row)
+
+    def test_ordinary_title_is_unchanged_by_the_splice(self):
+        self.assertIn("| [Deep Dive](https://maven.com/p/abc123) | 30 min |",
+                      self.spliced("Deep Dive"))
+
+
+class BannedFrontmatterFieldsAreRejected(unittest.TestCase):
+    def check(self, frontmatter: str) -> list[str]:
+        tmp = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        directory = tmp / "category" / "alpha"
+        directory.mkdir(parents=True)
+        (directory / "SKILL.md").write_text(
+            f"---\n{frontmatter}---\n\n# Alpha\n\n### WRONG\n\n### CORRECT\n\n"
+            "## Guardrails\n\n## Checklist\n\n- [ ] done\n"
+        )
+        errors: list = []
+        validate.validate_skill(directory / "SKILL.md", {"alpha"}, errors)
+        return [e.message for e in errors]
+
+    BASE = ('name: ml4t-alpha\ndescription: Does a thing. Use when needed.\n'
+            'dependencies: []\nmetadata:\n  book_chapters: "7"\n')
+
+    def test_each_banned_field_is_caught(self):
+        for banned in ("quantlab_module", "category", "type"):
+            with self.subTest(banned=banned):
+                messages = self.check(self.BASE + f"{banned}: whatever\n")
+                self.assertIn(f"banned frontmatter field: {banned}", messages)
+
+    def test_a_clean_skill_reports_no_banned_field(self):
+        self.assertFalse([m for m in self.check(self.BASE) if "banned" in m])
+
+
 class DependencyGraphIsAcyclic(unittest.TestCase):
     def test_the_repository_graph_has_no_cycle(self):
         skills = sorted(ROOT.glob("*/*/SKILL.md"))

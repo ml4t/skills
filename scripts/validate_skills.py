@@ -109,8 +109,10 @@ def validate_skill(path: Path, skill_names: set[str], errors: list[Error]) -> No
     if "Use when" not in description:
         fail(errors, path, "description must include 'Use when' trigger language")
 
+    # Checked against the parsed keys: a regex over the raw block missed every
+    # one of these, because the block starts with the newline that ^ anchors to.
     for banned in ("quantlab_module", "category", "type"):
-        if re.search(rf"^{banned}:", text.split("---", 2)[1] if text.startswith("---\n") else ""):
+        if banned in fields or f"metadata.{banned}" in fields:
             fail(errors, path, f"banned frontmatter field: {banned}")
 
     for dependency in parse_dependencies(fields.get("dependencies", "[]")):
