@@ -572,3 +572,30 @@ class StaleInstallsAreOnlyRemovedOnRequest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         for flag in ("--copy", "--prune", "--uninstall"):
             self.assertIn(flag, result.stdout)
+
+
+class EveryWorkflowRunningTheValidatorInstallsItsParser(unittest.TestCase):
+    """The validator imports PyYAML, which a clean setup-python runner does not have."""
+
+    WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+
+    def jobs(self, text: str) -> list[str]:
+        """Split a workflow into per-job text, so a step is checked against its own job."""
+        return re.split(r"\n  (?=\w[\w-]*:\n)", text.split("\njobs:\n", 1)[1])
+
+    def test_the_parser_is_installed_before_the_validator_runs(self):
+        checked = 0
+        for workflow in self.WORKFLOWS:
+            for job in self.jobs(workflow.read_text()):
+                if "scripts/validate_skills.py" not in job:
+                    continue
+                checked += 1
+                install = job.find("pip install --quiet pyyaml")
+                self.assertNotEqual(-1, install, f"{workflow.name}: no pyyaml install")
+                self.assertLess(install, job.find("scripts/validate_skills.py"),
+                                f"{workflow.name}: pyyaml is installed too late")
+        self.assertGreater(checked, 1)  # both validate.yml and offerings.yml run it
+
+    def test_the_validator_still_needs_the_parser(self):
+        source = (ROOT / "scripts" / "validate_skills.py").read_text()
+        self.assertIn("import yaml", source)  # if this ever goes, so can the checks above
