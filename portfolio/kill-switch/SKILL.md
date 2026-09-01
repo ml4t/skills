@@ -34,7 +34,6 @@ while True:
 
 ### CORRECT
 ```python
-
 class KillSwitch:
     """Hard-coded risk limits. Automatic trigger, manual reset only."""
 
@@ -45,12 +44,15 @@ class KillSwitch:
         "max_position_pct": 0.15,    # 15% in single name
     }
 
-    def __init__(self):
+    def __init__(self, reset_code):
         self.triggered = False
         self.trigger_reason = None
+        self.reset_code = reset_code  # from your secret store, not from source
 
-    def check(self, daily_pnl, drawdown, gross_lev, max_pos):
-        """Called BEFORE every order submission. Returns False = block."""
+    def check(self, daily_pnl, drawdown, gross_lev, max_pos, reducing=False):
+        """Called BEFORE every order. False = block. Reducing risk still passes."""
+        if self.triggered:
+            return reducing  # latched: nothing but reset() clears this
         checks = {
             "max_daily_loss": daily_pnl > self.THRESHOLDS["max_daily_loss"],
             "max_drawdown": drawdown > self.THRESHOLDS["max_drawdown"],
@@ -61,12 +63,12 @@ class KillSwitch:
             if not passed:
                 self.triggered = True
                 self.trigger_reason = f"{name}: threshold breached"
-                return False  # BLOCK all trading
+                return reducing  # block new risk, still allow flattening
         return True  # safe to proceed
 
     def reset(self, manual_approval_code: str):
         """Require explicit human approval to resume."""
-        if manual_approval_code == "APPROVED":
+        if manual_approval_code == self.reset_code:
             self.triggered = False
             self.trigger_reason = None
 ```
@@ -87,9 +89,8 @@ def risk_level(drawdown, realized_vol, target_vol=0.10):
 ## Guardrails
 
 - Thresholds must be set BEFORE deployment, not adjusted during a drawdown
-- Kill switch checks must run BEFORE order submission, not after
-- Automatic trigger, manual reset - never the reverse
-- Test the kill switch monthly with a simulated breach (like a fire drill)
+- Checks run BEFORE order submission, and a trigger latches until manual reset
+- A latched switch must still pass risk-reducing orders, or you cannot flatten
 - Data feed failure is a trigger - no data means no trading, not "use stale prices"
 
 ## Production Implementation

@@ -40,9 +40,14 @@ class PolicyDecision:
 
 
 class Warden:
+    # Named tools, not a shell. Scanning shell text for "curl" is not an egress
+    # control: wget, python -c, nc, and a base64 heredoc all walk straight past
+    # it. Deny the network in the sandbox, then expose only vetted tools.
+    ALLOWED = {"read_prices", "run_backtest", "submit_order", "deploy_model"}
+
     def authorize(self, tool: str, args: dict) -> PolicyDecision:
-        if tool == "run_bash" and "curl" in args.get("cmd", ""):
-            return PolicyDecision(False, "network egress denied")
+        if tool not in self.ALLOWED:
+            return PolicyDecision(False, f"{tool} is not on the allowlist")
         if tool in {"submit_order", "deploy_model"}:
             return PolicyDecision(True, "high-impact action", approval_required=True)
         return PolicyDecision(True, "allowed")
@@ -72,6 +77,7 @@ def guarded_call(tool: str, args: dict):
 - **Untrusted instructions** - retrieved documents are evidence, never commands
 - **Silent high-impact actions** - trading, deployment, and secret access need approval
 - **No kill path** - agents need explicit stop conditions and escalation rules
+- **Pattern-matched shell** - blocklists on command text are bypassed, not enforced
 
 ## Checklist
 

@@ -36,7 +36,7 @@ schedule.every().day.at("16:30").do(daily_report)
 import time
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 logger = logging.getLogger("monitor")
 
@@ -51,12 +51,12 @@ class AlertThresholds:
 def monitor_loop(portfolio, data_feed, thresholds: AlertThresholds):
     """Continuous monitoring with immediate alerting."""
     while True:
-        now = datetime.now()
+        now = datetime.now(UTC)
 
-        # Data freshness
-        last_bar = data_feed.last_timestamp()
-        if (now - last_bar).seconds > thresholds.data_stale_seconds:
-            alert("DATA_STALE", f"No data for {(now - last_bar).seconds}s")
+        # tz-aware; .seconds is the sub-day part, so 24h stale reads as fresh
+        stale = (now - data_feed.last_timestamp()).total_seconds()
+        if stale > thresholds.data_stale_seconds:
+            alert("DATA_STALE", f"No data for {stale:.0f}s")
 
         # Drawdown
         dd = portfolio.current_drawdown()
