@@ -2,7 +2,7 @@
 name: ml4t-strategy-workflow
 description: "End-to-end strategy development lifecycle from hypothesis to live trading. Use when starting a new strategy project or onboarding to the ML4T workflow."
 when_to_use: "Use when starting a new strategy or auditing an existing development process for missing stages"
-dependencies: [fetch-data, compute-features, run-backtest, transaction-costs]
+dependencies: [fetch-data, compute-features, run-backtest, transaction-costs, model-validation, monitoring-alerting, production-readiness]
 metadata:
   book_chapters: "1, 6, 16, 20"
   library: "ml4t-backtest"

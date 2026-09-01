@@ -54,9 +54,12 @@ midpoint = n // 2
 ic_first_half = ic_df[:midpoint]["ic"].mean()
 ic_second_half = ic_df[midpoint:]["ic"].mean()
 for horizon in [1, 5, 10, 21, 63]:
-    fwd = prices.pct_change(horizon).shift(-horizon)
-    ic_h, _ = spearmanr(factor.dropna(), fwd.dropna())
-    print(f"  {horizon}d IC: {ic_h:.4f}")
+    # Cross-sectional, as above. Dropping nulls from the factor and the forward
+    # return separately leaves two series of different length and dates.
+    col, ics = f"fwd_ret_{horizon}", []
+    for day in data.drop_nulls(["factor", col]).partition_by("timestamp"):
+        ics.append(spearmanr(day["factor"], day[col])[0])
+    print(f"  {horizon}d IC: {np.nanmean(ics):.4f}")
 print(f"IC: {ic_mean:.4f} (t={t_stat:.2f})")
 print(f"Stability: {ic_first_half:.4f} / {ic_second_half:.4f}")
 assert abs(t_stat) > 2.0, "IC not statistically significant"

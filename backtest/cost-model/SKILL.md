@@ -33,17 +33,21 @@ sharpe = gross_returns.mean() / gross_returns.std() * np.sqrt(252)  # overstated
 import numpy as np
 
 def net_returns_with_costs(
-    weights: np.ndarray,     # portfolio weight per bar, not share counts
+    weights: np.ndarray,     # target weight per BAR for ONE asset, not shares
     asset_returns: np.ndarray,
     prices: np.ndarray,
-    adv_shares: np.ndarray,  # average daily volume in shares
-    daily_vol: np.ndarray,   # daily return volatility per asset
+    adv_shares: np.ndarray,  # average daily volume in shares, per bar
+    daily_vol: np.ndarray,   # daily return volatility, per bar
     nav: float,
     commission_bps: float = 1.0,
     spread_bps: float = 5.0,
     impact_coeff: float = 0.1,
 ) -> np.ndarray:
-    """Net returns after commission, spread and impact, all fractions of NAV."""
+    """Net returns after commission, spread and impact, all fractions of NAV.
+
+    One asset, arrays indexed by bar. For a panel, run this per asset and sum:
+    np.diff over a time-by-asset array differences neighbouring assets, not bars.
+    """
     gross = weights * asset_returns
     traded_w = np.abs(np.diff(weights, prepend=0.0))  # traded fraction of NAV
 
@@ -53,14 +57,15 @@ def net_returns_with_costs(
     # Impact eta*sigma*sqrt(Q/ADV) as written below: Q is in shares, so take
     # the weight change through NAV and price before comparing it to ADV.
     participation = np.where(adv_shares > 0, traded_w * nav / prices / adv_shares, 0.0)
-    impact_pct = impact_coeff * daily_vol * np.sqrt(np.clip(participation, 0, 1))
+    # No upper cap: clipping at 1.0 prices a 3x-ADV order like an ADV-sized one
+    impact_pct = impact_coeff * daily_vol * np.sqrt(np.clip(participation, 0, None))
     impact = impact_pct * traded_w  # a price move costs only what you traded
 
     return gross - fixed_cost - impact
 
 
 def estimate_capacity(gross_sharpe, turnover, cost_bps_per_turn):
-    """Rough capacity: the AUM at which costs consume alpha down to threshold."""
+    """Rough capacity: the AUM at which costs consume alpha to the threshold."""
     alpha_bps = gross_sharpe * 100 / np.sqrt(252)  # daily alpha in bps (approx)
     cost_drag = turnover * cost_bps_per_turn / 252
     return f"Gross alpha ~{alpha_bps:.1f} bps/day, cost drag ~{cost_drag:.1f} bps/day"
@@ -80,7 +85,6 @@ def estimate_capacity(gross_sharpe, turnover, cost_bps_per_turn):
 
 ## Guardrails
 
-- Feed volume is required for volume-based slippage and participation limits
 - Impact grows with the square root of participation rate - doubling AUM does not double cost
 - Use asset-class appropriate estimates: crypto spread is 5-50 bps, US large-cap is 1-3 bps
 - Short-side strategies must include borrow fees and financing - these can dominate total costs
@@ -97,15 +101,11 @@ from ml4t.backtest.execution.impact import SquareRootImpact
 from ml4t.backtest.execution.limits import VolumeParticipationLimit
 
 config = BacktestConfig(
-    commission_type=CommissionType.PERCENTAGE,
-    commission_rate=0.001,        # 10 bps
-    slippage_type=SlippageType.VOLUME_BASED,
-    slippage_rate=0.001,
+    commission_type=CommissionType.PERCENTAGE, commission_rate=0.001,  # 10 bps
+    slippage_type=SlippageType.VOLUME_BASED, slippage_rate=0.001,
 )
 engine = Engine(
-    DataFeed(prices_df=prices),
-    strategy,
-    config,
+    DataFeed(prices_df=prices), strategy, config,
     market_impact_model=SquareRootImpact(volatility=0.02),
     execution_limits=VolumeParticipationLimit(max_participation=0.10),
 )

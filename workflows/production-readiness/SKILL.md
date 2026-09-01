@@ -2,7 +2,7 @@
 name: ml4t-production-readiness
 description: "Pre-deployment checklist covering data pipelines, risk limits, monitoring, and governance. Use when preparing to go live with a new strategy or model."
 when_to_use: "Use when a validated strategy is being prepared for live capital"
-dependencies: [kill-switch, drift-detection, cost-model, risk-metrics]
+dependencies: [kill-switch, monitoring-alerting, drift-detection, cost-model, risk-metrics]
 metadata:
   book_chapters: "25, 26"
   library: "ml4t-live"
@@ -113,8 +113,8 @@ asyncio.run(engine.run())
 - [ ] Fallback data source tested by simulating primary source failure
 - [ ] Deployed model hash matches training registry entry
 - [ ] Feature pipeline is identical between training and production (no train/serve skew)
-- [ ] Hard risk limits configured: position size, sector exposure, leverage, drawdown
-- [ ] Kill switch tested: triggers correctly, flattens positions, sends alerts
+- [ ] Hard risk limits set; sector and leverage caps enforced outside LiveRiskConfig
+- [ ] Kill-switch drill: it latches, close_all_positions() flattens, your pager fires
 - [ ] Monitoring dashboards operational with alerts for drift, drawdown, staleness
 - [ ] Paper trading completed for minimum 4 weeks with no execution anomalies
 - [ ] Incident playbook and governance sign-off completed before go-live

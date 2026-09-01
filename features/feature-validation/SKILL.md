@@ -35,7 +35,8 @@ import numpy as np
 
 def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray) -> dict:
     """Screen a single feature for predictive quality."""
-    ic, p_value = spearmanr(feature[~np.isnan(feature)], target[~np.isnan(feature)])
+    ok = ~np.isnan(feature) & ~np.isnan(target)  # both: one nan makes ic nan
+    ic, p_value = spearmanr(feature[ok], target[ok])
     unique_quarters = np.unique(dates.astype("datetime64[Q]"))
     quarterly_ics = []
     for q in unique_quarters:
@@ -72,12 +73,14 @@ def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray)
 ```python
 def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> dict:
     """IC should decay with horizon - if it doesn't, suspect leakage."""
-    decay = {}
-    cum = np.cumprod(1.0 + returns)
+    n, decay = len(returns), {}
+    gaps = np.r_[0, np.cumsum(np.isnan(returns))]  # missing returns so far
+    cum = np.r_[1.0, np.cumprod(1.0 + np.nan_to_num(returns))]
     for h in horizons:
-        # Compounded t+1..t+h. np.roll wrapped the sample start into the tail.
-        fwd = np.full(len(returns), np.nan)
-        fwd[:-h] = cum[h:] / cum[:-h] - 1.0
+        # Compounded t+1..t+h. np.roll wrapped the sample start into the tail,
+        # and a plain cumprod let one missing return poison every later window.
+        fwd, whole = np.full(n, np.nan), gaps[1 + h:n + 1] == gaps[1:n - h + 1]
+        fwd[:n - h] = np.where(whole, cum[1 + h:n + 1] / cum[1:n - h + 1] - 1.0, np.nan)
         valid = ~np.isnan(feature) & ~np.isnan(fwd)
         ic, _ = spearmanr(feature[valid], fwd[valid])
         decay[h] = ic
@@ -101,12 +104,8 @@ ic_series = cross_sectional_ic_series(features, forward_returns, pred_col="signa
 stats = compute_ic_hac_stats(ic_series)  # HAC-corrected t-stats
 
 analysis = analyze_feature_outcome(
-    predictions=features,
-    prices=prices,
-    pred_col="prediction",
-    price_col="close",
-    date_col="date",
-    group_col="symbol",
+    predictions=features, prices=prices, pred_col="prediction",
+    price_col="close", date_col="date", group_col="symbol",
 )
 ```
 

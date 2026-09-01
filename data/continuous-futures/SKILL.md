@@ -53,8 +53,9 @@ def panama_canal_adjust(
     adj = df["close"].to_numpy().copy().astype(np.float64)
 
     for roll_date, old_close, new_close in sorted(rolls, reverse=True):
-        # Lift prior history so the roll nets to zero return. Subtracting the
-        # gap instead doubles the jump: a 5% roll artifact becomes 10.5%.
+        # Lift prior history so the roll nets to zero PRICE CHANGE - additive
+        # adjustment does not preserve percentage returns, ratio does.
+        # Subtracting the gap doubles the jump: a 5% artifact becomes 10.5%.
         adj[ts < np.datetime64(roll_date)] += new_close - old_close
 
     return df.with_columns(adj_close=pl.Series("adj_close", adj))
@@ -64,7 +65,7 @@ def panama_canal_adjust(
 
 | Method | Adjustment | Preserves | Best For |
 |--------|-----------|-----------|----------|
-| Panama (additive) | Shift by price gap | Returns and levels | Trend following |
+| Panama (additive) | Shift by price gap | Absolute price changes | Trend following |
 | Ratio (multiplicative) | Multiply by price ratio | Percentage returns | Cross-asset comparison |
 | Return-based | Chain daily returns | Returns only | Pure return signals |
 | No adjustment | None | Nothing useful | Never use for backtesting |
@@ -89,6 +90,7 @@ carry = front.join(back, on=["product", "timestamp"], suffix="_back").with_colum
 - Always use `adj_close` for returns and features - raw `close` is only for current price reference
 - Roll dates vary by product: energy rolls monthly, equity index rolls quarterly
 - Panama adjustment changes historical price levels - do not use adjusted prices for margin calculations
+- Percentage returns off a Panama series are distorted early in the history; use ratio adjustment when the return, not the price change, is what you trade
 - Carry signals require accurate term structure with at least 2 contract months
 
 ## Production Implementation
@@ -111,6 +113,6 @@ es_spec = FUTURES_REGISTRY["ES"]  # Multiplier, tick size, margin, exchange
 
 - [ ] Roll method chosen and documented (Panama for most uses)
 - [ ] All prior history back-adjusted at each roll
-- [ ] Returns across roll dates verified (no artificial jumps)
+- [ ] Roll dates show no artificial jump in the series the method preserves
 - [ ] Multiple contract months available for carry signals
 - [ ] Roll dates sourced from exchange calendar, not hardcoded

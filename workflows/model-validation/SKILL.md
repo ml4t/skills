@@ -79,16 +79,16 @@ assert degradation < 0.30, f"OOS degradation {degradation:.0%} - too high"
 | # | Gate | Pass Condition | Fail Action |
 |---|------|---------------|-------------|
 | 1 | CPCV | Median path Sharpe > 0 | Simplify model or revisit features |
-| 2 | PBO | < 50% of paths have negative Sharpe | Reduce model complexity |
-| 3 | Deflated Sharpe | Significant after trial adjustment | Fewer hyperparameter trials |
+| 2 | Loss rate | < 50% of paths have negative Sharpe | Reduce model complexity |
+| 3 | Selection bound | Best path above E[max] under the null | Fewer hyperparameter trials |
 | 4 | SHAP | Top features match economic hypothesis | Remove noise features |
 | 5 | OOS holdout | Degradation < 30% from in-sample | Model memorized regime - redesign |
 
-Gates are sequential. Do not skip to Gate 5 hoping a good holdout compensates for a bad PBO.
+Gates are sequential. Do not skip to Gate 5 hoping a good holdout compensates for Gate 2.
 
 ## Guardrails
 
-- If PBO > 50%, adding more features or complexity will make it worse, not better
+- If the loss rate exceeds 50%, more features or complexity will make it worse, not better
 - If SHAP shows the model relies on a single feature for > 40% of predictions, the model is fragile
 - If OOS degradation is < 5%, be suspicious - it often means data leakage, not a great model
 - If CV Sharpe variance across folds is > 1.0, the signal is unstable across regimes
@@ -112,8 +112,8 @@ fold_sharpes = [fold.sharpe_ratio for fold in result.fold_results]
 ## Checklist
 
 - [ ] Cross-validation uses CPCV with purging and embargo, not random splits
-- [ ] PBO computed and < 50%
-- [ ] Deflated Sharpe ratio significant after adjusting for number of trials
+- [ ] Loss rate across CPCV paths < 50% (PBO itself: ml4t-backtest-overfitting)
+- [ ] Best path clears the selection bound for the number of paths tried
 - [ ] SHAP feature importance aligns with economic hypothesis
 - [ ] True out-of-time holdout tested (data never used in any CV fold)
 - [ ] OOS performance degradation < 30% from in-sample

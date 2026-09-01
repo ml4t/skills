@@ -23,10 +23,8 @@ A strategy runs in production. The data feed silently stalls at 10:15 AM - the s
 # End-of-day check - too late for anything but damage assessment
 def daily_report():
     pnl = portfolio.value() - portfolio.start_of_day_value()
-    print(f"Today's P&L: ${pnl:,.0f}")
     if pnl < -10_000:
         send_email("Bad day", f"Lost ${abs(pnl):,.0f}")
-
 # Run at 4:30 PM - 6+ hours after problems started
 schedule.every().day.at("16:30").do(daily_report)
 ```
@@ -53,8 +51,11 @@ def monitor_loop(portfolio, data_feed, thresholds: AlertThresholds):
     while True:
         now = datetime.now(UTC)
 
-        # tz-aware; .seconds is the sub-day part, so 24h stale reads as fresh
-        stale = (now - data_feed.last_timestamp()).total_seconds()
+        last = data_feed.last_timestamp()
+        if last.tzinfo is None:      # naive: subtracting from `now` raises
+            last = last.replace(tzinfo=UTC)
+        # .seconds is the sub-day part, so a 24h stall would read as fresh
+        stale = (now - last).total_seconds()
         if stale > thresholds.data_stale_seconds:
             alert("DATA_STALE", f"No data for {stale:.0f}s")
 
@@ -87,8 +88,6 @@ Four levels: **INFO** (log only), **WARNING** (Slack), **CRITICAL** (page on-cal
 ## Guardrails
 
 - Monitor loop must run independently from the trading process - if trading crashes, monitoring must still work
-- Alert thresholds set before going live, not tuned after the first loss
-- Debounce noisy metrics (fill rate, latency) to avoid alert fatigue
 - Data staleness check must use wall clock, not data timestamps (which stop updating when the feed dies)
 - Test the alerting path end-to-end: trigger a fake alert and verify it reaches the right person
 
@@ -106,8 +105,9 @@ config = LiveRiskConfig(
     max_data_staleness_seconds=120.0,
 )
 broker = SafeBroker(inner_broker, config)
-# A breach raises RiskLimitError and latches the kill switch. Delivering the
-# alert is yours: catch it and route to your pager from the loop above.
+# A breach raises RiskLimitError in the TRADING process and latches the switch.
+# The monitor above runs separately and never sees that exception - the trading
+# process has to record the incident somewhere the monitor reads.
 ```
 
 ## Checklist

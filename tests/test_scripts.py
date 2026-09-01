@@ -350,7 +350,8 @@ class QuotedFrontmatterKeysAreNormalized(unittest.TestCase):
         skill = tmp / "concepts" / "widget"
         skill.mkdir(parents=True)
         source = (ROOT / "concepts" / "data-leakage" / "SKILL.md").read_text()
-        source = source.replace("name: ml4t-data-leakage", 'name: ml4t-widget\n"category": concepts')
+        source = source.replace(
+            "name: ml4t-data-leakage", 'name: ml4t-widget\n"category": concepts')
         (skill / "SKILL.md").write_text(source)
         errors: list = []
         validate.validate_skill(skill / "SKILL.md", {"widget"}, errors)
