@@ -102,7 +102,7 @@ from ml4t.{module} import {Class}
 
 1. **80/20 split**: No `ml4t.*` imports before the Production Implementation section
 2. **WRONG/CORRECT pair is mandatory**, the single highest-value pattern for agents
-3. **Under 120 lines** (5000 tokens). Use `references/` subdirectory if more detail needed
+3. **120 lines or fewer** (5000 tokens). Use `references/` subdirectory if more detail needed
 4. **Checklist at the end**, agents use these as verification steps
 5. **Description is third-person** with trigger keywords ("Use when...")
 6. **File named `SKILL.md`** (uppercase, per agentskills.io standard)
@@ -145,7 +145,7 @@ A skill is done when it passes all five:
 
 | Gate | Check |
 |------|-------|
-| **Structure** | `SKILL.md` naming, valid frontmatter, <120 lines, no `quantlab_module` |
+| **Structure** | `SKILL.md` naming, valid frontmatter, 120 lines or fewer, no `quantlab_module` |
 | **80/20 split** | No `ml4t.*` imports before Production Implementation section |
 | **Content** | All code blocks syntactically valid, import paths correct, chapter refs correct |
 | **Agent utility** | Has WRONG/CORRECT pair, ends with checklist, guardrails are specific |

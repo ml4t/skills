@@ -228,7 +228,7 @@ New skills should follow [AGENTS.md](AGENTS.md):
 - Include trigger language in `description`
 - Keep examples concept-first and library-agnostic until `## Production Implementation`
 - Include `### WRONG`, `### CORRECT`, guardrails, and a final checklist
-- Keep each `SKILL.md` under 120 lines
+- Keep each `SKILL.md` to 120 lines or fewer
 - Do not include local agent state, memory, transitions, credentials, or workspace artifacts
 
 ## Book
