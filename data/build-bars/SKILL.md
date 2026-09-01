@@ -50,10 +50,13 @@ def build_dollar_bars(trades: pl.DataFrame, threshold: float) -> pl.DataFrame:
             dollar_vol=(pl.col("price") * pl.col("size")),
         )
         .with_columns(
-            cum_dollar=pl.col("dollar_vol").cum_sum(),
+            # Dollars traded BEFORE this trade. Using the cumulative sum that
+            # includes it closes a bar early: two $600 trades against a $1,000
+            # threshold become a $600 bar and a $1,200 bar, not one $1,200 bar.
+            prior_dollar=pl.col("dollar_vol").cum_sum() - pl.col("dollar_vol"),
         )
         .with_columns(
-            bar_idx=(pl.col("cum_dollar") // threshold).cast(pl.Int64),
+            bar_idx=(pl.col("prior_dollar") // threshold).cast(pl.Int64),
         )
         .group_by("bar_idx")
         .agg(

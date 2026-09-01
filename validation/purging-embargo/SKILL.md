@@ -41,7 +41,8 @@ def purged_split(n_samples, train_end, test_start, test_end,
     # Sample i is safe only if its label closes before the test opens:
     # i + label_horizon < test_start. The +1 form kept i = test_start - horizon,
     # whose label lands exactly on the first test bar.
-    train_idx = np.arange(0, test_start - label_horizon)  # Purge
+    # ...and inside the caller's training window: train_end bounds it too.
+    train_idx = np.arange(0, min(train_end, test_start - label_horizon))  # Purge
     test_idx = np.arange(test_start, test_end)
 
     # Embargo: also exclude samples right after test end

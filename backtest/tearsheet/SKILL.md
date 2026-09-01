@@ -48,10 +48,10 @@ def tearsheet(returns: np.ndarray, periods: int = 252):
     axes[0].set_title("Cumulative Returns")
     axes[1].fill_between(range(len(dd)), dd, 0, alpha=0.5, color="red")
     axes[1].set_title("Drawdown")
-    rolling = (
-        np.convolve(returns, np.ones(63), "valid") /
-        np.convolve(returns**2 - returns.mean()**2, np.ones(63), "valid")**0.5
-    ) * np.sqrt(periods)  # approximate rolling Sharpe
+    # Rolling mean over rolling std. Dividing a rolling SUM by a rolling sum of
+    # squared deviations inflates the result by sqrt(window) - 7.9x at 63 days.
+    window = np.lib.stride_tricks.sliding_window_view(returns, 63)
+    rolling = window.mean(1) / window.std(1, ddof=1) * np.sqrt(periods)
     axes[2].plot(rolling, linewidth=1)
     axes[2].axhline(0, color="gray", linewidth=0.5)
     axes[2].set_title("Rolling Sharpe (63-day)")

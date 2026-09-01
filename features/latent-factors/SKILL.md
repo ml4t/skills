@@ -41,34 +41,33 @@ signal = factors[:, 0]  # Assumes first PC predicts returns
 from sklearn.decomposition import PCA
 import numpy as np
 
+def mp_upper_bound(n_assets, n_periods):
+    """Marchenko-Pastur noise threshold for a correlation matrix."""
+    gamma = n_assets / n_periods
+    return (1 + np.sqrt(gamma)) ** 2
+
 # Walk-forward PCA: fit on training window only
-def walk_forward_pca(returns, n_components=5, train_window=504):  # 504 ≈ 2 trading years
-    """Fit PCA per fold, project test data with training eigenvectors."""
+def walk_forward_pca(returns, n_components=5, train_window=504):  # 504 ≈ 2 years
+    """Fit per fold; keep only components above that fold's noise bound."""
     factors = np.full((len(returns), n_components), np.nan)
-    eigenvalues = np.full((len(returns), n_components), np.nan)
+    n_assets = returns.shape[1]
     for t in range(train_window, len(returns)):
         train = returns[t - train_window:t]
-        # Standardise on the training fold: the bound below is stated for a
+        # Standardise on the training fold: the bound is stated for a
         # correlation matrix, so raw return variances are not comparable.
         mu, sd = train.mean(0), train.std(0)
         pca = PCA(n_components=n_components)
         pca.fit((train - mu) / sd)
-        factors[t] = pca.transform((returns[t:t+1] - mu) / sd)
-        eigenvalues[t] = pca.explained_variance_
-    return factors, eigenvalues
+        scores = pca.transform((returns[t:t + 1] - mu) / sd)[0]
+        # Drop this fold's noise components here. Averaging eigenvalues over
+        # every fold and filtering once would select using future data.
+        keep = pca.explained_variance_ > mp_upper_bound(n_assets, train_window)
+        factors[t] = np.where(keep, scores, np.nan)
+    return factors
 
-# Noise test: compare eigenvalues to Marchenko-Pastur upper bound
-def mp_upper_bound(n_assets, n_periods):
-    """Random matrix theory noise threshold."""
-    gamma = n_assets / n_periods
-    return (1 + np.sqrt(gamma)) ** 2
-
-# Only keep components whose FOLD eigenvalues exceed the noise bound. Reading
-# pca.explained_variance_ here would use whatever full-sample fit ran last.
-factors, eigenvalues = walk_forward_pca(returns)
-threshold = mp_upper_bound(n_assets=100, n_periods=504)
-significant = np.nanmean(eigenvalues, axis=0) > threshold
-print(f"Signal components: {significant.sum()} of {len(significant)}")
+factors = walk_forward_pca(returns)
+kept = np.mean(np.any(~np.isnan(factors), axis=0))
+print(f"Components above the noise bound in at least one fold: {kept:.0%}")
 ```
 
 ## Method Comparison

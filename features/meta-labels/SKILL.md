@@ -31,21 +31,25 @@ positions = signal  # Every signal becomes a trade
 ```python
 import numpy as np
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.model_selection import TimeSeriesSplit
 
-# Stage 1: Primary signal (direction)
+# Stage 1: Primary signal (direction), itself produced out of fold
 signal = primary_model.predict(X)  # 1=buy, -1=sell, 0=hold
 
 # Stage 2: Meta-model filters which signals to act on
-fired = signal != 0
+fired = np.flatnonzero(signal != 0)
 X_meta, y_meta = X[fired], outcomes[fired]  # outcomes: 1=profitable, 0=not
 
-meta_model = GradientBoostingClassifier(n_estimators=100, max_depth=3)
-meta_model.fit(X_meta, y_meta)
+# The meta-model has to score rows it did not fit. Fitting and predicting on
+# the same samples grades the filter on its own training set.
+prob_win = np.full(len(fired), np.nan)
+for train, test in TimeSeriesSplit(n_splits=5).split(X_meta):
+    meta_model = GradientBoostingClassifier(n_estimators=100, max_depth=3)
+    meta_model.fit(X_meta[train], y_meta[train])
+    prob_win[test] = meta_model.predict_proba(X_meta[test])[:, 1]
 
-# Only trade when meta-model agrees
-prob_win = meta_model.predict_proba(X[fired])[:, 1]
 positions = np.zeros(len(X))
-positions[fired] = signal[fired] * (prob_win > 0.55)  # Filter low-confidence
+positions[fired] = signal[fired] * (prob_win > 0.55)  # NaN compares False
 ```
 
 ## Two-Stage Architecture
@@ -82,7 +86,6 @@ position_size = base_size * np.clip(edge, 0, 1)
 
 ## Guardrails
 
-- **Train meta-model only on triggered signals** - never on the full dataset
 - **Separate CV for primary and meta** - meta-model must not see primary's test data
 - **Meta-model never overrides direction** - it only decides whether to act and how much
 - **Requires sufficient primary signals** - if primary fires <100 times, meta-model will overfit

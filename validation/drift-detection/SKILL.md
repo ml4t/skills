@@ -36,6 +36,10 @@ from scipy.stats import ks_2samp
 def calculate_psi(reference, current, n_bins=10):
     """Population Stability Index between two distributions."""
     breakpoints = np.percentile(reference, np.linspace(0, 100, n_bins + 1))
+    # Open the outer bins. Percentile edges stop at the reference min and max,
+    # so np.histogram silently drops every current observation outside that
+    # range - exactly the tail shift PSI is supposed to catch.
+    breakpoints[0], breakpoints[-1] = -np.inf, np.inf
     ref_pct = np.histogram(reference, bins=breakpoints)[0] / len(reference)
     cur_pct = np.histogram(current, bins=breakpoints)[0] / len(current)
     ref_pct = np.clip(ref_pct, 1e-4, None)

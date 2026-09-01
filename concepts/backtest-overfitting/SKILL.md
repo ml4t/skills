@@ -65,7 +65,7 @@ PBO uses combinatorial CV (CSCV; see `cpcv` skill) to generate multiple train/te
 import numpy as np
 from itertools import combinations
 
-n_groups, n_test = 8, 2
+n_groups, n_test = 8, 4  # CSCV splits into complementary halves, not 2-of-8
 groups = np.array_split(np.arange(len(data)), n_groups)
 ranks = []  # relative OOS rank of the strategy chosen in sample
 for test_g in combinations(range(n_groups), n_test):
