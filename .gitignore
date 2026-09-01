@@ -20,3 +20,6 @@ reviews/
 SKILL_AUDIT.md
 REVIEW_PROMPT.md
 VALIDATION_REPORT.md
+# roborev local state
+/.roborev/
+/.roborev.toml
