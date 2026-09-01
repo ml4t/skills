@@ -37,24 +37,22 @@ def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray)
     """Screen a single feature for predictive quality."""
     ok = ~np.isnan(feature) & ~np.isnan(target)  # both: one nan makes ic nan
     ic, p_value = spearmanr(feature[ok], target[ok])
-    unique_quarters = np.unique(dates.astype("datetime64[Q]"))
+    quarters = dates.astype("datetime64[M]").astype(int) // 3  # numpy has no [Q]
     quarterly_ics = []
-    for q in unique_quarters:
-        mask = dates.astype("datetime64[Q]") == q
+    for q in np.unique(quarters):
+        mask = (quarters == q) & ok  # ok too: the floor counts VALID pairs
         if mask.sum() > 30:
             qic, _ = spearmanr(feature[mask], target[mask])
             quarterly_ics.append(qic)
 
-    ic_mean = np.nanmean(quarterly_ics)
-    ic_std = np.nanstd(quarterly_ics)
+    quarterly_ics = np.array(quarterly_ics)
+    quarterly_ics = quarterly_ics[~np.isnan(quarterly_ics)]  # nan != a bad quarter
+    ic_mean, ic_std = quarterly_ics.mean(), quarterly_ics.std()
     ic_ir = ic_mean / ic_std if ic_std > 0 else 0  # IC information ratio
     leakage_flag = abs(ic) > 0.10
 
-    return {
-        "ic": ic, "p_value": p_value, "ic_ir": ic_ir,
-        "pct_positive_quarters": np.mean([q > 0 for q in quarterly_ics]),
-        "leakage_flag": leakage_flag,
-    }
+    return {"ic": ic, "p_value": p_value, "ic_ir": ic_ir, "leakage_flag": leakage_flag,
+            "pct_positive_quarters": np.mean(quarterly_ics > 0)}
 ```
 
 ## Validation Checklist Sequence
@@ -77,6 +75,9 @@ def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> d
     gaps = np.r_[0, np.cumsum(np.isnan(returns))]  # missing returns so far
     cum = np.r_[1.0, np.cumprod(1.0 + np.nan_to_num(returns))]
     for h in horizons:
+        if h >= n:
+            decay[h] = np.nan  # no forward window fits in the sample
+            continue
         # Compounded t+1..t+h. np.roll wrapped the sample start into the tail,
         # and a plain cumprod let one missing return poison every later window.
         fwd, whole = np.full(n, np.nan), gaps[1 + h:n + 1] == gaps[1:n - h + 1]
@@ -89,8 +90,6 @@ def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> d
 
 ## Guardrails
 
-- **IC > 0.10 is suspicious** - nearly always lookahead contamination in daily equity data
-- **IC-IR < 0.5 means unstable** - the feature works sometimes but is overall unreliable
 - **Non-decaying IC across horizons** - strong sign of information leakage
 - **Always validate on expanding windows** - never compute IC on the full sample at once
 

@@ -87,10 +87,10 @@ carry = front.join(back, on=["product", "timestamp"], suffix="_back").with_colum
 
 ## Guardrails
 
-- Always use `adj_close` for returns and features - raw `close` is only for current price reference
+- Never build returns or features from raw `close`, which jumps at every roll - `close` is for the current quote only
 - Roll dates vary by product: energy rolls monthly, equity index rolls quarterly
 - Panama adjustment changes historical price levels - do not use adjusted prices for margin calculations
-- Percentage returns off a Panama series are distorted early in the history; use ratio adjustment when the return, not the price change, is what you trade
+- Match the adjustment to the unit you trade: additive `adj_close` for absolute price changes, ratio adjustment for percentage returns, which Panama distorts early in the history
 - Carry signals require accurate term structure with at least 2 contract months
 
 ## Production Implementation
