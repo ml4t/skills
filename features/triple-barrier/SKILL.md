@@ -43,17 +43,19 @@ def triple_barrier_labels(
     abs_changes = np.abs(np.diff(prices, prepend=prices[0]))
     atr = np.convolve(abs_changes, np.ones(atr_period) / atr_period)[: len(prices)]
 
-    labels = np.zeros(len(prices))
+    # NaN, not 0: the final max_holding bars have no full horizon, and labeling
+    # them "time expiry" would teach the model that censoring means no move.
+    labels = np.full(len(prices), np.nan)
     for i in range(len(prices) - max_holding):
         upper = prices[i] + atr[i] * upper_mult
         lower = prices[i] - atr[i] * lower_mult
+        labels[i] = 0.0  # time expiry unless a barrier is touched first
         for j in range(1, max_holding + 1):
             if prices[i + j] >= upper:
                 labels[i] = 1; break
             elif prices[i + j] <= lower:
                 labels[i] = -1; break
-        # else: labels[i] stays 0 (time expiry)
-    return labels
+    return labels  # drop the NaN tail before training
 ```
 
 ## Barrier Calibration

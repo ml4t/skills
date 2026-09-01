@@ -38,7 +38,10 @@ import numpy as np
 def purged_split(n_samples, train_end, test_start, test_end,
                  label_horizon=5, embargo_size=2):
     """Create a single purged train/test split with embargo."""
-    train_idx = np.arange(0, train_end - label_horizon + 1)  # Purge
+    # Sample i is safe only if its label closes before the test opens:
+    # i + label_horizon < test_start. The +1 form kept i = test_start - horizon,
+    # whose label lands exactly on the first test bar.
+    train_idx = np.arange(0, test_start - label_horizon)  # Purge
     test_idx = np.arange(test_start, test_end)
 
     # Embargo: also exclude samples right after test end

@@ -73,8 +73,11 @@ def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray)
 def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> dict:
     """IC should decay with horizon - if it doesn't, suspect leakage."""
     decay = {}
+    cum = np.cumprod(1.0 + returns)
     for h in horizons:
-        fwd = np.roll(returns, -h)  # forward returns at horizon h
+        # Compounded t+1..t+h. np.roll wrapped the sample start into the tail.
+        fwd = np.full(len(returns), np.nan)
+        fwd[:-h] = cum[h:] / cum[:-h] - 1.0
         valid = ~np.isnan(feature) & ~np.isnan(fwd)
         ic, _ = spearmanr(feature[valid], fwd[valid])
         decay[h] = ic
