@@ -29,7 +29,6 @@ labels = np.where(fwd_returns > 0.02, 1, np.where(fwd_returns < -0.01, -1, 0))
 ### CORRECT
 ```python
 import numpy as np
-import polars as pl
 
 def triple_barrier_labels(
     prices: np.ndarray,
@@ -39,9 +38,10 @@ def triple_barrier_labels(
     max_holding: int = 10,
 ) -> np.ndarray:
     """Label each bar: +1 profit hit, -1 stop hit, 0 time expiry."""
-    # Volatility-adaptive barriers via smoothed absolute price changes
+    # Volatility-adaptive barriers via a TRAILING mean of absolute price changes.
+    # mode="same" would centre the window and let atr[i] see bars after i.
     abs_changes = np.abs(np.diff(prices, prepend=prices[0]))
-    atr = np.convolve(abs_changes, np.ones(atr_period) / atr_period, mode="same")
+    atr = np.convolve(abs_changes, np.ones(atr_period) / atr_period)[: len(prices)]
 
     labels = np.zeros(len(prices))
     for i in range(len(prices) - max_holding):
