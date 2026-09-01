@@ -101,13 +101,22 @@ for skill in "${skills[@]}"; do
         }
         rm -rf "$staging"
     else
-        # Swapping a symlink over a symlink is atomic, so the old one is never
-        # removed first. mv -T refuses a directory target, so a marked copy
-        # being converted to a symlink has to go first.
+        # Stage the link, then swap. Over a symlink that swap is atomic; over a
+        # marked copy it cannot be, because mv -T refuses a directory target, so
+        # the copy is moved aside and put back if the swap fails.
+        ln -sfn "$dir" "$dest.new"
+        backup=""
         if [ -d "$dest" ] && [ ! -L "$dest" ]; then
-            rm -rf "$dest"
+            backup="$(mktemp -d "$TARGET/.staging-$name.XXXXXX")"
+            mv "$dest" "$backup/previous"
         fi
-        ln -sfn "$dir" "$dest.new" && mv -T "$dest.new" "$dest"
+        if ! mv -T "$dest.new" "$dest"; then
+            [ -n "$backup" ] && mv "$backup/previous" "$dest"
+            rm -rf "$dest.new" "$backup"
+            echo "failed to install $name; previous install restored" >&2
+            exit 1
+        fi
+        rm -rf "$backup"
     fi
     installed=$((installed + 1))
 done

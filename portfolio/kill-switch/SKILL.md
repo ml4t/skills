@@ -63,8 +63,8 @@ class KillSwitch:
             if not passed:
                 self.triggered = True
                 self.trigger_reason = f"{name}: threshold breached"
-                self.on_breach(name)  # flattening happens here, not on the next order
-                return reducing
+                self.on_breach(name)  # cancels, flattens - not the next order's job
+                return False  # `reducing` was judged against the pre-flatten book
         return True  # safe to proceed
 
     def reset(self, manual_approval_code: str):
@@ -90,7 +90,7 @@ def risk_level(drawdown, realized_vol, target_vol=0.10):
 ## Guardrails
 
 - Thresholds must be set BEFORE deployment, not adjusted during a drawdown
-- A latched switch must still pass risk-reducing orders, or you cannot flatten
+- The breaching order never executes; a latched switch passes later reducing orders
 - Data feed failure is a trigger - no data means no trading, not "use stale prices"
 
 ## Production Implementation

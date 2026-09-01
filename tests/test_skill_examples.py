@@ -104,6 +104,13 @@ class KillSwitchLatchesUntilReset(unittest.TestCase):
         self.assertFalse(switch.check(**self.HEALTHY, position=100.0, qty=-500))
         self.assertFalse(switch.check(**self.HEALTHY, position=100.0, qty=25))
 
+    def test_the_order_that_triggered_the_breach_never_executes(self):
+        # The handler flattens, so a "reducing" order judged against the
+        # pre-flatten book would open reverse exposure on the now-flat account.
+        switch = self.switch()
+        self.assertFalse(switch.check(**self.BREACH, position=100.0, qty=-50))
+        self.assertEqual(["max_daily_loss"], self.breaches)
+
     def test_only_the_reset_code_clears_the_latch(self):
         switch = self.switch()
         switch.check(**self.BREACH, position=0.0, qty=1)
@@ -198,18 +205,23 @@ class FeatureValidationRunsOnRealDates(unittest.TestCase):
         self.assertTrue(np.isfinite(decay[1]))
         self.assertTrue(np.isnan(decay[63]))
 
-    def test_the_forward_return_is_the_compounded_product(self):
+    def test_the_forward_return_handed_to_spearmanr_is_the_compounded_product(self):
         rng = np.random.default_rng(5)
         returns = rng.normal(0, 0.01, 200)
-        feature = np.arange(200, dtype=float)
-        namespace = run("features/feature-validation", 2, np=np,
-                        spearmanr=lambda a, b: (float(np.corrcoef(a, b)[0, 1]), 0.0))
-        namespace["ic_decay"](feature, returns, [5])  # must not raise
-        expected = np.prod(1 + returns[101:106]) - 1
-        gaps = np.r_[0, np.cumsum(np.isnan(returns))]
-        cum = np.r_[1.0, np.cumprod(1.0 + np.nan_to_num(returns))]
-        self.assertAlmostEqual(expected, (cum[6:201] / cum[1:196] - 1.0)[100], places=12)
-        self.assertEqual(0, gaps[-1])
+        seen: dict[str, np.ndarray] = {}
+
+        def capture(feature, forward):
+            seen["forward"] = np.asarray(forward, dtype=float)
+            return (0.0, 0.0)
+
+        namespace = run("features/feature-validation", 2, np=np, spearmanr=capture)
+        namespace["ic_decay"](np.arange(200, dtype=float), returns, [5])
+        # Compare what the function actually passed on, not a second copy of
+        # its own arithmetic: 195 rows of r[i+1] through r[i+5], compounded.
+        expected = np.array([np.prod(1 + returns[i + 1:i + 6]) - 1 for i in range(195)])
+        # Absolute, not relative: a ratio of cumulative products and a direct
+        # product differ by an ULP, which is a large relative error near zero.
+        np.testing.assert_allclose(seen["forward"], expected, rtol=0, atol=1e-14)
 
 
 @unittest.skipUnless(DEPS, "numpy and scikit-learn are required")
@@ -235,6 +247,55 @@ class WalkForwardPCAUsesOnlyItsOwnFold(unittest.TestCase):
         factors = self.factors(self.panel())
         kept = np.mean(np.any(~np.isnan(factors), axis=0))
         self.assertLess(kept, 0.5)
+
+
+@unittest.skipUnless(DEPS, "numpy and scikit-learn are required")
+class MetaLabelsScoreOnlyOutOfFoldRows(unittest.TestCase):
+    """No primary may predict a row it was fitted on, inner folds included."""
+
+    def fit(self, n=600, horizon=5):
+        rng = np.random.default_rng(13)
+        X = rng.normal(size=(n, 3))
+        X[:, 0] = np.arange(n)  # column 0 is the row id, so the stub can name rows
+        y = X[:, 1] + rng.normal(0, 0.5, n)
+        calls: list[tuple[set[int], set[int]]] = []
+
+        def rows(features):
+            return set(features[:, 0].astype(int).tolist())
+
+        class Primary:
+            def __init__(self, fitted):
+                self.fitted = fitted
+
+            def predict(self, features):
+                calls.append((self.fitted, rows(features)))
+                return np.sign(features[:, 1])
+
+        namespace = run("features/meta-labels", 1, np=np, X=X, y=y,
+                        outcomes=(y > 0).astype(int), horizon=horizon,
+                        fit_primary=lambda f, t: Primary(rows(f)))
+        return namespace, X, horizon, calls
+
+    def test_no_primary_ever_predicts_a_row_it_was_fitted_on(self):
+        # This is what "out of fold" means; predicting X after fitting on X,
+        # as the example used to, makes every one of these overlap completely.
+        _, _, _, calls = self.fit()
+        self.assertGreater(len(calls), 5)  # outer folds plus inner folds
+        for fitted, predicted in calls:
+            self.assertEqual(set(), fitted & predicted)
+
+    def test_positions_are_zero_wherever_no_out_of_fold_probability_exists(self):
+        namespace, _, _, _ = self.fit()
+        unscored = np.isnan(namespace["prob_win"])
+        self.assertTrue(unscored.any())
+        self.assertTrue((namespace["positions"][unscored] == 0.0).all())
+
+    def test_purging_removes_the_horizon_before_each_test_fold(self):
+        from sklearn.model_selection import TimeSeriesSplit
+        namespace, X, horizon, _ = self.fit()
+        for train, test in namespace["purged"](
+                TimeSeriesSplit(n_splits=5).split(X), horizon):
+            self.assertLess(train.max(), test[0] - horizon)
 
 
 @unittest.skipUnless(DEPS, "numpy and scipy are required")

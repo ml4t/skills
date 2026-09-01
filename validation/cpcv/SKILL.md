@@ -61,9 +61,9 @@ for test_groups in combinations(range(n_groups), n_test):
         train_mask[purge_start:purge_end] = False
 
     model.fit(X[train_mask], y[train_mask])
-    scores.append(model.score(X[test_mask], y[test_mask]))
+    scores.append(model.score(X[test_mask], y[test_mask]))  # one split, not a path
 
-# C(8,2) = 28 scores - a distribution, not a single number
+# C(8,2) = 28 split scores, which assemble into N-1 = 7 backtest paths
 print(f"Mean: {np.mean(scores):.3f}, Std: {np.std(scores):.3f}")
 ```
 

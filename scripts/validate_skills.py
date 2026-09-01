@@ -12,6 +12,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_LIBRARIES = {
     "",
@@ -50,7 +52,13 @@ def fail(errors: list[Error], path: Path | str, message: str) -> None:
     errors.append(Error(str(path), message))
 
 
-def parse_frontmatter(path: Path, text: str, errors: list[Error]) -> tuple[dict[str, str], str]:
+def parse_frontmatter(path: Path, text: str, errors: list[Error]) -> tuple[dict, str]:
+    """The frontmatter mapping, parsed as the YAML that agent runtimes read it as.
+
+    Splitting lines by hand accepted malformed YAML in fields nothing checks and
+    rejected valid forms - folded scalars, block lists, inline mappings - so a
+    skill could pass here and fail in the runtime that actually loads it.
+    """
     if not text.startswith("---\n"):
         fail(errors, path, "missing YAML frontmatter")
         return {}, text
@@ -59,41 +67,35 @@ def parse_frontmatter(path: Path, text: str, errors: list[Error]) -> tuple[dict[
     except ValueError:
         fail(errors, path, "malformed YAML frontmatter delimiters")
         return {}, text
-
-    fields: dict[str, str] = {}
-    in_metadata = False
-    for line in raw.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
-        if line.startswith("metadata:"):
-            fields["metadata"] = ""
-            in_metadata = True
-            continue
-        if in_metadata and line.startswith("  "):
-            key, sep, value = line.strip().partition(":")
-            if sep:
-                fields[f"metadata.{normalize_key(key)}"] = value.strip().strip('"')
-            continue
-        in_metadata = False
-        key, sep, value = line.partition(":")
-        if sep:
-            fields[normalize_key(key)] = value.strip().strip('"')
+    try:
+        fields = yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        fail(errors, path, f"frontmatter is not valid YAML: {str(exc).splitlines()[0]}")
+        return {}, body
+    if not isinstance(fields, dict):
+        fail(errors, path, "frontmatter must be a mapping")
+        return {}, body
     return fields, body
 
 
-def normalize_key(key: str) -> str:
-    """`"category": x` is valid YAML for the key `category`, so unquote before
-    comparing. Otherwise a banned field slips through by being quoted."""
-    return key.strip().strip("'\"").strip()
+def metadata_of(fields: dict) -> dict:
+    """The metadata mapping, or an empty one when it is missing or malformed."""
+    metadata = fields.get("metadata")
+    return metadata if isinstance(metadata, dict) else {}
 
 
-def parse_dependencies(value: str) -> list[str]:
-    value = value.strip()
-    if value == "[]":
-        return []
-    if not (value.startswith("[") and value.endswith("]")):
-        return ["<parse-error>"]
-    return [item.strip().strip("'\"") for item in value[1:-1].split(",") if item.strip()]
+def as_text(value) -> str:
+    """A scalar as the string the checks compare against. Lists stay unmatched."""
+    if value is None or isinstance(value, list | dict):
+        return ""
+    return str(value)
+
+
+def parse_dependencies(value) -> list[str] | None:
+    """The dependency list, or None when the field is not a list of strings."""
+    if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+        return None
+    return [v.strip() for v in value]
 
 
 def validate_skill(path: Path, skill_names: set[str], errors: list[Error]) -> None:
@@ -109,31 +111,34 @@ def validate_skill(path: Path, skill_names: set[str], errors: list[Error]) -> No
             fail(errors, path, f"missing frontmatter field: {field}")
 
     expected_name = f"ml4t-{directory_name}"
-    if fields.get("name") != expected_name:
+    if as_text(fields.get("name")) != expected_name:
         fail(errors, path, f"name must be {expected_name!r}")
 
-    description = fields.get("description", "")
+    description = as_text(fields.get("description"))
     if "Use when" not in description:
         fail(errors, path, "description must include 'Use when' trigger language")
 
-    # Checked against the parsed keys: a regex over the raw block missed every
-    # one of these, because the block starts with the newline that ^ anchors to.
+    metadata = metadata_of(fields)
     for banned in ("quantlab_module", "category", "type"):
-        if banned in fields or f"metadata.{banned}" in fields:
+        if banned in fields or banned in metadata:
             fail(errors, path, f"banned frontmatter field: {banned}")
 
-    for dependency in parse_dependencies(fields.get("dependencies", "[]")):
-        if dependency == "<parse-error>" or dependency not in skill_names:
-            fail(errors, path, f"unknown dependency: {dependency}")
+    dependencies = parse_dependencies(fields.get("dependencies", []))
+    if dependencies is None:
+        fail(errors, path, "dependencies must be a list of skill names")
+    else:
+        for dependency in dependencies:
+            if dependency not in skill_names:
+                fail(errors, path, f"unknown dependency: {dependency}")
 
-    chapters = fields.get("metadata.book_chapters", "")
+    chapters = as_text(metadata.get("book_chapters"))
     if not chapters:
         fail(errors, path, "missing metadata.book_chapters")
     for chapter in [part.strip() for part in chapters.split(",") if part.strip()]:
         if not chapter.isdigit() or not 1 <= int(chapter) <= 27:
             fail(errors, path, f"invalid book chapter: {chapter}")
 
-    library = fields.get("metadata.library", "")
+    library = as_text(metadata.get("library"))
     if library not in ALLOWED_LIBRARIES:
         fail(errors, path, f"unknown metadata.library: {library}")
 
@@ -169,7 +174,7 @@ def validate_dependency_graph(skills: list[Path], errors: list[Error]) -> None:
     graph: dict[str, list[str]] = {}
     for path in skills:
         fields, _ = parse_frontmatter(path, path.read_text(encoding="utf-8"), [])
-        graph[path.parent.name] = parse_dependencies(fields.get("dependencies", "[]"))
+        graph[path.parent.name] = parse_dependencies(fields.get("dependencies", [])) or []
 
     state: dict[str, int] = {}
     reported: set[tuple[str, ...]] = set()
@@ -191,9 +196,18 @@ def validate_dependency_graph(skills: list[Path], errors: list[Error]) -> None:
             visit(name, [name])
 
 
-def validate_readme(skill_count: int, errors: list[Error]) -> None:
+def validate_readme(skills: list[Path], errors: list[Error]) -> None:
     readme = ROOT / "README.md"
     text = readme.read_text(encoding="utf-8")
+    skill_count = len(skills)
+
+    # A skill missing from the catalog is undiscoverable, and the count alone
+    # cannot tell: a contributor can bump 61 to 62 and add no catalog row.
+    for path in skills:
+        target = f"{path.parent.relative_to(ROOT).as_posix()}/"
+        listed = text.count(f"]({target})")
+        if listed != 1:
+            fail(errors, readme, f"README catalog links {target} {listed} times, expected 1")
 
     count_match = re.search(r"(\d+)\s+standalone skills", text)
     if not count_match:
@@ -459,9 +473,15 @@ def discover_skills(root: Path, errors: list[Error]) -> list[Path]:
     validates. Because install flattens the categories away, two skills sharing
     a directory name in different categories collide on the same install target.
     """
-    skills = sorted(root.glob("*/*/SKILL.md"))
+    def visible(path: Path) -> bool:
+        # install.sh globs with the shell, which skips a dot-prefixed component
+        # unless dotglob is set. Validating one here would count a skill the
+        # installer silently never installs.
+        return not any(part.startswith(".") for part in path.relative_to(root).parts)
+
+    skills = sorted(p for p in root.glob("*/*/SKILL.md") if visible(p))
     for path in sorted(root.rglob("SKILL.md")):
-        if any(part.startswith(".") for part in path.relative_to(root).parts):
+        if not visible(path):
             continue
         if path not in skills:
             fail(errors, path, "SKILL.md must live at <category>/<skill>/SKILL.md")
@@ -498,7 +518,7 @@ def main() -> int:
         validate_skill(path, skill_names, errors)
 
     validate_dependency_graph(skills, errors)
-    validate_readme(len(skills), errors)
+    validate_readme(skills, errors)
     validate_git_tracked_files(errors)
     if args.library_root is not None:
         validate_ml4t_imports(skills, args.library_root, errors)

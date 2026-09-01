@@ -25,18 +25,14 @@ def daily_report():
     pnl = portfolio.value() - portfolio.start_of_day_value()
     if pnl < -10_000:
         send_email("Bad day", f"Lost ${abs(pnl):,.0f}")
-# Run at 4:30 PM - 6+ hours after problems started
-schedule.every().day.at("16:30").do(daily_report)
+schedule.every().day.at("16:30").do(daily_report)  # 6+ hours after it started
 ```
 
 ### CORRECT
 ```python
 import time
-import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
-
-logger = logging.getLogger("monitor")
 
 @dataclass
 class AlertThresholds:
@@ -46,35 +42,37 @@ class AlertThresholds:
     data_stale_seconds: int = 120      # 2 minutes without new data
     fill_rate_floor: float = 0.80      # 80% of orders must fill
 
-def monitor_loop(portfolio, data_feed, thresholds: AlertThresholds):
+def monitor_loop(portfolio, data_feed, thresholds: AlertThresholds, debounce=3):
     """Continuous monitoring with immediate alerting."""
+    streak = {}
+
+    def check(name, breached, message):
+        # One bad sample is noise; `debounce` of them in a row is an incident.
+        streak[name] = streak.get(name, 0) + 1 if breached else 0
+        if streak[name] == debounce:
+            alert(name, message)
+
     while True:
         now = datetime.now(UTC)
-
         last = data_feed.last_timestamp()
         if last.tzinfo is None:      # naive: subtracting from `now` raises
             last = last.replace(tzinfo=UTC)
         # .seconds is the sub-day part, so a 24h stall would read as fresh
         stale = (now - last).total_seconds()
-        if stale > thresholds.data_stale_seconds:
-            alert("DATA_STALE", f"No data for {stale:.0f}s")
+        check("DATA_STALE", stale > thresholds.data_stale_seconds, f"Stale {stale:.0f}s")
 
-        # Drawdown
         dd = portfolio.current_drawdown()
-        if dd > thresholds.max_drawdown:
-            alert("DRAWDOWN", f"Intraday DD: {dd:.1%}")
+        check("DRAWDOWN", dd > thresholds.max_drawdown, f"Intraday DD: {dd:.1%}")
+        loss = -portfolio.daily_return()  # the threshold was defined and never read
+        check("DAILY_LOSS", loss > thresholds.max_daily_loss, f"Daily loss: {loss:.1%}")
 
-        # Position concentration
         for sym, weight in portfolio.weights().items():
-            if abs(weight) > thresholds.max_position_pct:
-                alert("CONCENTRATION", f"{sym}: {weight:.1%}")
+            check(f"CONCENTRATION:{sym}", abs(weight) > thresholds.max_position_pct,
+                  f"{sym}: {weight:.1%}")
 
-        # Fill rate
         fill_rate = portfolio.fill_rate(window_minutes=30)
-        if fill_rate < thresholds.fill_rate_floor:
-            alert("LOW_FILLS", f"Fill rate: {fill_rate:.0%}")
-
-        time.sleep(10)  # Check every 10 seconds
+        check("LOW_FILLS", fill_rate < thresholds.fill_rate_floor, f"Fills {fill_rate:.0%}")
+        time.sleep(10)  # every 10s, so a 3-sample debounce alerts after 30s
 ```
 
 ## What to Monitor
@@ -83,7 +81,7 @@ Five categories: **P&L** (intraday drawdown > 5%, daily loss > 2%), **Positions*
 
 ## Alert Escalation
 
-Four levels: **INFO** (log only), **WARNING** (Slack), **CRITICAL** (page on-call), **HALT** (trigger kill switch). Debounce noisy metrics - trigger only if the condition persists for N consecutive checks to avoid alert fatigue.
+Four levels: **INFO** (log only), **WARNING** (Slack), **CRITICAL** (page on-call), **HALT** (trigger kill switch). Route by name from `check` above; the debounce there is what keeps a single bad sample off the pager.
 
 ## Guardrails
 

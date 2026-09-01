@@ -400,3 +400,88 @@ class QuotedFrontmatterKeysAreNormalized(unittest.TestCase):
         validate.validate_skill(skill / "SKILL.md", {"widget"}, errors)
         self.assertTrue(any("banned frontmatter field: category" in e.message for e in errors),
                         [e.message for e in errors])
+
+
+class FrontmatterIsParsedAsYaml(unittest.TestCase):
+    def fields(self, frontmatter: str):
+        errors: list = []
+        text = f"---\n{frontmatter}\n---\nbody\n"
+        return validate.parse_frontmatter(Path("x/SKILL.md"), text, errors), errors
+
+    def test_a_quoted_banned_key_is_still_the_banned_key(self):
+        (fields, _), errors = self.fields('name: ml4t-x\n"category": concepts')
+        self.assertEqual([], errors)
+        self.assertIn("category", fields)
+
+    def test_a_block_list_of_dependencies_is_accepted(self):
+        (fields, _), errors = self.fields("dependencies:\n  - cpcv\n  - purging-embargo")
+        self.assertEqual([], errors)
+        self.assertEqual(["cpcv", "purging-embargo"], validate.parse_dependencies(
+            fields["dependencies"]))
+
+    def test_invalid_yaml_is_reported_rather_than_silently_reshaped(self):
+        (_, _), errors = self.fields("name: [unclosed\ndescription: x")
+        self.assertTrue(errors)
+        self.assertIn("not valid YAML", errors[0].message)
+
+    def test_a_folded_description_keeps_its_trigger_language(self):
+        (fields, _), errors = self.fields("description: >\n  Do a thing.\n  Use when asked.")
+        self.assertEqual([], errors)
+        self.assertIn("Use when", validate.as_text(fields["description"]))
+
+    def test_a_scalar_frontmatter_is_not_a_mapping(self):
+        (fields, _), errors = self.fields("just a string")
+        self.assertEqual({}, fields)
+        self.assertIn("must be a mapping", errors[0].message)
+
+
+class HiddenPathsAreNotSkills(unittest.TestCase):
+    """install.sh globs with the shell, which never sees a dot-prefixed part."""
+
+    def tree(self, *skills: str) -> Path:
+        tmp = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        for rel in skills:
+            (tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+            (tmp / rel).write_text("---\nname: x\n---\n")
+        return tmp
+
+    def discovered(self, root: Path) -> tuple[list[str], list[str]]:
+        errors: list = []
+        found = validate.discover_skills(root, errors)
+        return ([p.relative_to(root).as_posix() for p in found],
+                [e.message for e in errors])
+
+    def test_a_hidden_category_is_neither_counted_nor_reported(self):
+        found, errors = self.discovered(self.tree(
+            "concepts/alpha/SKILL.md", ".drafts/beta/SKILL.md"))
+        self.assertEqual(["concepts/alpha/SKILL.md"], found)
+        self.assertEqual([], errors)
+
+    def test_a_hidden_skill_directory_is_neither_counted_nor_reported(self):
+        found, errors = self.discovered(self.tree(
+            "concepts/alpha/SKILL.md", "concepts/.beta/SKILL.md"))
+        self.assertEqual(["concepts/alpha/SKILL.md"], found)
+        self.assertEqual([], errors)
+
+    def test_the_shell_and_python_globs_agree_on_the_real_tree(self):
+        errors: list = []
+        found = {p.parent.name for p in validate.discover_skills(ROOT, errors)}
+        shell = __import__("subprocess").run(
+            ["bash", "-c", f'shopt -s nullglob; for s in "{ROOT}"/*/*/SKILL.md; '
+             'do basename "$(dirname "$s")"; done'],
+            capture_output=True, text=True, check=True)
+        self.assertEqual(found, set(shell.stdout.split()))
+
+
+class ReadmeCatalogListsEverySkill(unittest.TestCase):
+    def test_the_real_catalog_links_each_skill_exactly_once(self):
+        errors: list = []
+        validate.validate_readme(sorted(ROOT.glob("*/*/SKILL.md")), errors)
+        self.assertEqual([], [e.message for e in errors])
+
+    def test_a_skill_missing_from_the_catalog_fails(self):
+        errors: list = []
+        missing = ROOT / "concepts" / "not-in-readme" / "SKILL.md"
+        validate.validate_readme([*sorted(ROOT.glob("*/*/SKILL.md")), missing], errors)
+        self.assertTrue(any("not-in-readme" in e.message for e in errors),
+                        [e.message for e in errors])

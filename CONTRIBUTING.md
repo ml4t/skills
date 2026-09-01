@@ -77,6 +77,10 @@ at the directory holding the `ml4t-*` repositories.
   is not checked at all. Run a snippet before you trust it.
 - `dependencies` naming skills that exist, with no cycles.
 
+Frontmatter is parsed with PyYAML, so `pip install pyyaml` before running
+`scripts/validate_skills.py` locally. Everything the runtime accepts is
+accepted here, and anything it would reject fails the build.
+
 A separate `skill-examples` job executes the numerical `### CORRECT` blocks
 straight out of the Markdown and asserts what they produce - bar boundaries,
 the purge cutoff, PSI tails, NaN handling, the kill-switch latch. Nothing else
