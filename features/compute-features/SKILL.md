@@ -10,7 +10,7 @@ paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", 
 ---
 # Compute Features
 
-Computing features across a panel of assets requires group-aware operations — a global rolling mean mixes Apple's history with Tesla's. Every windowed statistic must be computed per symbol.
+Computing features across a panel of assets requires group-aware operations - a global rolling mean mixes Apple's history with Tesla's. Every windowed statistic must be computed per symbol.
 
 ## The Problem
 
@@ -33,7 +33,7 @@ df = df.with_columns(
 ```python
 import polars as pl
 
-# Per-symbol rolling window — no cross-contamination, no lookahead
+# Per-symbol rolling window - no cross-contamination, no lookahead
 df = df.sort("symbol", "timestamp").with_columns(
     mom_zscore=(
         (pl.col("returns") - pl.col("returns").rolling_mean(504).shift(1))  # 504 ≈ 2 trading years
@@ -75,7 +75,7 @@ features = df.sort("symbol", "timestamp").with_columns(
 - **Every `.over("symbol")`**: any rolling/expanding stat without `.over("symbol")` on panel data is a bug
 - **Shift before use**: expanding stats need `.shift(1)` to avoid including the current observation
 - **Sort order matters**: always `sort("symbol", "timestamp")` before windowed operations
-- **Horizon alignment**: feature lookback should match label horizon — a 63-day momentum feature on a 5-day label captures noise, not signal
+- **Horizon alignment**: feature lookback should match label horizon - a 63-day momentum feature on a 5-day label captures noise, not signal
 
 ## Production Implementation
 

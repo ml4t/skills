@@ -10,7 +10,7 @@ paths: ["**/*schema*.py", "**/*registry*.py", "**/*pipeline*.py", "**/*polars*.p
 ---
 # Canonical Schema
 
-When every dataset uses different column names — `date` vs `ts_event` vs `timestamp`, `asset` vs `ticker` vs `symbol` — every downstream notebook needs special-case handling.
+When every dataset uses different column names - `date` vs `ts_event` vs `timestamp`, `asset` vs `ticker` vs `symbol` - every downstream notebook needs special-case handling.
 
 ## The Problem
 
@@ -24,7 +24,7 @@ canonical schema, every downstream notebook needs provider-specific renames.
 ```python
 import polars as pl
 
-# Different column names per dataset — downstream code breaks constantly
+# Different column names per dataset - downstream code breaks constantly
 etfs = pl.read_parquet("etfs.parquet")        # has: date, ticker, close
 futures = pl.read_parquet("futures.parquet")   # has: ts_event, product, settle
 crypto = pl.read_parquet("crypto.parquet")     # has: timestamp, symbol, close
@@ -61,7 +61,7 @@ def enforce_schema(df: pl.DataFrame, dataset: str) -> pl.DataFrame:
                 renames[variant] = "symbol"
     return df.rename(renames)
 
-# Load once, use everywhere — no downstream renames needed
+# Load once, use everywhere - no downstream renames needed
 etfs = enforce_schema(pl.read_parquet("etfs.parquet"), "etfs")
 assert "timestamp" in etfs.columns
 assert "symbol" in etfs.columns
@@ -84,14 +84,14 @@ Schema enforcement happens at load time, not downstream. This means:
 
 1. Data loaders validate and rename on return
 2. Notebooks never import raw provider data directly
-3. If a notebook gets a `ColumnNotFoundError` for `date` or `asset`, the notebook is wrong — fix the notebook to use `timestamp` or `symbol`
+3. If a notebook gets a `ColumnNotFoundError` for `date` or `asset`, the notebook is wrong - fix the notebook to use `timestamp` or `symbol`
 
 ## Guardrails
 
-- Never rename canonical columns back to legacy names in notebooks — fix the notebook
-- Never add compatibility shims that accept both old and new names — migrate forward
+- Never rename canonical columns back to legacy names in notebooks - fix the notebook
+- Never add compatibility shims that accept both old and new names - migrate forward
 - If a new provider uses a different name, add the rename in the loader, not in 50 notebooks
-- `product` is only for CME futures — do not generalize to other datasets
+- `product` is only for CME futures - do not generalize to other datasets
 - Check for legacy names (`asset`, `date`, `ticker`, `pair`) during code review
 
 ## Production Implementation

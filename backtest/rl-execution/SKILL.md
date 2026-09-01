@@ -23,7 +23,7 @@ Model execution as a finite-horizon MDP. State: remaining shares, time left, vol
 ### WRONG
 
 ```python
-# Static TWAP — ignores market conditions entirely
+# Static TWAP - ignores market conditions entirely
 def twap_execute(total_shares: int, n_slices: int) -> list[int]:
     base = total_shares // n_slices
     remainder = total_shares % n_slices
@@ -76,11 +76,11 @@ class ExecutionEnv(gym.Env):
 
 ## Guardrails
 
-- **Non-completion penalty is mandatory** — without it the agent learns zero-trade is optimal
-- **Normalize all state features** — raw share counts and prices break learning
-- **Validate against TWAP baseline** — if RL underperforms TWAP, the environment is misconfigured
-- **Use square-root impact for large orders** — linear impact underestimates cost at scale
-- **Episode = one parent order** — do not mix multiple orders into one episode
+- **Non-completion penalty is mandatory** - without it the agent learns zero-trade is optimal
+- **Normalize all state features** - raw share counts and prices break learning
+- **Validate against TWAP baseline** - if RL underperforms TWAP, the environment is misconfigured
+- **Use square-root impact for large orders** - linear impact underestimates cost at scale
+- **Episode = one parent order** - do not mix multiple orders into one episode
 
 ## Production Implementation
 

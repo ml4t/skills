@@ -10,11 +10,11 @@ paths: ["**/*schema*.py", "**/*registry*.py", "**/*pipeline*.py", "**/*polars*.p
 ---
 # Polars Patterns for Quant Finance
 
-Pandas groupby-apply with Python functions is 10-100x slower than Polars lazy expressions with `.over()`. For financial data — where most operations are per-symbol rolling computations — the performance gap determines whether your pipeline takes minutes or hours.
+Pandas groupby-apply with Python functions is 10-100x slower than Polars lazy expressions with `.over()`. For financial data - where most operations are per-symbol rolling computations - the performance gap determines whether your pipeline takes minutes or hours.
 
 ## The Problem
 
-A typical quant workflow: load 500 symbols of daily data (2M rows), compute 20-day rolling features per symbol, cross-sectional rank, then join with labels. In pandas with `groupby().apply()`, this takes 45 seconds and 8 GB of RAM. The same logic in Polars lazy mode takes 2 seconds and 800 MB. The difference is not optimization — it is a fundamentally different execution model.
+A typical quant workflow: load 500 symbols of daily data (2M rows), compute 20-day rolling features per symbol, cross-sectional rank, then join with labels. In pandas with `groupby().apply()`, this takes 45 seconds and 8 GB of RAM. The same logic in Polars lazy mode takes 2 seconds and 800 MB. The difference is not optimization - it is a fundamentally different execution model.
 
 ## The Pattern
 
@@ -22,7 +22,7 @@ A typical quant workflow: load 500 symbols of daily data (2M rows), compute 20-d
 ```python
 import pandas as pd
 
-# Pandas: iterative groupby-apply — Python loop per group
+# Pandas: iterative groupby-apply - Python loop per group
 df = pd.read_parquet("prices.parquet")
 
 # Slow: Python function called once per symbol
@@ -39,7 +39,7 @@ df = df.groupby("symbol").apply(compute_features)  # Python loop: 500 iterations
 ```python
 import polars as pl
 
-# Polars: vectorized expressions with .over() — no Python loops
+# Polars: vectorized expressions with .over() - no Python loops
 df = (
     pl.scan_parquet("prices.parquet")
     .with_columns(
@@ -56,7 +56,7 @@ df = (
 
 ## Key Pattern: `.over()` for Per-Symbol Operations
 
-`.over("symbol")` is the Polars equivalent of `groupby("symbol").transform()`, but it runs as a vectorized expression — no Python callback, no per-group overhead.
+`.over("symbol")` is the Polars equivalent of `groupby("symbol").transform()`, but it runs as a vectorized expression - no Python callback, no per-group overhead.
 
 ```python
 df.with_columns(
@@ -75,7 +75,7 @@ df.with_columns(
 ## Lazy Evaluation for Large Data
 
 ```python
-# Lazy: build query plan, execute once — Polars optimizes the plan
+# Lazy: build query plan, execute once - Polars optimizes the plan
 result = (
     pl.scan_parquet("data/*.parquet")          # lazy: reads nothing yet
     .filter(pl.col("timestamp") >= "2020-01-01")  # pushed down to parquet
@@ -104,10 +104,10 @@ labels_with_features = labels.join_asof(
 ## Guardrails
 
 - Always use `pl.scan_parquet()` (lazy) over `pl.read_parquet()` (eager) for files larger than 100 MB
-- Never use `.map_elements()` (Python UDF) when a native expression exists — 10-100x penalty
-- Single `.with_columns()` call for parallel computations — do not chain separate calls
+- Never use `.map_elements()` (Python UDF) when a native expression exists - 10-100x penalty
+- Single `.with_columns()` call for parallel computations - do not chain separate calls
 - Convert to pandas only at visualization boundaries (`df.to_pandas()` for matplotlib/seaborn)
-- Sort before `.rolling_*()` and `.over()` — Polars does not implicitly sort
+- Sort before `.rolling_*()` and `.over()` - Polars does not implicitly sort
 
 ## Checklist
 

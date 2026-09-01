@@ -14,14 +14,14 @@ A factor that looks predictive may be untradeable due to high turnover, rapid de
 
 ## The Problem
 
-Reporting a single backtest Sharpe ratio conflates signal quality with portfolio construction. A factor with IC 0.03 and low turnover can be more valuable than one with IC 0.05 and 80% daily turnover — whether IC is sufficient depends on breadth, turnover costs, and regime stability. Without decomposing signal quality into IC, quantile monotonicity, turnover, and decay, you cannot diagnose why a strategy fails or how to improve it.
+Reporting a single backtest Sharpe ratio conflates signal quality with portfolio construction. A factor with IC 0.03 and low turnover can be more valuable than one with IC 0.05 and 80% daily turnover - whether IC is sufficient depends on breadth, turnover costs, and regime stability. Without decomposing signal quality into IC, quantile monotonicity, turnover, and decay, you cannot diagnose why a strategy fails or how to improve it.
 
 ## The Pattern
 
 ### WRONG
 
 ```python
-# Evaluate only via backtest Sharpe — hides factor-level issues
+# Evaluate only via backtest Sharpe - hides factor-level issues
 returns = run_backtest(signal)
 sharpe = returns.mean() / returns.std() * np.sqrt(252)
 print(f"Sharpe: {sharpe:.2f}")  # No idea why it works or doesn't
@@ -80,11 +80,11 @@ for horizon in [1, 5, 10, 21, 63]:
 
 ## Guardrails
 
-- IC alone is insufficient — a factor with high IC but non-monotonic quintiles is unreliable
+- IC alone is insufficient - a factor with high IC but non-monotonic quintiles is unreliable
 - High turnover (>30% daily) signals that transaction costs may consume the alpha
 - Always compute t-statistics with HAC (Newey-West) standard errors for autocorrelated IC series
-- Decay analysis determines rebalance frequency — rebalancing faster than the peak-IC horizon wastes costs
-- IC is a learnability screen, not a strategy — a positive IC only means the signal has information; tradability requires checking turnover, costs, and capacity
+- Decay analysis determines rebalance frequency - rebalancing faster than the peak-IC horizon wastes costs
+- IC is a learnability screen, not a strategy - a positive IC only means the signal has information; tradability requires checking turnover, costs, and capacity
 
 ## Production Implementation
 

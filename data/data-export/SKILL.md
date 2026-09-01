@@ -10,7 +10,7 @@ paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**
 ---
 # Data Export
 
-Saving financial data as CSV loses type information, bloats file size 5-10x, and makes every downstream read parse strings back into numbers — a tax paid on every pipeline run.
+Saving financial data as CSV loses type information, bloats file size 5-10x, and makes every downstream read parse strings back into numbers - a tax paid on every pipeline run.
 
 ## The Problem
 
@@ -60,7 +60,7 @@ df = (
     .filter(pl.col("symbol") == "SPY")
     .collect()
 )
-# Only reads the row groups and columns needed — 10-100x faster than CSV
+# Only reads the row groups and columns needed - 10-100x faster than CSV
 ```
 
 ## Partitioning Large Datasets
@@ -89,11 +89,11 @@ types, and row count. Readers assert the expected version before loading.
 
 ## Guardrails
 
-- Never use CSV for production data pipelines — Parquet is strictly superior for typed columnar data
-- Always enable `statistics=True` — it costs nothing on write and enables predicate pushdown on read
+- Never use CSV for production data pipelines - Parquet is strictly superior for typed columnar data
+- Always enable `statistics=True` - it costs nothing on write and enables predicate pushdown on read
 - `zstd` compression gives the best size/speed tradeoff; `snappy` is faster but larger
 - Partition only when datasets exceed ~1GB or when you frequently filter by the partition key
-- Schema changes must be explicit — a silently added column breaks downstream notebooks that assert schema
+- Schema changes must be explicit - a silently added column breaks downstream notebooks that assert schema
 
 ## Production Implementation
 

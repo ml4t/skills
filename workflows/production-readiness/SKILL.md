@@ -20,7 +20,7 @@ A team deploys a model that passed validation. On day three, the data vendor has
 ### WRONG
 
 ```python
-# Model works in backtest — deploy directly
+# Model works in backtest - deploy directly
 import pickle
 from broker_api import submit_orders
 
@@ -38,18 +38,18 @@ for order in orders:
 # Five infrastructure layers before any live order
 import datetime as dt
 
-# Layer 1: DATA PIPELINE — validate freshness and integrity
+# Layer 1: DATA PIPELINE - validate freshness and integrity
 latest_ts = data_store.get_latest_timestamp()
 staleness = dt.datetime.now(dt.timezone.utc) - latest_ts
 assert staleness < dt.timedelta(hours=2), f"Data stale: {staleness}"
-assert data_store.validate_schema(), "Schema mismatch — pipeline broken"
+assert data_store.validate_schema(), "Schema mismatch - pipeline broken"
 
-# Layer 2: MODEL VERSIONING — reproducibility and audit trail
+# Layer 2: MODEL VERSIONING - reproducibility and audit trail
 model_hash = compute_model_hash(model_path)
 assert model_hash == registry.get_deployed_hash(), "Model hash mismatch"
 assert registry.get_training_date(model_hash) > dt.date(2025, 6, 1), "Model too old"
 
-# Layer 3: RISK LIMITS — hard limits that cannot be overridden by signals
+# Layer 3: RISK LIMITS - hard limits that cannot be overridden by signals
 risk_config = {
     "max_position_pct": 0.05,       # No single position > 5% of portfolio
     "max_sector_pct": 0.25,         # No sector > 25%
@@ -58,12 +58,12 @@ risk_config = {
     "max_gross_leverage": 1.5,      # Hard leverage cap
 }
 
-# Layer 4: MONITORING — detect problems before they compound
+# Layer 4: MONITORING - detect problems before they compound
 # → Use ml4t-drift-detection for feature/prediction distribution shifts
 # → Use ml4t-risk-metrics for rolling drawdown and exposure tracking
 # Alerts fire on: data staleness, drift PSI > 0.25, drawdown > threshold
 
-# Layer 5: KILL SWITCH — automated and manual halt capability
+# Layer 5: KILL SWITCH - automated and manual halt capability
 # → Use ml4t-kill-switch for implementation
 # Kill switch triggers: max drawdown, data staleness, model drift, manual override
 # Kill switch action: flatten all positions, cancel open orders, alert team

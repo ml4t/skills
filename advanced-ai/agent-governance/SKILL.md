@@ -60,18 +60,18 @@ def guarded_call(tool: str, args: dict):
 
 ## Control Layers
 
-- **Policy** -- allowlists, sandbox paths, domain restrictions, action tiers
-- **Warden proxy** -- intercept every tool call before execution
-- **Evidence hygiene** -- classify untrusted text and strip instructions from retrieved content
-- **Approval gates** -- require humans for live orders, deployments, credential changes
-- **Auditability** -- immutable log of prompts, tools, policy decisions, and artifacts
+- **Policy** - allowlists, sandbox paths, domain restrictions, action tiers
+- **Warden proxy** - intercept every tool call before execution
+- **Evidence hygiene** - classify untrusted text and strip instructions from retrieved content
+- **Approval gates** - require humans for live orders, deployments, credential changes
+- **Auditability** - immutable log of prompts, tools, policy decisions, and artifacts
 
 ## Guardrails
 
-- **Prompt-only safety** -- the model cannot enforce its own permissions
-- **Untrusted instructions** -- retrieved documents are evidence, never commands
-- **Silent high-impact actions** -- trading, deployment, and secret access need approval
-- **No kill path** -- agents need explicit stop conditions and escalation rules
+- **Prompt-only safety** - the model cannot enforce its own permissions
+- **Untrusted instructions** - retrieved documents are evidence, never commands
+- **Silent high-impact actions** - trading, deployment, and secret access need approval
+- **No kill path** - agents need explicit stop conditions and escalation rules
 
 ## Checklist
 

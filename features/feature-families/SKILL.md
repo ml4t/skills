@@ -1,6 +1,6 @@
 ---
 name: ml4t-feature-families
-description: "Five families of financial features — momentum, mean-reversion, volatility, carry, and value. Use when designing a feature set to ensure coverage across complementary market dynamics."
+description: "Five families of financial features - momentum, mean-reversion, volatility, carry, and value. Use when designing a feature set to ensure coverage across complementary market dynamics."
 when_to_use: "Use when designing a diversified feature set for alpha models"
 dependencies: []
 metadata:
@@ -10,7 +10,7 @@ paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", 
 ---
 # Feature Families
 
-A model trained on six momentum variants learns one signal six ways. Diversifying across feature families — each driven by a different economic mechanism — produces more robust predictions.
+A model trained on six momentum variants learns one signal six ways. Diversifying across feature families - each driven by a different economic mechanism - produces more robust predictions.
 
 ## The Problem
 
@@ -22,7 +22,7 @@ Feature sets dominated by a single family (e.g., all momentum) are highly correl
 ```python
 import polars as pl
 
-# All momentum variants — same family, correlated, fragile
+# All momentum variants - same family, correlated, fragile
 features = df.with_columns(
     mom_5d=pl.col("close").pct_change(5).over("symbol"),
     mom_21d=pl.col("close").pct_change(21).over("symbol"),
@@ -37,7 +37,7 @@ features = df.with_columns(
 import polars as pl
 import numpy as np
 
-# One representative from each family — diverse signals
+# One representative from each family - diverse signals
 features = df.sort("symbol", "timestamp").with_columns(
     # Momentum: trend-following
     momentum_63d=pl.col("close").pct_change(63).over("symbol"),
@@ -66,16 +66,16 @@ features = df.sort("symbol", "timestamp").with_columns(
 ## Diversity Diagnostic
 
 ```python
-# Check inter-family correlation — should be low
+# Check inter-family correlation - should be low
 corr = features.select(feature_cols).to_pandas().corr()
 avg_cross_family = corr.abs().mean().mean()  # Target: < 0.3
 ```
 
 ## Guardrails
 
-- **Max 2-3 features per family** in initial models — add more only if IC justifies it
-- **Cross-family correlation < 0.3** on average — higher means redundancy
-- **Each feature needs an economic hypothesis** — if you cannot explain *why* it predicts, it may be noise
+- **Max 2-3 features per family** in initial models - add more only if IC justifies it
+- **Cross-family correlation < 0.3** on average - higher means redundancy
+- **Each feature needs an economic hypothesis** - if you cannot explain *why* it predicts, it may be noise
 - **Not all families apply to all assets**: carry is irrelevant for assets without yield
 
 ## Production Implementation

@@ -10,7 +10,7 @@ paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", 
 ---
 # Triple-Barrier Labeling
 
-Fixed return thresholds ignore volatility — a 2% move is noise in crypto but a signal in treasuries. Triple-barrier labels adapt to the asset's current regime.
+Fixed return thresholds ignore volatility - a 2% move is noise in crypto but a signal in treasuries. Triple-barrier labels adapt to the asset's current regime.
 
 ## The Problem
 
@@ -66,13 +66,13 @@ def triple_barrier_labels(
 
 The ATR multiplier controls barrier width relative to current volatility. Typical ranges: upper 1.5-3.0x, lower 1.0-2.0x. De Prado's original uses EWMA daily vol; ATR is a practical alternative that captures intraday range.
 
-**MFE/MAE diagnostics**: Plot Maximum Favorable Excursion (best unrealized P&L) and Maximum Adverse Excursion (worst drawdown) for each trade to calibrate barriers empirically — barriers should sit at natural break points in the MFE/MAE distributions.
+**MFE/MAE diagnostics**: Plot Maximum Favorable Excursion (best unrealized P&L) and Maximum Adverse Excursion (worst drawdown) for each trade to calibrate barriers empirically - barriers should sit at natural break points in the MFE/MAE distributions.
 
 ## Guardrails
 
 - **Purging required**: CV must purge `max_holding_period` bars around test boundaries to prevent leakage
-- **Label overlap**: labels with overlapping holding periods are not IID — effective sample size is ~N/H where H is holding period. Use sample uniqueness weighting or sequential bootstrap
-- **Class balance**: check label distribution — use class weights if imbalanced beyond 3:1
+- **Label overlap**: labels with overlapping holding periods are not IID - effective sample size is ~N/H where H is holding period. Use sample uniqueness weighting or sequential bootstrap
+- **Class balance**: check label distribution - use class weights if imbalanced beyond 3:1
 - **ATR lookback**: must use only past data; `atr[i]` must not include bar `i+1`
 - **Tie-breaking**: when both barriers are crossed in the same bar, define a resolution rule (e.g., stop-loss takes priority)
 
@@ -103,6 +103,6 @@ labels = atr_triple_barrier_labels(
 
 - [ ] Barriers are volatility-adaptive (ATR or realized vol), not fixed thresholds
 - [ ] `max_holding_period` matches CV purge window (`label_horizon`)
-- [ ] Label distribution checked — no single class >80%
+- [ ] Label distribution checked - no single class >80%
 - [ ] ATR computed from past data only (no lookahead)
 - [ ] Short-side labels handled correctly if strategy is long/short

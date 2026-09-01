@@ -10,7 +10,7 @@ paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**
 ---
 # Build Bars
 
-Time bars sample by the clock, producing bars with wildly different information content — a 5-minute bar during the open contains 100x more trades than one at 2pm.
+Time bars sample by the clock, producing bars with wildly different information content - a 5-minute bar during the open contains 100x more trades than one at 2pm.
 
 ## The Problem
 
@@ -22,7 +22,7 @@ Standard time bars (1-min, 5-min, daily) sample at fixed intervals regardless of
 ```python
 import polars as pl
 
-# Only using time bars — uneven information per bar
+# Only using time bars - uneven information per bar
 trades = pl.read_parquet("trades.parquet")
 bars_5min = (
     trades.group_by_dynamic("timestamp", every="5m")
@@ -98,11 +98,11 @@ Dollar bars are preferred because they normalize for both price level and activi
 
 ## Guardrails
 
-- Dollar bars require tick-level trade data (timestamp, price, size) — cannot build from OHLCV
+- Dollar bars require tick-level trade data (timestamp, price, size) - cannot build from OHLCV
 - Thresholds are symbol-specific: $1M/bar for AAPL vs $50K/bar for a small-cap
-- Volume and dollar bars are not directly comparable across symbols — normalize returns
+- Volume and dollar bars are not directly comparable across symbols - normalize returns
 - Overnight gaps should be handled (exclude or flag the first bar of each session)
-- Bar counts drop on quiet days, increase on volatile days — this is the intended behavior
+- Bar counts drop on quiet days, increase on volatile days - this is the intended behavior
 
 ## Production Implementation
 

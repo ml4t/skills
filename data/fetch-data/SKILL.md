@@ -22,7 +22,7 @@ Financial data providers change schemas, go offline, or return partial results w
 ```python
 import pandas as pd
 
-# Blind load — no schema check, no gap detection, no type enforcement
+# Blind load - no schema check, no gap detection, no type enforcement
 df = pd.read_csv("etf_prices.csv")
 returns = df["close"].pct_change()  # Might be string column
 ```
@@ -87,16 +87,16 @@ def fetch_with_retry(url: str, max_retries: int = 3) -> dict:
 ## Canonical Schema
 
 All ML4T data uses two canonical columns:
-- **`symbol`** — entity identifier (exception: `cme_futures` uses `product`)
-- **`timestamp`** — time column for all frequencies (daily and intraday)
+- **`symbol`** - entity identifier (exception: `cme_futures` uses `product`)
+- **`timestamp`** - time column for all frequencies (daily and intraday)
 
 If your source uses `asset`, `date`, `ticker`, or `pair`, rename at load time, not downstream.
 
 ## Guardrails
 
-- Schema mismatches after provider updates are silent killers — always assert column names and types
+- Schema mismatches after provider updates are silent killers - always assert column names and types
 - Gaps > 5 trading days indicate missing data, not holidays
-- Never trust `close` without checking if adjustment is applied — use `adj_close` for returns
+- Never trust `close` without checking if adjustment is applied - use `adj_close` for returns
 - Stale data (unchanged prices for 5+ days) signals a broken feed, not a flat market
 
 ## Production Implementation

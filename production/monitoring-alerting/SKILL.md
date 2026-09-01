@@ -14,20 +14,20 @@ Checking performance at end-of-day is too late. A stuck data feed, a rejected or
 
 ## The Problem
 
-A strategy runs in production. The data feed silently stalls at 10:15 AM — the strategy stops generating signals but nobody notices until 4 PM. By then, the portfolio has drifted and missed the day's best opportunities. Worse: a position limit was breached because a partial fill was not tracked, and the strategy doubled down. End-of-day review catches the problem 6 hours too late.
+A strategy runs in production. The data feed silently stalls at 10:15 AM - the strategy stops generating signals but nobody notices until 4 PM. By then, the portfolio has drifted and missed the day's best opportunities. Worse: a position limit was breached because a partial fill was not tracked, and the strategy doubled down. End-of-day review catches the problem 6 hours too late.
 
 ## The Pattern
 
 ### WRONG
 ```python
-# End-of-day check — too late for anything but damage assessment
+# End-of-day check - too late for anything but damage assessment
 def daily_report():
     pnl = portfolio.value() - portfolio.start_of_day_value()
     print(f"Today's P&L: ${pnl:,.0f}")
     if pnl < -10_000:
         send_email("Bad day", f"Lost ${abs(pnl):,.0f}")
 
-# Run at 4:30 PM — 6+ hours after problems started
+# Run at 4:30 PM - 6+ hours after problems started
 schedule.every().day.at("16:30").do(daily_report)
 ```
 
@@ -36,7 +36,7 @@ schedule.every().day.at("16:30").do(daily_report)
 import time
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
 logger = logging.getLogger("monitor")
 
@@ -82,11 +82,11 @@ Five categories: **P&L** (intraday drawdown > 5%, daily loss > 2%), **Positions*
 
 ## Alert Escalation
 
-Four levels: **INFO** (log only), **WARNING** (Slack), **CRITICAL** (page on-call), **HALT** (trigger kill switch). Debounce noisy metrics — trigger only if the condition persists for N consecutive checks to avoid alert fatigue.
+Four levels: **INFO** (log only), **WARNING** (Slack), **CRITICAL** (page on-call), **HALT** (trigger kill switch). Debounce noisy metrics - trigger only if the condition persists for N consecutive checks to avoid alert fatigue.
 
 ## Guardrails
 
-- Monitor loop must run independently from the trading process — if trading crashes, monitoring must still work
+- Monitor loop must run independently from the trading process - if trading crashes, monitoring must still work
 - Alert thresholds set before going live, not tuned after the first loss
 - Debounce noisy metrics (fill rate, latency) to avoid alert fatigue
 - Data staleness check must use wall clock, not data timestamps (which stop updating when the feed dies)
@@ -97,7 +97,7 @@ Four levels: **INFO** (log only), **WARNING** (Slack), **CRITICAL** (page on-cal
 `ml4t-live` provides monitoring hooks integrated with the trading engine:
 
 ```python
-from ml4t.live import LiveEngine, SafeBroker, LiveRiskConfig
+from ml4t.live import SafeBroker, LiveRiskConfig
 
 config = LiveRiskConfig(
     max_drawdown_pct=0.05,

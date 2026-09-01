@@ -22,7 +22,7 @@ Reporting a single IC value (or worse, the best IC from many trials) tells you a
 ```python
 from scipy.stats import spearmanr
 
-# Single pooled IC -- hides time variation, inflates significance
+# Single pooled IC - hides time variation, inflates significance
 ic, pval = spearmanr(all_predictions.flatten(), all_returns.flatten())
 print(f"IC = {ic:.4f}, p = {pval:.4f}")
 ```
@@ -32,7 +32,6 @@ print(f"IC = {ic:.4f}, p = {pval:.4f}")
 ```python
 import numpy as np
 from scipy.stats import spearmanr
-from statsmodels.stats.stattools import durbin_watson
 
 # Cross-sectional IC per period
 ic_series = []
@@ -63,8 +62,8 @@ print(f"IC: {ic_mean:.4f}, IC_IR: {ic_ir:.2f}, t(HAC): {t_stat:.2f}")
 | IC range | Quality | Notes |
 |----------|---------|-------|
 | > 0.10 | Excellent | Rare; verify no leakage |
-| 0.05 -- 0.10 | Good | Typical for strong factors |
-| 0.02 -- 0.05 | Moderate | Profitable with enough breadth |
+| 0.05 - 0.10 | Good | Typical for strong factors |
+| 0.02 - 0.05 | Moderate | Profitable with enough breadth |
 | < 0.02 | Weak | Needs very high capacity to matter |
 
 ## The Fundamental Law of Active Management
@@ -79,9 +78,9 @@ Overlapping return labels (e.g., 21-day forward returns sampled daily) reduce ef
 
 ## Guardrails
 
-- Always use Rank IC (Spearman) for cross-sectional signals -- Pearson is sensitive to outliers.
-- Report IC_IR (mean/std), not just mean IC -- consistency matters more than magnitude.
-- Use HAC (Newey-West) standard errors, not naive t-tests -- IC series are autocorrelated.
+- Always use Rank IC (Spearman) for cross-sectional signals - Pearson is sensitive to outliers.
+- Report IC_IR (mean/std), not just mean IC - consistency matters more than magnitude.
+- Use HAC (Newey-West) standard errors, not naive t-tests - IC series are autocorrelated.
 - Plot IC over time: a decaying IC trend means the signal is crowding or the regime has changed.
 
 ## Production Implementation

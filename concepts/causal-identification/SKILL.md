@@ -10,11 +10,11 @@ paths: ["**/*causal*.py", "**/*dag*.py", "**/*dowhy*.py", "**/*econml*.py", "**/
 ---
 # Causal Identification
 
-A factor with IC 0.04 could be a real effect or a confounded association. Without a DAG and refutation tests, you cannot tell which. Conditioning on the wrong variables — mediators, colliders, post-treatment — can create or destroy apparent signal.
+A factor with IC 0.04 could be a real effect or a confounded association. Without a DAG and refutation tests, you cannot tell which. Conditioning on the wrong variables - mediators, colliders, post-treatment - can create or destroy apparent signal.
 
 ## The Problem
 
-"Kitchen sink regression" — conditioning on every available variable — is the default in ML pipelines. But including a collider (e.g., fund flows driven by both momentum and returns) induces spurious correlation (~-0.25 between independent variables). Including a mediator (the channel through which the treatment operates) attenuates the true effect. Including a post-treatment variable introduces bias of unknown sign. The DAG determines which variables are admissible controls.
+"Kitchen sink regression" - conditioning on every available variable - is the default in ML pipelines. But including a collider (e.g., fund flows driven by both momentum and returns) induces spurious correlation (~-0.25 between independent variables). Including a mediator (the channel through which the treatment operates) attenuates the true effect. Including a post-treatment variable introduces bias of unknown sign. The DAG determines which variables are admissible controls.
 
 ## The Pattern
 
@@ -24,7 +24,7 @@ import numpy as np
 from sklearn.linear_model import Ridge
 
 # Kitchen-sink: include everything as controls
-# fund_flow is a COLLIDER (driven by both momentum and returns) — induces bias
+# fund_flow is a COLLIDER (driven by both momentum and returns) - induces bias
 X = np.column_stack([momentum, volatility, fund_flow, sector_return])
 model = Ridge().fit(X, forward_returns)
 print(f"Momentum coeff: {model.coef_[0]:.4f}")  # Biased by collider conditioning
@@ -32,10 +32,9 @@ print(f"Momentum coeff: {model.coef_[0]:.4f}")  # Biased by collider conditionin
 
 ### CORRECT
 ```python
-import dowhy
 from dowhy import CausalModel
 
-# Step 1: Specify DAG — encode your mechanism assumptions
+# Step 1: Specify DAG - encode your mechanism assumptions
 graph = """
 digraph {
     volatility -> momentum;
@@ -75,7 +74,7 @@ print(f"Causal effect: {estimate.value:.4f}")
 Every causal claim must survive refutation before informing trading decisions:
 
 ```python
-# Placebo treatment: replace momentum with random noise — effect should vanish
+# Placebo treatment: replace momentum with random noise - effect should vanish
 placebo = model.refute_estimate(estimand, estimate, method_name="placebo_treatment_refuter")
 print(f"Placebo effect: {placebo.new_effect:.4f}")  # Should be ~0
 
@@ -90,12 +89,12 @@ If a confounder at 10-20% effect strength flips the sign, the result is fragile.
 
 ## Guardrails
 
-- **Specify the DAG before fitting** — post-hoc DAGs rationalize results instead of testing assumptions
-- **Never condition on colliders** — the fund-flow collider trap creates ~-0.25 spurious correlation between independent variables
-- **Enforce pre-treatment timing** — all controls must be determined strictly before treatment time
-- **Placebo tests are mandatory** — a pipeline that finds effects with random treatment is broken
-- **Sensitivity analysis calibrates confidence** — report the confounder strength at which the effect flips sign
-- **Causal discovery (PCMCI, NOTEARS) generates hypotheses, not conclusions** — validate discovered structure with independent data
+- **Specify the DAG before fitting** - post-hoc DAGs rationalize results instead of testing assumptions
+- **Never condition on colliders** - the fund-flow collider trap creates ~-0.25 spurious correlation between independent variables
+- **Enforce pre-treatment timing** - all controls must be determined strictly before treatment time
+- **Placebo tests are mandatory** - a pipeline that finds effects with random treatment is broken
+- **Sensitivity analysis calibrates confidence** - report the confounder strength at which the effect flips sign
+- **Causal discovery (PCMCI, NOTEARS) generates hypotheses, not conclusions** - validate discovered structure with independent data
 
 ## Production Implementation
 
@@ -113,7 +112,7 @@ print(f"ATE: {dml.ate():.4f}, 95% CI: {dml.ate_interval()}")
 ## Checklist
 
 - [ ] DAG specified and committed before any estimation
-- [ ] Adjustment set derived from backdoor criterion — no colliders, mediators, or post-treatment variables
+- [ ] Adjustment set derived from backdoor criterion - no colliders, mediators, or post-treatment variables
 - [ ] Estimand declared (ATE, ATT, or CATE) before fitting
 - [ ] Placebo treatment test returns near-zero effect
 - [ ] Sensitivity analysis reports the confounder strength that flips the sign

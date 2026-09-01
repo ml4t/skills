@@ -10,7 +10,7 @@ paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.p
 ---
 # Strategy Tearsheet
 
-A single metric hides more than it reveals. A tearsheet shows cumulative returns, drawdowns, rolling Sharpe, monthly heatmap, and a metrics table — exposing regime dependence, tail risk, and decay that one number cannot.
+A single metric hides more than it reveals. A tearsheet shows cumulative returns, drawdowns, rolling Sharpe, monthly heatmap, and a metrics table - exposing regime dependence, tail risk, and decay that one number cannot.
 
 ## The Problem
 
@@ -20,9 +20,9 @@ Reporting only Sharpe ratio misses critical failure modes. A Sharpe of 1.5 could
 
 ### WRONG
 ```python
-# Single number — hides everything important
+# Single number - hides everything important
 sharpe = returns.mean() / returns.std() * np.sqrt(252)
-print(f"Sharpe: {sharpe:.2f}")  # "Looks great!" — but is the strategy dying?
+print(f"Sharpe: {sharpe:.2f}")  # "Looks great!" - but is the strategy dying?
 ```
 
 ### CORRECT
@@ -79,7 +79,7 @@ Always report **gross and net** (after costs). A gross Sharpe of 1.5 that drops 
 ## Guardrails
 
 - Annualize with the correct frequency: 252 (daily), 52 (weekly), 12 (monthly)
-- Report net-of-cost metrics alongside gross — the gap is the cost burden
+- Report net-of-cost metrics alongside gross - the gap is the cost burden
 - Compare strategy Sharpe to a passive benchmark, not zero
 - Use Deflated Sharpe Ratio when selecting among multiple strategies (corrects for multiple testing)
 

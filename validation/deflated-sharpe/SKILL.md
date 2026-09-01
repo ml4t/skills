@@ -14,7 +14,7 @@ Reporting the best Sharpe ratio from N trials is misleading. The Deflated Sharpe
 
 ## The Problem
 
-If you test 100 strategy variants and report the best Sharpe, you are performing selection bias. The expected maximum Sharpe from N independent trials of a zero-skill strategy grows as roughly `sqrt(2 * log(N))`. Testing 100 strategies inflates expected Sharpe by about 1.0 even with zero alpha. Without correction, most "discovered" strategies are statistical artifacts that fail out of sample.
+If you test 100 strategy variants and report the best Sharpe, you are performing selection bias. Under the null of zero skill, the expected maximum Sharpe across N trials grows with `sqrt(2 * log(N))`, measured in units of the spread of Sharpes across those trials: at 100 trials the best result is about 2.5 spreads above zero before any alpha exists. Without correction, most "discovered" strategies are artifacts that fail out of sample.
 
 ## The Pattern
 
@@ -56,7 +56,7 @@ def deflated_sharpe_ratio(observed_sr, n_trials, sr_std, n_obs,
     )
     # Test statistic: is observed SR significantly above expected max?
     test_stat = (observed_sr - e_max_sr) / sr_se
-    return stats.norm.cdf(test_stat)  # p(skill is real)
+    return stats.norm.cdf(test_stat)  # probability the skill is real
 
 # Apply to strategy search
 n_trials = len(sharpes)
@@ -68,30 +68,30 @@ dsr = deflated_sharpe_ratio(
 )
 print(f"Observed Sharpe: {max(sharpes):.2f}")
 print(f"Trials tested: {n_trials}")
-print(f"DSR p-value: {dsr:.3f}")  # > 0.95 = credible
+print(f"DSR: {dsr:.3f}")  # a probability, not a p-value: high is good
 ```
 
 ## Interpretation
 
-| DSR p-value | Meaning |
+| DSR | Meaning |
 |---|---|
 | > 0.95 | Strong evidence of genuine skill |
 | 0.80-0.95 | Moderate evidence, worth investigating |
-| < 0.80 | Likely noise — do not deploy |
+| < 0.80 | Likely noise - do not deploy |
 
 ## Expected Sharpe Inflation
 
-| Trials | Approx. inflation |
+| Trials | E[max Sharpe] under the null, in units of `sr_std` |
 |---|---|
-| 10 | +0.4 |
-| 50 | +0.8 |
-| 100 | +1.0 |
-| 500 | +1.3 |
+| 10 | 1.6 |
+| 50 | 2.3 |
+| 100 | 2.5 |
+| 500 | 3.1 |
 
 ## Guardrails
 
 - Always count ALL trials tested, including abandoned or failed ones
-- DSR assumes approximately independent trials — correlated strategies understate the correction
+- DSR assumes approximately independent trials - correlated strategies understate the correction
 - Non-normal returns (fat tails, skew) make the correction larger via the kurtosis/skew terms
 - Combine with Probability of Backtest Overfitting (PBO) for a complete picture
 
@@ -116,5 +116,5 @@ print(f"Deflated Sharpe: {search.deflated_sharpe:.3f}")
 
 - [ ] Total number of trials documented (including failures)
 - [ ] DSR computed and reported alongside observed Sharpe
-- [ ] DSR p-value > 0.95 before declaring viable; non-normality (skew, kurtosis) included
+- [ ] DSR > 0.95 before declaring viable; non-normality (skew, kurtosis) included
 - [ ] Variance of Sharpe estimates sourced from CPCV folds when available

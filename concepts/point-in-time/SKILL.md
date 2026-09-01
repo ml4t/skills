@@ -9,7 +9,7 @@ metadata:
 ---
 # Point-in-Time Correctness
 
-Joining data by event date instead of availability date uses information that did not exist yet, inflating backtest returns by 1--3% annually on fundamental strategies.
+Joining data by event date instead of availability date uses information that did not exist yet, inflating backtest returns by 1-3% annually on fundamental strategies.
 
 ## The Problem
 

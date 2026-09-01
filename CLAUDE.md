@@ -1,4 +1,4 @@
-# ML4T Skills — Agent Entry Point
+# ML4T Skills - Agent Entry Point
 
 This repository's authoritative agent guidance lives in:
 

@@ -10,7 +10,7 @@ paths: ["**/*schema*.py", "**/*registry*.py", "**/*pipeline*.py", "**/*polars*.p
 ---
 # Experiment Registry
 
-Without a registry, you overwrite the best model every time you retrain. Content-addressed storage — where hash(config) determines the storage path — makes every experiment reproducible and comparable without manual bookkeeping.
+Without a registry, you overwrite the best model every time you retrain. Content-addressed storage - where hash(config) determines the storage path - makes every experiment reproducible and comparable without manual bookkeeping.
 
 ## The Problem
 
@@ -22,7 +22,7 @@ A quant runs 50 model configurations. Results go into `model_v2_final_FINAL.pkl`
 ```python
 import pickle
 
-# Overwrite on every run — no history, no comparison, no provenance
+# Overwrite on every run - no history, no comparison, no provenance
 model.fit(X_train, y_train)
 with open("best_model.pkl", "wb") as f:
     pickle.dump(model, f)
@@ -36,7 +36,6 @@ import hashlib
 import json
 import sqlite3
 from datetime import datetime
-from pathlib import Path
 
 def config_hash(config: dict) -> str:
     """Deterministic hash of experiment config."""
@@ -67,7 +66,7 @@ def register_run(db_path: str, config: dict, metrics: dict, predictions_path: st
 # Usage: every config gets a unique, reproducible slot
 config = {"model": "ridge", "alpha": 1.0, "features": "momentum_v2"}
 run_hash = register_run("registry.db", config, {"ic": 0.04}, f"runs/{config_hash(config)}/predictions.parquet")
-# Re-running same config overwrites same slot — idempotent
+# Re-running same config overwrites same slot - idempotent
 ```
 
 ## Registry Schema
@@ -103,11 +102,11 @@ The hash is the directory name. Same config always maps to the same directory. N
 
 ## Guardrails
 
-- Hash must be deterministic: `json.dumps(config, sort_keys=True)` — without `sort_keys`, same config produces different hashes
-- Register per-config as they complete, not in bulk after all finish — a crash at config 49 of 50 loses everything otherwise
-- Never store model weights in the SQLite database — store paths to artifacts on disk
+- Hash must be deterministic: `json.dumps(config, sort_keys=True)` - without `sort_keys`, same config produces different hashes
+- Register per-config as they complete, not in bulk after all finish - a crash at config 49 of 50 loses everything otherwise
+- Never store model weights in the SQLite database - store paths to artifacts on disk
 - Config must capture everything needed to reproduce: model type, hyperparameters, feature version, data version, random seed
-- Old runs are never deleted — mark as superseded, keep for audit trail
+- Old runs are never deleted - mark as superseded, keep for audit trail
 
 ## Checklist
 

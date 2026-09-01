@@ -14,7 +14,7 @@ A strategy backtested on 2015-2023 has never seen a regime where equities and bo
 
 ## The Problem
 
-Backtests cover only the historical sample, which may exclude the scenarios most relevant to survival. A momentum strategy backtested from 2010 onward has never experienced the 2009 momentum crash (-46% in one month). Stress testing applies known crisis scenarios and hypothetical shocks to the current portfolio, revealing exposures that summary statistics hide. This is not optional — it is how you discover that your "diversified" portfolio has a hidden correlation spike that produces a -30% month.
+Backtests cover only the historical sample, which may exclude the scenarios most relevant to survival. A momentum strategy backtested from 2010 onward has never experienced the 2009 momentum crash (-46% in one month). Stress testing applies known crisis scenarios and hypothetical shocks to the current portfolio, revealing exposures that summary statistics hide. This is not optional - it is how you discover that your "diversified" portfolio has a hidden correlation spike that produces a -30% month.
 
 ## The Pattern
 
@@ -22,7 +22,7 @@ Backtests cover only the historical sample, which may exclude the scenarios most
 ```python
 import numpy as np
 
-# Only looks at backtest period (2016-2023) — misses major crises
+# Only looks at backtest period (2016-2023) - misses major crises
 returns = backtest_returns  # 2016-2023 daily
 max_loss = returns.min()
 print(f"Worst day: {max_loss:.1%}")  # -3.2%, looks safe
@@ -80,8 +80,8 @@ loss = factor_stress(weights, betas, {"momentum": -0.15, "value": 0.05})
 
 ## Guardrails
 
-- Historical scenarios are a floor, not a ceiling — always include a "2x worst" hypothetical
-- Correlations increase under stress — use stressed correlations, not normal-regime estimates
+- Historical scenarios are a floor, not a ceiling - always include a "2x worst" hypothetical
+- Correlations increase under stress - use stressed correlations, not normal-regime estimates
 - Test at current positions, not average or target weights
 - Update scenario library when new crises occur (each one reveals a new failure mode)
 

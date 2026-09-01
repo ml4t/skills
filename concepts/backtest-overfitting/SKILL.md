@@ -13,7 +13,7 @@ Testing many strategies on the same data guarantees finding one that looks profi
 
 ## The Problem
 
-Every parameter you tune, every feature you try, and every universe filter you adjust is an implicit trial. A researcher who reports a Sharpe ratio of 2.0 after exploring 200 configurations has not found alpha -- they have found the luckiest draw from a noise distribution. The Deflated Sharpe Ratio corrects for this by penalizing for the number of trials conducted. Without it, most published backtests are statistically meaningless.
+Every parameter you tune, every feature you try, and every universe filter you adjust is an implicit trial. A researcher who reports a Sharpe ratio of 2.0 after exploring 200 configurations has not found alpha - they have found the luckiest draw from a noise distribution. The Deflated Sharpe Ratio corrects for this by penalizing for the number of trials conducted. Without it, most published backtests are statistically meaningless.
 
 ## The Pattern
 
@@ -90,7 +90,7 @@ pbo = np.mean(np.array(logits) > 0.5)  # PBO > 0.5 = no edge
 
 ## Guardrails
 
-- Document total configurations tested -- each is a trial. Separate exploration from confirmation.
+- Document total configurations tested - each is a trial. Separate exploration from confirmation.
 - Pre-register hypothesis and success threshold in version control before any backtest.
 - Reserve a true holdout set that is touched exactly once, at the very end.
 - Minimum 5 years daily data (~1,250 observations) for Sharpe estimation.

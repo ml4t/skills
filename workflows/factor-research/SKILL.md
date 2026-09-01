@@ -29,7 +29,7 @@ factor = prices.pct_change(252)  # 12-month momentum
 fwd_ret = prices.pct_change(21).shift(-21)  # 1-month forward return
 
 ic, _ = spearmanr(factor.dropna(), fwd_ret.dropna())
-print(f"IC: {ic:.3f}")  # 0.04 — looks good, ship it
+print(f"IC: {ic:.3f}")  # 0.04 - looks good, ship it
 ```
 
 ### CORRECT
@@ -75,8 +75,8 @@ assert ic_first_half * ic_second_half > 0, "IC sign flipped across subperiods"
 
 ## Guardrails
 
-- If IC > 0.10 on daily equity data, suspect lookahead bias — cross-sectional equity ICs are typically 0.02-0.05 (Grinold & Kahn, Kakushadze)
-- If factor turnover exceeds 50% monthly, capacity is likely constrained — check with `ml4t-evaluate-factor`
+- If IC > 0.10 on daily equity data, suspect lookahead bias - cross-sectional equity ICs are typically 0.02-0.05 (Grinold & Kahn, Kakushadze)
+- If factor turnover exceeds 50% monthly, capacity is likely constrained - check with `ml4t-evaluate-factor`
 - If IC is high but quantile returns are non-monotonic, the signal is noisy and may not translate to returns
 - If subperiod ICs disagree in sign, the factor is likely spurious regardless of full-period IC
 

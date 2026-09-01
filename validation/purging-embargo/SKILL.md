@@ -23,7 +23,7 @@ A 5-day forward return label at day 98 uses prices from days 98-103. If the test
 ```python
 from sklearn.model_selection import TimeSeriesSplit
 
-# No gap between train and test — labels leak across boundary
+# No gap between train and test - labels leak across boundary
 cv = TimeSeriesSplit(n_splits=5)
 for train_idx, test_idx in cv.split(X):
     model.fit(X[train_idx], y[train_idx])  # Train includes leaked samples
@@ -81,7 +81,7 @@ Rule of thumb: `embargo_size` = 10-20% of `label_horizon`.
 
 ## Guardrails
 
-- `label_horizon` MUST match actual label construction — a mismatch voids the purge
+- `label_horizon` MUST match actual label construction - a mismatch voids the purge
 - Verify training set retains enough samples after purging (especially with large horizons)
 - For multi-asset panels, purge within each asset independently
 - ACF analysis of features informs embargo sizing (higher autocorrelation → larger embargo)

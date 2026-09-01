@@ -10,7 +10,7 @@ paths: ["**/*feature*.py", "**/*label*.py", "**/*barrier*.py", "**/*store*.py", 
 ---
 # Feature Store
 
-Scattered CSV files with undocumented columns create silent schema drift — yesterday's `momentum` column used a 60-day window, today's uses 20 days, and nothing recorded the change. A structured feature store prevents this.
+Scattered CSV files with undocumented columns create silent schema drift - yesterday's `momentum` column used a 60-day window, today's uses 20 days, and nothing recorded the change. A structured feature store prevents this.
 
 ## The Problem
 
@@ -22,7 +22,7 @@ Without versioned storage, feature definitions drift silently. A researcher reco
 ```python
 import polars as pl
 
-# Unversioned, unstructured, no metadata — silent drift guaranteed
+# Unversioned, unstructured, no metadata - silent drift guaranteed
 features.write_csv("features.csv")  # What version? What parameters? When computed?
 # Later: someone overwrites with different parameters
 features_v2.write_csv("features.csv")  # Old version gone forever
@@ -84,10 +84,10 @@ a point-in-time join. March recomputations must never leak into January training
 
 ## Guardrails
 
-- **Never overwrite** — create a new version, never modify an existing one
-- **Metadata is mandatory** — every version records parameters, computation date, and row count
-- **Schema enforcement** — every feature DataFrame must have `timestamp` and `symbol` columns
-- **Point-in-time safety** — every downstream consumer needs either `as_of` semantics or an explicit PIT join
+- **Never overwrite** - create a new version, never modify an existing one
+- **Metadata is mandatory** - every version records parameters, computation date, and row count
+- **Schema enforcement** - every feature DataFrame must have `timestamp` and `symbol` columns
+- **Point-in-time safety** - every downstream consumer needs either `as_of` semantics or an explicit PIT join
 
 ## Production Implementation
 
@@ -112,6 +112,6 @@ with OfflineFeatureStore("features.duckdb") as store:
 
 - [ ] Every feature file has a version directory and metadata.json
 - [ ] Schema validated before write (required columns present, no null timestamps)
-- [ ] Old versions never overwritten — only new versions created
+- [ ] Old versions never overwritten - only new versions created
 - [ ] Point-in-time retrieval or join works correctly for downstream training
 - [ ] Feature registry (index) lists all available features and their current versions

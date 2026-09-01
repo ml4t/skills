@@ -9,7 +9,7 @@ metadata:
 ---
 # Non-Stationarity
 
-Financial time series have means, variances, and correlations that change over time. A model trained on 2015--2019 low-volatility data will underperform in a 2020 regime shift if it assumes fixed parameters.
+Financial time series have means, variances, and correlations that change over time. A model trained on 2015-2019 low-volatility data will underperform in a 2020 regime shift if it assumes fixed parameters.
 
 ## The Problem
 
@@ -22,7 +22,6 @@ A model trained on globally normalized features will overfit to the training reg
 ### WRONG
 
 ```python
-import numpy as np
 
 # Global normalization: uses future data and assumes stationarity
 X_norm = (X - X.mean(axis=0)) / X.std(axis=0)
@@ -76,9 +75,9 @@ stationary = (adf_pval < 0.05) and (kpss_pval > 0.05)  # both agree
 ## Guardrails
 
 - `X.mean()` or `X.std()` without `.expanding()` or `.rolling()` is a red flag in any feature pipeline.
-- Shorter rolling windows adapt faster but have higher estimation variance -- 126d to 504d is the typical range.
+- Shorter rolling windows adapt faster but have higher estimation variance - 126d to 504d is the typical range.
 - Test stationarity on raw features before modeling; non-stationary inputs produce unstable coefficients.
-- Monitor feature distributions in production -- a mean shift > 2 sigma signals model retraining.
+- Monitor feature distributions in production - a mean shift > 2 sigma signals model retraining.
 
 ## Production Implementation
 

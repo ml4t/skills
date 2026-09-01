@@ -14,7 +14,7 @@ An arbitrary 1-day horizon forces daily rebalancing, which costs 2-5% annually i
 
 ## The Problem
 
-The prediction horizon determines everything downstream: label construction, feature relevance, turnover, and whether transaction costs leave any alpha. Choosing it arbitrarily — or defaulting to "1 day because that is what everyone uses" — misaligns the model with the actual signal dynamics.
+The prediction horizon determines everything downstream: label construction, feature relevance, turnover, and whether transaction costs leave any alpha. Choosing it arbitrarily - or defaulting to "1 day because that is what everyone uses" - misaligns the model with the actual signal dynamics.
 
 ## The Pattern
 
@@ -22,7 +22,7 @@ The prediction horizon determines everything downstream: label construction, fea
 ```python
 import numpy as np
 
-# Arbitrary 1-day horizon — no evidence this matches the signal
+# Arbitrary 1-day horizon - no evidence this matches the signal
 labels = np.roll(returns, -1)  # forward 1-day return as label
 # Result: high turnover, transaction costs eat the edge
 ```
@@ -59,7 +59,7 @@ def find_optimal_horizon(
 |---------|-----------|----------------|
 | 1d | 0.01 | Too noisy, costs dominate |
 | 5d | 0.03 | Building strength |
-| 20d | 0.05 | **Peak — optimal horizon** |
+| 20d | 0.05 | **Peak - optimal horizon** |
 | 40d | 0.03 | Decaying |
 | 60d | 0.01 | Signal exhausted |
 
@@ -90,8 +90,8 @@ label = fwd_returns_60d
 
 ## Guardrails
 
-- **Never default to 1-day** without IC decay analysis — most alpha signals peak at 5-20 days
-- **Transaction costs are the binding constraint** — a 5-day signal with 10 bps costs beats a 1-day signal with the same IC
+- **Never default to 1-day** without IC decay analysis - most alpha signals peak at 5-20 days
+- **Transaction costs are the binding constraint** - a 5-day signal with 10 bps costs beats a 1-day signal with the same IC
 - **Feature lookback should match horizon** within a factor of 2-3x
 
 ## Production Implementation
@@ -115,6 +115,6 @@ print(ic_by_horizon)
 
 - [ ] IC decay analysis run across at least 5 horizons (1d, 5d, 10d, 20d, 60d)
 - [ ] Optimal horizon identified as the peak of |IC| vs horizon
-- [ ] Transaction costs modeled — alpha per trade exceeds cost by at least 2.5x
+- [ ] Transaction costs modeled - alpha per trade exceeds cost by at least 2.5x
 - [ ] Feature lookback windows aligned with chosen horizon
 - [ ] Rebalancing frequency matches horizon (not more frequent)

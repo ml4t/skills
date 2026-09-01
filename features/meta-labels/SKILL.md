@@ -22,7 +22,7 @@ Raw trading signals typically have acceptable recall (they catch most real moves
 ```python
 from sklearn.ensemble import GradientBoostingClassifier
 
-# Use raw signal directly — many false positives passed through
+# Use raw signal directly - many false positives passed through
 signal = primary_model.predict(X)  # 1=buy, -1=sell, 0=hold
 positions = signal  # Every signal becomes a trade
 ```
@@ -82,11 +82,11 @@ position_size = base_size * np.clip(edge, 0, 1)
 
 ## Guardrails
 
-- **Train meta-model only on triggered signals** — never on the full dataset
-- **Separate CV for primary and meta** — meta-model must not see primary's test data
-- **Meta-model never overrides direction** — it only decides whether to act and how much
-- **Requires sufficient primary signals** — if primary fires <100 times, meta-model will overfit
-- **Primary must have fold-stable IC** — meta-labels cannot rescue a sign-flipping primary signal; validate IC stability across walk-forward folds before adding meta layer
+- **Train meta-model only on triggered signals** - never on the full dataset
+- **Separate CV for primary and meta** - meta-model must not see primary's test data
+- **Meta-model never overrides direction** - it only decides whether to act and how much
+- **Requires sufficient primary signals** - if primary fires <100 times, meta-model will overfit
+- **Primary must have fold-stable IC** - meta-labels cannot rescue a sign-flipping primary signal; validate IC stability across walk-forward folds before adding meta layer
 
 ## Production Implementation
 

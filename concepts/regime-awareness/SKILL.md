@@ -13,9 +13,9 @@ Markets alternate between regimes (low/high volatility, trending/mean-reverting,
 
 ## The Problem
 
-Regime-switching models promise to predict when to be in or out of the market. In practice, regime transitions are identified with high confidence only after they have already occurred. A model that correctly labels the March 2020 crash as "crisis" does so 2--4 weeks late, after the drawdown has already happened. Trading on regime predictions produces whipsaw losses and underperforms a regime-conditioned but always-invested approach.
+Regime-switching models promise to predict when to be in or out of the market. In practice, regime transitions are identified with high confidence only after they have already occurred. A model that correctly labels the March 2020 crash as "crisis" does so 2-4 weeks late, after the drawdown has already happened. Trading on regime predictions produces whipsaw losses and underperforms a regime-conditioned but always-invested approach.
 
-The correct use of regimes is as a conditioning feature: scale risk, adjust position sizes, and evaluate strategy performance per regime -- but stay invested.
+The correct use of regimes is as a conditioning feature: scale risk, adjust position sizes, and evaluate strategy performance per regime - but stay invested.
 
 ## The Pattern
 
@@ -77,10 +77,10 @@ A strategy with Sharpe 1.5 that comes entirely from one regime is fragile. Robus
 
 ## Guardrails
 
-- Define regime labels BEFORE backtesting -- choosing regimes after seeing results is snooping.
+- Define regime labels BEFORE backtesting - choosing regimes after seeing results is snooping.
 - Use observable indicators (realized vol, yield curve slope), not latent model outputs, for regime classification.
 - Report strategy metrics per regime in every backtest report.
-- Never use regime prediction for binary in/out decisions -- use it for continuous risk scaling.
+- Never use regime prediction for binary in/out decisions - use it for continuous risk scaling.
 - Regime labels must use expanding or rolling windows to avoid lookahead bias.
 
 ## Production Implementation

@@ -72,10 +72,10 @@ Full Kelly maximizes long-run growth but has extreme variance. Half-Kelly sacrif
 
 ## Guardrails
 
-- Never use full Kelly in production — half or quarter Kelly reduces ruin probability dramatically
-- Smooth volatility estimates with EWMA (halflife 20-60 days) — point estimates are noisy
+- Never use full Kelly in production - half or quarter Kelly reduces ruin probability dramatically
+- Smooth volatility estimates with EWMA (halflife 20-60 days) - point estimates are noisy
 - Cap individual position size (e.g., 10% of NAV) regardless of signal strength
-- Recheck leverage after all position adjustments — constraint order matters
+- Recheck leverage after all position adjustments - constraint order matters
 
 ## Production Implementation
 

@@ -22,7 +22,7 @@ Most mistakes at this stage are implementation mistakes: missing volume in the f
 ```python
 import numpy as np
 
-# Zero-cost backtest — fiction
+# Zero-cost backtest - fiction
 positions = compute_positions(signals)
 gross_returns = positions * asset_returns
 sharpe = gross_returns.mean() / gross_returns.std() * np.sqrt(252)  # overstated
@@ -60,7 +60,7 @@ def estimate_capacity(gross_sharpe, turnover, cost_bps_per_turn):
     """Rough capacity = AUM where costs consume alpha down to threshold."""
     alpha_bps = gross_sharpe * 100 / np.sqrt(252)  # daily alpha in bps (approx)
     cost_drag = turnover * cost_bps_per_turn / 252
-    # Capacity is limited by market impact scaling — not a fixed formula
+    # Capacity is limited by market impact scaling - not a fixed formula
     return f"Gross alpha ~{alpha_bps:.1f} bps/day, cost drag ~{cost_drag:.1f} bps/day"
 ```
 
@@ -79,9 +79,9 @@ def estimate_capacity(gross_sharpe, turnover, cost_bps_per_turn):
 ## Guardrails
 
 - Feed volume is required for volume-based slippage and participation limits
-- Impact grows with the square root of participation rate — doubling AUM does not double cost
+- Impact grows with the square root of participation rate - doubling AUM does not double cost
 - Use asset-class appropriate estimates: crypto spread is 5-50 bps, US large-cap is 1-3 bps
-- Short-side strategies must include borrow fees and financing — these can dominate total costs
+- Short-side strategies must include borrow fees and financing - these can dominate total costs
 - Validate cost assumptions against actual fill data (TCA) when available
 
 ## Production Implementation

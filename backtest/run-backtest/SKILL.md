@@ -10,7 +10,7 @@ paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.p
 ---
 # Event-Driven Backtesting
 
-Vectorized backtests hide execution reality. Event-driven simulation processes each bar sequentially, submitting orders that fill at future prices — the only way to model what actually happens when you trade.
+Vectorized backtests hide execution reality. Event-driven simulation processes each bar sequentially, submitting orders that fill at future prices - the only way to model what actually happens when you trade.
 
 ## The Problem
 
@@ -57,17 +57,17 @@ def event_backtest(prices: np.ndarray, signal_fn, cost_bps: float = 10):
 
 ## Key Execution Rules
 
-1. **Signal on bar _t_, fill on bar _t+1_** — never fill at the price you used to decide
-2. **Track cash and positions explicitly** — position * price = equity, not magic
-3. **Deduct costs per trade** — commission + spread + slippage on every fill
-4. **No fractional knowledge** — `signal_fn(prices[:t])` sees only past bars
+1. **Signal on bar _t_, fill on bar _t+1_** - never fill at the price you used to decide
+2. **Track cash and positions explicitly** - position * price = equity, not magic
+3. **Deduct costs per trade** - commission + spread + slippage on every fill
+4. **No fractional knowledge** - `signal_fn(prices[:t])` sees only past bars
 
 ## Guardrails
 
-- Fill at `SAME_BAR` close is optimistic — prefer next-bar open for daily strategies (close-to-open gap is 50-100 bps on equities)
+- Fill at `SAME_BAR` close is optimistic - prefer next-bar open for daily strategies (close-to-open gap is 50-100 bps on equities)
 - Any Sharpe above 2.0 on daily data warrants checking for fill-timing bugs
 - Position sizing must respect available cash (no implicit margin)
-- Watch for survivorship bias in the universe — delisted symbols vanish from data
+- Watch for survivorship bias in the universe - delisted symbols vanish from data
 
 ## Production Implementation
 
@@ -96,5 +96,5 @@ print(f"Sharpe: {result.metrics['sharpe']:.2f}  MaxDD: {result.metrics['max_draw
 - [ ] Orders fill at a future bar, not the decision bar
 - [ ] Signal function sees only past data (`prices[:t]`)
 - [ ] Commission and slippage deducted on every fill
-- [ ] Cash balance tracked — no implicit leverage
+- [ ] Cash balance tracked - no implicit leverage
 - [ ] Sharpe < 2.0 on daily data (or justified)

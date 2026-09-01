@@ -9,7 +9,7 @@ metadata:
 ---
 # Lookahead Bias
 
-The most common ML4T failure. A model uses future information during training — normalization with full-sample statistics, labels from future thresholds, standard k-fold CV on time series — producing a great backtest that fails immediately in production.
+The most common ML4T failure. A model uses future information during training - normalization with full-sample statistics, labels from future thresholds, standard k-fold CV on time series - producing a great backtest that fails immediately in production.
 
 ## The Problem
 
@@ -23,7 +23,6 @@ train+test preprocessing, and shuffled CV on time series.
 ### WRONG
 
 ```python
-import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 # Normalize features using full dataset statistics (future leak)
@@ -42,7 +41,6 @@ cv = KFold(n_splits=5, shuffle=True)  # Training on 2024 data, testing on 2020
 ### CORRECT
 
 ```python
-import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
@@ -80,13 +78,13 @@ pipe.predict(X_test)             # test data transformed with train stats
 - Sharpe ratio > 2.0 on daily data with a simple model
 - Feature values change when you recompute with more recent data appended
 - Performance degrades sharply when switching from k-fold to walk-forward CV
-- Labels use close-to-close returns but execution is next-open — this 50--100 bps gap per trade is hidden lookahead
+- Labels use close-to-close returns but execution is next-open - this 50-100 bps gap per trade is hidden lookahead
 
 ## Guardrails
 
 - All rolling/expanding statistics must use `.shift(1)` to exclude the current observation
-- `fit_transform()` must never touch test data — use `Pipeline` or manual train/test splits
-- Cross-validation must respect temporal order — no `shuffle=True` on time series
+- `fit_transform()` must never touch test data - use `Pipeline` or manual train/test splits
+- Cross-validation must respect temporal order - no `shuffle=True` on time series
 - Label thresholds must be computed from past data only (expanding window)
 - Point-in-time fundamentals: use report dates, not period dates
 

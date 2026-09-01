@@ -10,7 +10,7 @@ paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**
 ---
 # Define Universe
 
-Using today's index constituents for a historical backtest introduces survivorship bias — you only trade winners that stayed in the index, inflating returns by 1-2% per year.
+Using today's index constituents for a historical backtest introduces survivorship bias - you only trade winners that stayed in the index, inflating returns by 1-2% per year.
 
 ## The Problem
 
@@ -29,7 +29,7 @@ sp500_today = ["AAPL", "MSFT", "GOOGL", ...]  # 2024 list
 prices = pl.read_parquet("prices.parquet").filter(
     pl.col("symbol").is_in(sp500_today)
 )
-# Backtest from 2010 — but these are 2024 survivors
+# Backtest from 2010 - but these are 2024 survivors
 ```
 
 ### CORRECT
@@ -91,9 +91,9 @@ def apply_delisting_returns(returns: pl.DataFrame, delistings: pl.DataFrame):
 
 ## Guardrails
 
-- Free data sources (Yahoo Finance, etc.) almost always have survivorship bias — they only cover current tickers
+- Free data sources (Yahoo Finance, etc.) almost always have survivorship bias - they only cover current tickers
 - CRSP is the gold standard for survivorship-free US equities (includes delisting returns)
-- A universe that never changes is a red flag — real indices reconstitute quarterly
+- A universe that never changes is a red flag - real indices reconstitute quarterly
 - Penny stocks and micro-caps pass through if you skip liquidity filters, dominating signals with noise
 
 ## Production Implementation

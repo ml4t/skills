@@ -1,6 +1,6 @@
 ---
 name: ml4t-regime-features
-description: "Features capturing market regime — volatility state, trend strength, and liquidity conditions. Use when building regime-aware models or conditioning on changing market environments."
+description: "Features capturing market regime - volatility state, trend strength, and liquidity conditions. Use when building regime-aware models or conditioning on changing market environments."
 when_to_use: "Use when model performance varies across market environments"
 dependencies: [lookahead-bias]
 metadata:
@@ -22,7 +22,7 @@ Models trained on pooled data learn average relationships. If momentum has IC of
 ```python
 import polars as pl
 
-# Raw VIX level — non-stationary, scale-dependent, model cannot generalize
+# Raw VIX level - non-stationary, scale-dependent, model cannot generalize
 features = df.with_columns(regime_vix=pl.col("vix"))
 ```
 
@@ -30,7 +30,7 @@ features = df.with_columns(regime_vix=pl.col("vix"))
 ```python
 import polars as pl
 
-# Rolling-ranked regime indicator — stationary, bounded [0, 1]
+# Rolling-ranked regime indicator - stationary, bounded [0, 1]
 features = df.sort("timestamp").with_columns(
     regime_vix_pctl=(
         pl.col("vix") - pl.col("vix").rolling_min(window_size=1260).shift(1)  # 1260 ≈ 5 trading years
@@ -75,10 +75,10 @@ df = df.sort("timestamp").with_columns(
 
 ## Guardrails
 
-- **Always use lagged values** — `.shift(1)` on all expanding/rolling regime stats
-- **Rank or z-score** raw indicators — VIX at 20 means different things in 2017 vs 2020
-- **Multiple indicators** — no single regime variable captures the full environment
-- **HMM regimes have lookahead risk** — fit HMM walk-forward only, never on the full sample
+- **Always use lagged values** - `.shift(1)` on all expanding/rolling regime stats
+- **Rank or z-score** raw indicators - VIX at 20 means different things in 2017 vs 2020
+- **Multiple indicators** - no single regime variable captures the full environment
+- **HMM regimes have lookahead risk** - fit HMM walk-forward only, never on the full sample
 
 ## Production Implementation
 
@@ -101,7 +101,7 @@ be sourced separately and joined in as external features.
 ## Checklist
 
 - [ ] Regime features are stationary (percentile-ranked or z-scored)
-- [ ] All use `.shift(1)` — no current-bar value in its own feature
+- [ ] All use `.shift(1)` - no current-bar value in its own feature
 - [ ] At least 2-3 independent regime indicators included
 - [ ] Features are inputs to the model, not if/else trading rules
 - [ ] HMM or changepoint models (if used) fitted walk-forward only

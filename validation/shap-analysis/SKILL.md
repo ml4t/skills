@@ -25,7 +25,7 @@ import lightgbm as lgb
 
 model = lgb.LGBMRegressor().fit(X_train, y_train)
 
-# Built-in importance — biased toward high-cardinality features
+# Built-in importance - biased toward high-cardinality features
 importance = model.feature_importances_
 for name, imp in sorted(zip(feature_names, importance), key=lambda x: -x[1])[:5]:
     print(f"{name}: {imp}")
@@ -40,7 +40,7 @@ import shap
 
 model = lgb.LGBMRegressor().fit(X_train, y_train)
 
-# TreeSHAP — exact, fast for tree-based models
+# TreeSHAP - exact, fast for tree-based models
 explainer = shap.TreeExplainer(model)
 shap_values = explainer.shap_values(X_test)
 
@@ -81,10 +81,10 @@ print(f"Selected {len(selected)} / {len(feature_names)} features")
 
 ## Guardrails
 
-- Use `TreeExplainer` for tree models (exact, O(TLD) per sample) — `KernelExplainer` is approximate and slow
-- SHAP values depend on the background dataset — use the training set, not a random sample
-- Feature interactions can mask individual SHAP values — check `shap.dependence_plot` for interaction effects
-- SHAP importance across folds should be stable — high variance signals model instability, not feature importance
+- Use `TreeExplainer` for tree models (exact, O(TLD) per sample) - `KernelExplainer` is approximate and slow
+- SHAP values depend on the background dataset - use the training set, not a random sample
+- Feature interactions can mask individual SHAP values - check `shap.dependence_plot` for interaction effects
+- SHAP importance across folds should be stable - high variance signals model instability, not feature importance
 - For time-series models, compute SHAP on each walk-forward fold separately
 
 ## Production Implementation

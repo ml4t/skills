@@ -67,10 +67,10 @@ if divergence < 0.05:
 
 ## Guardrails
 
-- **Identical-agent ensemble** -- check probability spread before claiming diversity
-- **Consensus without calibration** -- low disagreement is not the same as accuracy
-- **Free-text handoff** -- downstream aggregation needs typed `p_yes` fields
-- **Leaky evaluation** -- only score questions resolved after the forecast timestamp
+- **Identical-agent ensemble** - check probability spread before claiming diversity
+- **Consensus without calibration** - low disagreement is not the same as accuracy
+- **Free-text handoff** - downstream aggregation needs typed `p_yes` fields
+- **Leaky evaluation** - only score questions resolved after the forecast timestamp
 
 ## Checklist
 

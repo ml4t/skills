@@ -9,13 +9,13 @@ metadata:
 ---
 # Survivorship Bias
 
-Testing a strategy only on securities that exist today removes the worst performers from history, inflating backtest returns by 1--2% per year.
+Testing a strategy only on securities that exist today removes the worst performers from history, inflating backtest returns by 1-2% per year.
 
 ## The Problem
 
 If you download today's S&P 500 constituents and run a backtest starting in 2008, you exclude Lehman Brothers, Bear Stearns, Washington Mutual, and every other company that was removed after distress. The remaining panel has a built-in upward bias because you already know these firms survived.
 
-This is worst for value and small-cap strategies, which overweight distressed names -- exactly the ones that get delisted. A long-short value backtest on a survivor-biased universe can show +3% alpha that vanishes entirely on a survivorship-free dataset.
+This is worst for value and small-cap strategies, which overweight distressed names - exactly the ones that get delisted. A long-short value backtest on a survivor-biased universe can show +3% alpha that vanishes entirely on a survivorship-free dataset.
 
 ## The Pattern
 
@@ -70,7 +70,7 @@ delisting_return = {
 | Source | Survivorship-free? | Notes |
 |--------|-------------------|-------|
 | CRSP | Yes | Gold standard, includes delistings |
-| NASDAQ Data Link (Wiki) | Yes | 1962--2018, includes delisted companies |
+| NASDAQ Data Link (Wiki) | Yes | 1962-2018, includes delisted companies |
 | Yahoo Finance | No | Current tickers only |
 | Most free APIs | No | Survivor-biased by default |
 | Crypto exchanges | Partial | Coins get delisted frequently |
@@ -78,9 +78,9 @@ delisting_return = {
 ## Guardrails
 
 - Any universe built from a single "current members" list is survivor-biased.
-- S&P 500 changes 20--25 constituents per year; over a 10-year backtest that is 200+ changes.
+- S&P 500 changes 20-25 constituents per year; over a 10-year backtest that is 200+ changes.
 - Free data almost always has survivorship bias. Budget for CRSP or equivalent if equity research is serious.
-- ETF and crypto markets have high turnover -- fund closures and coin delistings are common and material.
+- ETF and crypto markets have high turnover - fund closures and coin delistings are common and material.
 
 ## Production Implementation
 

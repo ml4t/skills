@@ -14,7 +14,7 @@ A single train/test split tells you nothing about how a model adapts over time. 
 
 ## The Problem
 
-A single 80/20 train/test split produces one score from one market period. The model may excel in bull markets but fail in drawdowns — you cannot tell. Standard k-fold shuffles time, leaking future data. You need sequential evaluation that mirrors live deployment: train on the past, predict the future, advance, repeat. This exposes regime sensitivity and stationarity failures.
+A single 80/20 train/test split produces one score from one market period. The model may excel in bull markets but fail in drawdowns - you cannot tell. Standard k-fold shuffles time, leaking future data. You need sequential evaluation that mirrors live deployment: train on the past, predict the future, advance, repeat. This exposes regime sensitivity and stationarity failures.
 
 ## The Pattern
 
@@ -23,7 +23,7 @@ A single 80/20 train/test split produces one score from one market period. The m
 ```python
 from sklearn.model_selection import train_test_split
 
-# Single split — one market regime, no adaptation signal
+# Single split - one market regime, no adaptation signal
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, shuffle=True  # Shuffling leaks future
 )
@@ -84,9 +84,9 @@ for train_idx, test_idx in tscv.split(X):
 - Never shuffle time-series data in any CV scheme
 - When using `label_horizon`, purging is automatic; `gap` adds an extra buffer on top
 - Test folds should span different market conditions (bull, bear, sideways)
-- Expanding window scores should be compared to rolling — divergence signals non-stationarity
+- Expanding window scores should be compared to rolling - divergence signals non-stationarity
 - More splits = more variance in estimates; fewer splits = more bias
-- Evaluate at three levels: model diagnostics (loss, R²), signal diagnostics (IC, turnover), strategy outcomes (Sharpe) — divergence across levels reveals translation failures
+- Evaluate at three levels: model diagnostics (loss, R²), signal diagnostics (IC, turnover), strategy outcomes (Sharpe) - divergence across levels reveals translation failures
 
 ## Production Implementation
 
@@ -108,7 +108,7 @@ for train_idx, test_idx in cv.split(X):
 
 ## Checklist
 
-- [ ] Temporal order preserved — no shuffling
+- [ ] Temporal order preserved - no shuffling
 - [ ] Gap/purge >= label horizon between train and test
 - [ ] Embargo applied for autocorrelated features
 - [ ] Both expanding and rolling variants compared

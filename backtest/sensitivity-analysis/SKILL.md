@@ -10,11 +10,11 @@ paths: ["**/*backtest*.py", "**/*strategy*.py", "**/*engine*.py", "**/*broker*.p
 ---
 # Parameter Sensitivity Analysis
 
-A strategy optimized to Sharpe 2.0 at lookback=21 that drops to 0.3 at lookback=20 or lookback=22 is not a strategy — it is a curve fit. Sensitivity analysis sweeps parameters to verify that performance is stable across a neighborhood, not balanced on a knife edge.
+A strategy optimized to Sharpe 2.0 at lookback=21 that drops to 0.3 at lookback=20 or lookback=22 is not a strategy - it is a curve fit. Sensitivity analysis sweeps parameters to verify that performance is stable across a neighborhood, not balanced on a knife edge.
 
 ## The Problem
 
-Single-parameter backtests find the best setting. But the best setting may be a statistical fluke — one data point away from failure. If small perturbations in entry threshold, lookback period, or position sizing cause large performance swings, the parameters are overfit. You need to see the performance surface, not just its peak.
+Single-parameter backtests find the best setting. But the best setting may be a statistical fluke - one data point away from failure. If small perturbations in entry threshold, lookback period, or position sizing cause large performance swings, the parameters are overfit. You need to see the performance surface, not just its peak.
 
 ## The Pattern
 
@@ -22,7 +22,7 @@ Single-parameter backtests find the best setting. But the best setting may be a 
 ```python
 import numpy as np
 
-# Optimize one parameter, report the best — classic overfitting
+# Optimize one parameter, report the best - classic overfitting
 best_sharpe, best_lookback = -np.inf, None
 for lookback in range(5, 60):
     ret = run_strategy(prices, lookback=lookback)
@@ -83,10 +83,10 @@ A healthy strategy shows a broad plateau (many green cells). A fragile strategy 
 
 ## Guardrails
 
-- Robustness score below 50% means the strategy is fragile — most parameter settings lose money. Target: >60% of grid has Sharpe > 0 for deployable strategies
+- Robustness score below 50% means the strategy is fragile - most parameter settings lose money. Target: >60% of grid has Sharpe > 0 for deployable strategies
 - Performance cliffs (Sharpe drops > 2 std between adjacent parameters) suggest overfitting to a boundary
-- Optimal parameters at the edge of the grid suggest the true optimum is outside your search range — extend it
-- Always check multiple metrics (Sharpe, max drawdown, Calmar) — a parameter set that maximizes Sharpe but doubles drawdown is not robust
+- Optimal parameters at the edge of the grid suggest the true optimum is outside your search range - extend it
+- Always check multiple metrics (Sharpe, max drawdown, Calmar) - a parameter set that maximizes Sharpe but doubles drawdown is not robust
 
 ## Production Implementation
 

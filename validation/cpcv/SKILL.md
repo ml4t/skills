@@ -14,7 +14,7 @@ Standard k-fold CV on time series produces one biased performance estimate. CPCV
 
 ## The Problem
 
-A single train/test split gives one Sharpe ratio — you cannot tell if it is skill or luck. Standard k-fold shuffles temporal order, leaking future information. Even `TimeSeriesSplit` produces only a handful of sequential folds, each with different train sizes, making comparison unreliable. You need many unbiased performance samples to build a distribution.
+A single train/test split gives one Sharpe ratio - you cannot tell if it is skill or luck. Standard k-fold shuffles temporal order, leaking future information. Even `TimeSeriesSplit` produces only a handful of sequential folds, each with different train sizes, making comparison unreliable. You need many unbiased performance samples to build a distribution.
 
 ## The Pattern
 
@@ -25,7 +25,7 @@ Partition data into N groups, select k as test sets, train on the rest. Purge sa
 ```python
 from sklearn.model_selection import KFold
 
-# Shuffled k-fold on time series — future leaks into training
+# Shuffled k-fold on time series - future leaks into training
 cv = KFold(n_splits=5, shuffle=True, random_state=42)
 scores = []
 for train_idx, test_idx in cv.split(X):
@@ -39,7 +39,6 @@ print(f"Mean score: {np.mean(scores):.3f}")  # Overly optimistic
 ```python
 import numpy as np
 from itertools import combinations
-from sklearn.model_selection import TimeSeriesSplit
 
 # Manual CPCV with purging using standard tools
 n_groups, n_test, horizon, embargo = 8, 2, 5, 2
@@ -62,7 +61,7 @@ for test_groups in combinations(range(n_groups), n_test):
     model.fit(X[train_mask], y[train_mask])
     scores.append(model.score(X[test_mask], y[test_mask]))
 
-# C(8,2) = 28 scores — a distribution, not a single number
+# C(8,2) = 28 scores - a distribution, not a single number
 print(f"Mean: {np.mean(scores):.3f}, Std: {np.std(scores):.3f}")
 ```
 
@@ -83,7 +82,7 @@ print(f"Mean: {np.mean(scores):.3f}, Std: {np.std(scores):.3f}")
 - More paths → lower variance of the mean Sharpe estimate (var ∝ 1/φ when paths are uncorrelated), directly reducing false discovery
 - Verify training set size after purging is still sufficient (>60% of data)
 - Combine with PBO / Deflated Sharpe Ratio (see `deflated-sharpe` skill) for statistical significance
-- Never report the best fold — report the full distribution (mean, std, worst-fold)
+- Never report the best fold - report the full distribution (mean, std, worst-fold)
 
 ## Production Implementation
 

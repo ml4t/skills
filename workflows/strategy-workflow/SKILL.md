@@ -22,7 +22,7 @@ hypothesis, no feature validation, no cost model, and no holdout.
 ### WRONG
 
 ```python
-# Jump straight to modeling — no hypothesis, no validation gates
+# Jump straight to modeling - no hypothesis, no validation gates
 import lightgbm as lgb
 
 data = load_data()
@@ -33,7 +33,7 @@ model = lgb.LGBMRegressor().fit(features, labels)
 predictions = model.predict(features)  # Predicting on training data!
 
 # "Looks great, ship it"
-print(f"R2: {r2_score(labels, predictions):.3f}")  # 0.95 — overfitting
+print(f"R2: {r2_score(labels, predictions):.3f}")  # 0.95 - overfitting
 ```
 
 ### CORRECT
@@ -69,7 +69,7 @@ hypothesis = {
 
 ## Guardrails
 
-- If Sharpe > 2.0 on daily equity data, assume lookahead bias or selection bias until proven otherwise — inspect with `ml4t-lookahead-bias` and `ml4t-deflated-sharpe`
+- If Sharpe > 2.0 on daily equity data, assume lookahead bias or selection bias until proven otherwise - inspect with `ml4t-lookahead-bias` and `ml4t-deflated-sharpe`
 - If in-sample and out-of-sample performance match closely, suspect data leakage
 - If the strategy requires > 20% annual turnover to work, verify cost assumptions with `ml4t-transaction-costs`
 - If no documented hypothesis exists, stop and write one before any other work
@@ -79,7 +79,7 @@ hypothesis = {
 ```python
 import asyncio
 
-from ml4t.backtest import Strategy, run_backtest, BacktestConfig
+from ml4t.backtest import Strategy, run_backtest, BacktestConfig  # MyStrategy subclasses Strategy
 from ml4t.live import LiveEngine, AlpacaBroker, AlpacaDataFeed
 
 results = run_backtest(

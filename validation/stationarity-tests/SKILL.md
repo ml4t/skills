@@ -24,7 +24,7 @@ Raw asset prices are non-stationary: their mean and variance change over time. A
 import numpy as np
 from sklearn.linear_model import Ridge
 
-# Model raw prices — non-stationary, spurious correlation
+# Model raw prices - non-stationary, spurious correlation
 X = price_features  # Trending upward
 y = forward_prices  # Also trending upward
 model = Ridge().fit(X, y)
@@ -82,11 +82,11 @@ frac_diff = fdiff(series.to_numpy(), d=0.4)
 
 ## Guardrails
 
-- Always run BOTH ADF and KPSS — they have opposite null hypotheses and catch different failures
+- Always run BOTH ADF and KPSS - they have opposite null hypotheses and catch different failures
 - KPSS is sensitive to lag selection; use `nlags='auto'` to avoid misleading results
 - Returns are almost always stationary; prices almost never are
 - Non-stationary features can still be useful inside tree-based models (which split on rank), but regularized linear models and neural networks require stationarity
-- After transformation, verify IC is preserved — aggressive differencing can destroy signal
+- After transformation, verify IC is preserved - aggressive differencing can destroy signal
 
 ## Production Implementation
 

@@ -14,13 +14,13 @@ Ad-hoc notebooks that load data, compute features, train models, and backtest in
 
 ## The Problem
 
-A quant writes a 500-line notebook that downloads data, engineers features, trains a model, and runs a backtest. It works once. Then: the data source changes, a feature is added, the model is retrained with different parameters, and the backtest uses stale predictions from the old model. Nobody can tell which outputs correspond to which inputs. The notebook becomes untouchable — too risky to change, too opaque to trust.
+A quant writes a 500-line notebook that downloads data, engineers features, trains a model, and runs a backtest. It works once. Then: the data source changes, a feature is added, the model is retrained with different parameters, and the backtest uses stale predictions from the old model. Nobody can tell which outputs correspond to which inputs. The notebook becomes untouchable - too risky to change, too opaque to trust.
 
 ## The Pattern
 
 ### WRONG
 ```python
-# Monolithic notebook — everything in one file, no artifact boundaries
+# Monolithic notebook - everything in one file, no artifact boundaries
 import polars as pl
 from sklearn.linear_model import Ridge
 
@@ -48,7 +48,7 @@ import yaml
 CASE_DIR = Path("case_studies/etfs")
 config = yaml.safe_load((CASE_DIR / "config" / "setup.yaml").read_text())
 
-# Labels notebook (stage 2) — writes to data/labels/
+# Labels notebook (stage 2) - writes to data/labels/
 def create_labels(config: dict):
     prices = pl.read_parquet(CASE_DIR / "data" / "prices.parquet")
     horizon = config["label"]["horizon_days"]
@@ -57,7 +57,7 @@ def create_labels(config: dict):
     ).select(["timestamp", "symbol", "fwd_ret"]).drop_nulls()
     labels.write_parquet(CASE_DIR / "data" / "labels" / f"fwd_ret_{horizon}d.parquet")
 
-# Features notebook (stage 3) — writes to data/features/
+# Features notebook (stage 3) - writes to data/features/
 def create_features(config: dict):
     prices = pl.read_parquet(CASE_DIR / "data" / "prices.parquet")
     features = prices.with_columns(
@@ -104,10 +104,10 @@ One `setup.yaml` file defines the entire case study: dataset, universe filters, 
 ## Guardrails
 
 - Each stage must be runnable independently given its upstream artifacts exist
-- Never read raw data in a model notebook — always read from the features stage output
+- Never read raw data in a model notebook - always read from the features stage output
 - Stage gates are quantitative: Features pass if IC_IR > 0.5 and worst-fold IC same sign as mean; Models pass if OOS Sharpe > 0 on ≥60% of walk-forward folds
 - Config changes require re-running all downstream stages, not just the changed one
-- Predictions must include fold identifiers — without them, you cannot reconstruct out-of-sample performance
+- Predictions must include fold identifiers - without them, you cannot reconstruct out-of-sample performance
 - Artifact paths use content-addressed hashes for model outputs, not sequential names
 
 ## Checklist

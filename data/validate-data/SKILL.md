@@ -10,11 +10,11 @@ paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**
 ---
 # Validate Data
 
-Unvalidated data silently corrupts models — a single unadjusted stock split can make a momentum signal look 10x stronger than reality.
+Unvalidated data silently corrupts models - a single unadjusted stock split can make a momentum signal look 10x stronger than reality.
 
 ## The Problem
 
-Financial data arrives with missing values, duplicate timestamps, unadjusted corporate actions, stale prices, and impossible OHLC relationships. Using raw data without checks means your model trains on artifacts. A 50% overnight return that is actually a 2:1 split will dominate any feature that touches price changes. You will not see this in your loss function — the model happily fits the noise.
+Financial data arrives with missing values, duplicate timestamps, unadjusted corporate actions, stale prices, and impossible OHLC relationships. Using raw data without checks means your model trains on artifacts. A 50% overnight return that is actually a 2:1 split will dominate any feature that touches price changes. You will not see this in your loss function - the model happily fits the noise.
 
 ## The Pattern
 
@@ -80,15 +80,15 @@ assert issues["duplicates"] == 0, "Duplicate timestamps found"
 
 ## Corporate Action Detection
 
-Flag likely unadjusted splits: overnight return >40% with no corresponding volume spike. Filter for `abs(ret) > 0.4` AND `volume / rolling_mean(volume, 20) < 3.0` — real moves come with volume, splits do not.
+Flag likely unadjusted splits: overnight return >40% with no corresponding volume spike. Filter for `abs(ret) > 0.4` AND `volume / rolling_mean(volume, 20) < 3.0` - real moves come with volume, splits do not.
 
 ## Guardrails
 
 - Run validation before every model training, not just at initial load
 - Extreme returns (>50%) are almost always data errors, not real moves
-- Zero-volume days may be valid (halts) or errors — check per-exchange rules
+- Zero-volume days may be valid (halts) or errors - check per-exchange rules
 - Stale prices for 5+ consecutive days indicate a dead feed, not a flat market
-- Timestamps must be timezone-aware — naive datetimes cause silent alignment errors
+- Timestamps must be timezone-aware - naive datetimes cause silent alignment errors
 
 ## Production Implementation
 

@@ -14,7 +14,7 @@ Naively concatenating front-month futures contracts creates artificial price jum
 
 ## The Problem
 
-Futures contracts expire. When you roll from the March contract to the June contract, the price can jump $5 overnight — not because the market moved, but because the new contract trades at a different level (contango or backwardation). Concatenating contracts without adjustment produces fake returns of 2-5% at every roll date. A momentum signal built on this series will fire on roll artifacts, not real trends. Over a year with 4-12 rolls, this distortion compounds.
+Futures contracts expire. When you roll from the March contract to the June contract, the price can jump $5 overnight - not because the market moved, but because the new contract trades at a different level (contango or backwardation). Concatenating contracts without adjustment produces fake returns of 2-5% at every roll date. A momentum signal built on this series will fire on roll artifacts, not real trends. Over a year with 4-12 rolls, this distortion compounds.
 
 ## The Pattern
 
@@ -22,7 +22,7 @@ Futures contracts expire. When you roll from the March contract to the June cont
 ```python
 import polars as pl
 
-# Naive concatenation — price jumps at every roll
+# Naive concatenation - price jumps at every roll
 contracts = pl.read_parquet("futures_contracts.parquet")
 continuous = (
     contracts.sort("timestamp")
@@ -73,7 +73,7 @@ def panama_canal_adjust(
 
 ## Term Structure and Carry
 
-Loading multiple contract months enables carry signals — the slope of the futures term structure.
+Loading multiple contract months enables carry signals - the slope of the futures term structure.
 
 ```python
 # Carry = (front - back) / front
@@ -88,9 +88,9 @@ carry = front.join(back, on=["product", "timestamp"], suffix="_back").with_colum
 
 ## Guardrails
 
-- Always use `adj_close` for returns and features — raw `close` is only for current price reference
+- Always use `adj_close` for returns and features - raw `close` is only for current price reference
 - Roll dates vary by product: energy rolls monthly, equity index rolls quarterly
-- Panama adjustment changes historical price levels — do not use adjusted prices for margin calculations
+- Panama adjustment changes historical price levels - do not use adjusted prices for margin calculations
 - Carry signals require accurate term structure with at least 2 contract months
 
 ## Production Implementation

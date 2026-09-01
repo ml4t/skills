@@ -1,6 +1,6 @@
 ---
 name: ml4t-feature-selection
-description: "Select informative features using IC ranking, mutual information, or RFE — always within CV folds. Use when reducing feature dimensionality before training."
+description: "Select informative features using IC ranking, mutual information, or RFE - always within CV folds. Use when reducing feature dimensionality before training."
 when_to_use: "Use when a feature set exceeds 20 features or contains suspected noise"
 dependencies: [lookahead-bias]
 metadata:
@@ -23,7 +23,7 @@ With 50 features and a finite sample, some will correlate with forward returns b
 from scipy.stats import spearmanr
 import numpy as np
 
-# Feature selection on full dataset — leaks test-set information
+# Feature selection on full dataset - leaks test-set information
 ic_scores = {col: abs(spearmanr(X[col], y).statistic) for col in X.columns}
 selected = sorted(ic_scores, key=ic_scores.get, reverse=True)[:20]
 model.fit(X[selected], y)
@@ -86,17 +86,17 @@ for train_idx, _ in tscv.split(X):
     selected = select_top_k(X[train_idx], y[train_idx], k=20)
     fold_selections.update(selected)
 
-# Features selected in <50% of folds are unstable — likely noise
+# Features selected in <50% of folds are unstable - likely noise
 stable = [f for f, count in fold_selections.items() if count >= len(list(tscv.split(X))) // 2]
 ```
 
 ## Guardrails
 
-- **Selection inside CV is non-negotiable** — any global selection is lookahead bias
-- **Stability across folds matters** — a feature selected in 1/5 folds is noise
-- **IC > 0.1 is suspicious** — investigate for leakage before trusting
-- **Collinearity removal is safe pre-CV** — it uses only feature-feature correlation, not the target
-- **Log your search set** — each knob (lookback, threshold, feature family) multiplies candidates; apply Benjamini-Hochberg FDR when comparing selections
+- **Selection inside CV is non-negotiable** - any global selection is lookahead bias
+- **Stability across folds matters** - a feature selected in 1/5 folds is noise
+- **IC > 0.1 is suspicious** - investigate for leakage before trusting
+- **Collinearity removal is safe pre-CV** - it uses only feature-feature correlation, not the target
+- **Log your search set** - each knob (lookback, threshold, feature family) multiplies candidates; apply Benjamini-Hochberg FDR when comparing selections
 
 ## Production Implementation
 

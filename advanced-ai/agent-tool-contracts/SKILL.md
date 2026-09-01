@@ -32,7 +32,7 @@ def run_tool(name: str, args: str) -> str:
 ```python
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -81,10 +81,10 @@ READ_FILE_SCHEMA = {
 
 ## Guardrails
 
-- **Unbounded filesystem access** -- reject absolute paths unless explicitly allowlisted
-- **Prompt-mediated policy** -- never ask the model whether a tool call is safe
-- **String-only results** -- downstream stages need provenance fields, not formatted tables
-- **Hidden writes** -- file, shell, and network tools need separate read/write permissions
+- **Unbounded filesystem access** - reject absolute paths unless explicitly allowlisted
+- **Prompt-mediated policy** - never ask the model whether a tool call is safe
+- **String-only results** - downstream stages need provenance fields, not formatted tables
+- **Hidden writes** - file, shell, and network tools need separate read/write permissions
 
 ## Checklist
 

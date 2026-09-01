@@ -10,7 +10,7 @@ paths: ["**/*portfolio*.py", "**/*position*.py", "**/*risk*.py", "**/*optim*.py"
 ---
 # Kill Switch
 
-A human monitoring a dashboard will not react fast enough to a flash crash. By the time you see the loss and decide to act, the drawdown has compounded. Automated kill switches are the last line of defense — they must be hard-coded, not ML-based, and not overridable without explicit manual intervention.
+A human monitoring a dashboard will not react fast enough to a flash crash. By the time you see the loss and decide to act, the drawdown has compounded. Automated kill switches are the last line of defense - they must be hard-coded, not ML-based, and not overridable without explicit manual intervention.
 
 ## The Problem
 
@@ -34,7 +34,6 @@ while True:
 
 ### CORRECT
 ```python
-import numpy as np
 
 class KillSwitch:
     """Hard-coded risk limits. Automatic trigger, manual reset only."""
@@ -89,9 +88,9 @@ def risk_level(drawdown, realized_vol, target_vol=0.10):
 
 - Thresholds must be set BEFORE deployment, not adjusted during a drawdown
 - Kill switch checks must run BEFORE order submission, not after
-- Automatic trigger, manual reset — never the reverse
+- Automatic trigger, manual reset - never the reverse
 - Test the kill switch monthly with a simulated breach (like a fire drill)
-- Data feed failure is a trigger — no data means no trading, not "use stale prices"
+- Data feed failure is a trigger - no data means no trading, not "use stale prices"
 
 ## Production Implementation
 
@@ -107,7 +106,7 @@ config = LiveRiskConfig(
     max_total_exposure=200_000.0,
 )
 broker = SafeBroker(AlpacaBroker(...), config)
-# SafeBroker blocks orders that would breach limits — no code changes needed
+# SafeBroker blocks orders that would breach limits - no code changes needed
 ```
 
 ## Checklist

@@ -64,18 +64,18 @@ state.checkpoint(Path("runs/ensemble_eval/state.json"))
 
 ## Memory Layers
 
-- **Run state** -- current task, evidence, decisions, open questions, gates
-- **Tool trace** -- every external observation with arguments and status
-- **Evidence memory** -- source, timestamp, freshness, and extracted claims
-- **Long-term memory** -- only stable project facts; never live market facts without dates
-- **Replay artifact** -- enough inputs and outputs to re-render the run without live APIs
+- **Run state** - current task, evidence, decisions, open questions, gates
+- **Tool trace** - every external observation with arguments and status
+- **Evidence memory** - source, timestamp, freshness, and extracted claims
+- **Long-term memory** - only stable project facts; never live market facts without dates
+- **Replay artifact** - enough inputs and outputs to re-render the run without live APIs
 
 ## Guardrails
 
-- **Transcript-only replay** -- reviewers cannot verify which tools produced which facts
-- **Undated evidence** -- market and API observations need explicit timestamps
-- **Mutable memory overwrite** -- append decisions; do not silently edit prior reasoning
-- **Cross-run contamination** -- reset task state between independent experiments
+- **Transcript-only replay** - reviewers cannot verify which tools produced which facts
+- **Undated evidence** - market and API observations need explicit timestamps
+- **Mutable memory overwrite** - append decisions; do not silently edit prior reasoning
+- **Cross-run contamination** - reset task state between independent experiments
 
 ## Checklist
 

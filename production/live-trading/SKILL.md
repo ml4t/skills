@@ -10,7 +10,7 @@ paths: ["**/*live*.py", "**/*deploy*.py", "**/*monitor*.py", "**/*govern*.py", "
 ---
 # Backtest-to-Live Deployment
 
-Rewriting strategy logic for live trading introduces bugs and invalidates your backtest. The correct pattern is to reuse the exact Strategy class from backtesting — zero code changes between simulation and production.
+Rewriting strategy logic for live trading introduces bugs and invalidates your backtest. The correct pattern is to reuse the exact Strategy class from backtesting - zero code changes between simulation and production.
 
 ## The Problem
 
@@ -22,7 +22,7 @@ the link to the validated backtest.
 
 ### WRONG
 ```python
-# Separate live strategy — rewrites logic, diverges from backtest
+# Separate live strategy - rewrites logic, diverges from backtest
 class LiveMomentumTrader:
     def __init__(self, api_key):
         self.api = BrokerAPI(api_key)
@@ -67,11 +67,11 @@ class Momentum(Strategy):
 
 ## Deployment Sequence
 
-1. **Backtest** — validate with historical data, realistic costs
-2. **Paper trade** (minimum 4 weeks) — same code, live data, simulated fills
-3. **Shadow mode** — generate orders but don't execute; compare to paper
-4. **Live with limits** — small size, tight kill switch, full monitoring
-5. **Scale up** — increase size only after live metrics match paper
+1. **Backtest** - validate with historical data, realistic costs
+2. **Paper trade** (minimum 4 weeks) - same code, live data, simulated fills
+3. **Shadow mode** - generate orders but don't execute; compare to paper
+4. **Live with limits** - small size, tight kill switch, full monitoring
+5. **Scale up** - increase size only after live metrics match paper
 
 Never skip paper trading. If paper diverges materially from backtest, diagnose before going live.
 
@@ -86,10 +86,10 @@ Never skip paper trading. If paper diverges materially from backtest, diagnose b
 
 ## Guardrails
 
-- Identical Strategy class for backtest and live — if you change one, you broke the link
-- Paper trade period is mandatory, not optional — 4 weeks minimum for daily strategies
+- Identical Strategy class for backtest and live - if you change one, you broke the link
+- Paper trade period is mandatory, not optional - 4 weeks minimum for daily strategies
 - Kill switch must be active before any live order: max drawdown, max position, daily loss limit
-- Log every order submission, fill, and rejection — you will need the audit trail
+- Log every order submission, fill, and rejection - you will need the audit trail
 - Data staleness check: if last bar is older than 2x expected frequency, halt trading
 
 ## Production Implementation

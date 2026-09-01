@@ -14,14 +14,14 @@ A model trained on 2018-2022 data may silently fail when the 2023 distribution s
 
 ## The Problem
 
-Financial distributions are non-stationary. Volatility regimes change, correlations spike during crises, and feature distributions shift as markets evolve. A model deployed without monitoring can trade on stale assumptions for months. The three drift types — data drift (input distributions change), concept drift (feature-target relationship changes), and prior drift (target distribution changes) — each require different detection strategies. By the time performance metrics visibly decay, the damage is already done.
+Financial distributions are non-stationary. Volatility regimes change, correlations spike during crises, and feature distributions shift as markets evolve. A model deployed without monitoring can trade on stale assumptions for months. The three drift types - data drift (input distributions change), concept drift (feature-target relationship changes), and prior drift (target distribution changes) - each require different detection strategies. By the time performance metrics visibly decay, the damage is already done.
 
 ## The Pattern
 
 ### WRONG
 
 ```python
-# Deploy model and check performance monthly — too late
+# Deploy model and check performance monthly - too late
 model = train_model(X_train, y_train)
 # ... 3 months later ...
 print(f"Live Sharpe: {live_sharpe:.2f}")  # Already lost money
@@ -84,11 +84,11 @@ if np.mean(ic[-63:]) < baseline_ic * 0.5:
 
 ## Guardrails
 
-- Baseline period must be representative and stable — do not use crisis periods as reference
+- Baseline period must be representative and stable - do not use crisis periods as reference
 - PSI and KS test catch different things: PSI is binned (better for tails), KS is continuous
-- Some drift is normal in financial data — set thresholds based on historical drift rates, not arbitrary cutoffs
+- Some drift is normal in financial data - set thresholds based on historical drift rates, not arbitrary cutoffs
 - Retrain triggers should be predefined: PSI > 0.20 → flag for review; rolling IC < 50% of baseline for 63+ days → trigger retrain pipeline
-- Monitor prediction distribution too, not just features — a model can produce drifted outputs from stable inputs
+- Monitor prediction distribution too, not just features - a model can produce drifted outputs from stable inputs
 
 ## Production Implementation
 

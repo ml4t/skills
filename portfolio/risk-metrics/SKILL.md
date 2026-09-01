@@ -14,7 +14,7 @@ A strategy with Sharpe 1.5 and max drawdown -55% will get shut down before it re
 
 ## The Problem
 
-Sharpe ratio is the default performance metric, but it treats upside and downside volatility equally and says nothing about tail losses. A strategy can have a high Sharpe while hiding a -40% drawdown that takes 18 months to recover. Fund managers and allocators care about max drawdown, time underwater, and worst-case losses — because those determine whether the strategy (and the fund) survives. Always report drawdown alongside return metrics.
+Sharpe ratio is the default performance metric, but it treats upside and downside volatility equally and says nothing about tail losses. A strategy can have a high Sharpe while hiding a -40% drawdown that takes 18 months to recover. Fund managers and allocators care about max drawdown, time underwater, and worst-case losses - because those determine whether the strategy (and the fund) survives. Always report drawdown alongside return metrics.
 
 ## The Pattern
 
@@ -24,7 +24,7 @@ import numpy as np
 
 returns = strategy_returns  # daily
 sharpe = returns.mean() / returns.std() * np.sqrt(252)
-print(f"Sharpe: {sharpe:.2f}")  # Looks great — ships it
+print(f"Sharpe: {sharpe:.2f}")  # Looks great - ships it
 ```
 
 ### CORRECT
@@ -79,9 +79,9 @@ var_param = returns.mean() + norm.ppf(0.05) * returns.std()
 
 ## Guardrails
 
-- Never report Sharpe alone — always include max drawdown and Calmar at minimum
-- VaR underestimates tail risk by design — pair it with CVaR (Expected Shortfall)
-- Historical VaR assumes the past contains the worst case — it does not
+- Never report Sharpe alone - always include max drawdown and Calmar at minimum
+- VaR underestimates tail risk by design - pair it with CVaR (Expected Shortfall)
+- Historical VaR assumes the past contains the worst case - it does not
 - Annualize consistently: multiply mean by 252, std by sqrt(252) for daily data
 - Monitor current drawdown in real time, not just historical max
 

@@ -1,6 +1,6 @@
 ---
 name: ml4t-feature-validation
-description: "Validate features before training — IC significance, stability, redundancy, and contamination checks. Use when auditing feature quality before model fitting."
+description: "Validate features before training - IC significance, stability, redundancy, and contamination checks. Use when auditing feature quality before model fitting."
 when_to_use: "Use when adding new features to a model or auditing an existing feature set"
 dependencies: [lookahead-bias]
 metadata:
@@ -23,7 +23,7 @@ regime-specific features that fail live, and redundant features that waste model
 ```python
 from sklearn.ensemble import GradientBoostingRegressor
 
-# Train on all features without any validation — overfitting guaranteed
+# Train on all features without any validation - overfitting guaranteed
 model = GradientBoostingRegressor(n_estimators=200)
 model.fit(X_train, y_train)  # 50 features, no idea which are noise
 ```
@@ -32,7 +32,6 @@ model.fit(X_train, y_train)  # 50 features, no idea which are noise
 ```python
 from scipy.stats import spearmanr
 import numpy as np
-import polars as pl
 
 def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray) -> dict:
     """Screen a single feature for predictive quality."""
@@ -72,7 +71,7 @@ def validate_feature(feature: np.ndarray, target: np.ndarray, dates: np.ndarray)
 
 ```python
 def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> dict:
-    """IC should decay with horizon — if it doesn't, suspect leakage."""
+    """IC should decay with horizon - if it doesn't, suspect leakage."""
     decay = {}
     for h in horizons:
         fwd = np.roll(returns, -h)  # forward returns at horizon h
@@ -84,10 +83,10 @@ def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> d
 
 ## Guardrails
 
-- **IC > 0.10 is suspicious** — nearly always lookahead contamination in daily equity data
-- **IC-IR < 0.5 means unstable** — the feature works sometimes but is overall unreliable
-- **Non-decaying IC across horizons** — strong sign of information leakage
-- **Always validate on expanding windows** — never compute IC on the full sample at once
+- **IC > 0.10 is suspicious** - nearly always lookahead contamination in daily equity data
+- **IC-IR < 0.5 means unstable** - the feature works sometimes but is overall unreliable
+- **Non-decaying IC across horizons** - strong sign of information leakage
+- **Always validate on expanding windows** - never compute IC on the full sample at once
 
 ## Production Implementation
 

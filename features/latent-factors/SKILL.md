@@ -10,15 +10,15 @@ metadata:
 ---
 # Latent Factor Extraction
 
-PCA explains 80% of return variance — but variance is not alpha. The first principal component captures market beta, which earns the equity premium, not a tradeable edge. Confusing variance-explained with pricing power is the central mistake.
+PCA explains 80% of return variance - but variance is not alpha. The first principal component captures market beta, which earns the equity premium, not a tradeable edge. Confusing variance-explained with pricing power is the central mistake.
 
 ## The Problem
 
 With 400+ published return predictors, hand-picking factors invites overfitting. Latent factor methods (PCA, autoencoders) extract structure directly from data. But three failure modes undermine them:
 
-1. **Variance != pricing** — high-variance factors may capture idiosyncratic noise, not compensated risk.
-2. **Eigenvector instability** — when assets (N) approach time periods (T), sample covariance is dominated by noise. Marchenko-Pastur theory gives the noise boundary.
-3. **Full-sample PCA is leakage** — fitting PCA on the complete panel, then testing on a held-out period, leaks the covariance structure of the test period into training.
+1. **Variance != pricing** - high-variance factors may capture idiosyncratic noise, not compensated risk.
+2. **Eigenvector instability** - when assets (N) approach time periods (T), sample covariance is dominated by noise. Marchenko-Pastur theory gives the noise boundary.
+3. **Full-sample PCA is leakage** - fitting PCA on the complete panel, then testing on a held-out period, leaks the covariance structure of the test period into training.
 
 ## The Pattern
 
@@ -31,7 +31,7 @@ import numpy as np
 pca = PCA(n_components=5)
 factors = pca.fit_transform(returns_panel)  # Full-sample fit = leakage
 
-# "80% variance explained" — but does it predict returns?
+# "80% variance explained" - but does it predict returns?
 print(f"Explained variance: {pca.explained_variance_ratio_.sum():.1%}")
 signal = factors[:, 0]  # Assumes first PC predicts returns
 ```
@@ -77,10 +77,10 @@ Start with PCA + Marchenko-Pastur filtering. Graduate to IPCA only if characteri
 
 ## Guardrails
 
-- **Walk-forward fit**: PCA must be re-fit on each fold's training data — never on the full panel
+- **Walk-forward fit**: PCA must be re-fit on each fold's training data - never on the full panel
 - **Marchenko-Pastur test**: discard components below the random-matrix noise bound
-- **Microcap bias**: equal-weighted PCA is dominated by small/illiquid stocks — use market-cap weighting or NYSE breakpoints
-- **Loading rotation**: eigenvectors are not stable across subperiods — don't assign fixed economic labels ("this is momentum")
+- **Microcap bias**: equal-weighted PCA is dominated by small/illiquid stocks - use market-cap weighting or NYSE breakpoints
+- **Loading rotation**: eigenvectors are not stable across subperiods - don't assign fixed economic labels ("this is momentum")
 - **Autoencoder seeds**: report results across 10+ random seeds; single-seed results are unreliable
 
 ## Production Implementation
@@ -88,7 +88,6 @@ Start with PCA + Marchenko-Pastur filtering. Graduate to IPCA only if characteri
 `ml4t-diagnostic` provides factor evaluation infrastructure for custom latent factor outputs:
 
 ```python
-import polars as pl
 from ml4t.diagnostic.api import cross_sectional_ic_series
 
 # After walk-forward PCA, evaluate factor predictiveness via IC

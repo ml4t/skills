@@ -10,7 +10,7 @@ paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**
 ---
 # Calendar Operations
 
-Using calendar days instead of trading days for a 20-day rolling window includes weekends and holidays, producing a window that covers 28 calendar days but only 20 observations — silently misaligning your features with your labels.
+Using calendar days instead of trading days for a 20-day rolling window includes weekends and holidays, producing a window that covers 28 calendar days but only 20 observations - silently misaligning your features with your labels.
 
 ## The Problem
 
@@ -23,11 +23,11 @@ Markets are closed on weekends and holidays. A "20-day momentum" signal should u
 import polars as pl
 from datetime import timedelta
 
-# Calendar days for rolling window — includes weekends, holidays
+# Calendar days for rolling window - includes weekends, holidays
 df = df.with_columns(
     momentum=pl.col("close") / pl.col("close").shift(20) - 1  # shift(20) = 20 rows
 )
-# If data has gaps (holidays), shift(20) is NOT 20 trading days — it skips over them unevenly
+# If data has gaps (holidays), shift(20) is NOT 20 trading days - it skips over them unevenly
 
 # Date arithmetic for label alignment
 df = df.with_columns(
@@ -91,14 +91,14 @@ common = common_trading_days("XNYS", "XLON", "XETR", start="2020-01-01", end="20
 
 ## Holiday Forward-Fill
 
-For cross-market features that need a value every trading day, build a DataFrame of all sessions from the target calendar, left-join your data onto it, and forward-fill. This ensures no gaps without inventing data — each missing day carries the last known value.
+For cross-market features that need a value every trading day, build a DataFrame of all sessions from the target calendar, left-join your data onto it, and forward-fill. This ensures no gaps without inventing data - each missing day carries the last known value.
 
 ## Guardrails
 
-- Crypto markets trade 24/7 — no calendar needed, but be aware of exchange maintenance windows
-- Early closes (half-days) are separate from holidays — `exchange_calendars` tracks both
-- CME and ICE have different holiday schedules than NYSE — always use exchange-specific calendars
-- Timezone matters: NYSE closes at 16:00 ET, which is 21:00 UTC — a "daily" bar's date depends on the timezone
+- Crypto markets trade 24/7 - no calendar needed, but be aware of exchange maintenance windows
+- Early closes (half-days) are separate from holidays - `exchange_calendars` tracks both
+- CME and ICE have different holiday schedules than NYSE - always use exchange-specific calendars
+- Timezone matters: NYSE closes at 16:00 ET, which is 21:00 UTC - a "daily" bar's date depends on the timezone
 
 ## Checklist
 

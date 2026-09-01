@@ -65,10 +65,10 @@ while not state.quality_gates.get("done"):
 
 ## Guardrails
 
-- **Framework-first design** -- if the operator owns methodology, skills become decorative
-- **Unbounded shell** -- command execution needs cwd, timeout, and write sandbox controls
-- **No negative-result path** -- a valid run may conclude that the proposed change is worse
-- **Missing skill audit** -- record which skills were read and whether they were followed
+- **Framework-first design** - if the operator owns methodology, skills become decorative
+- **Unbounded shell** - command execution needs cwd, timeout, and write sandbox controls
+- **No negative-result path** - a valid run may conclude that the proposed change is worse
+- **Missing skill audit** - record which skills were read and whether they were followed
 
 ## Checklist
 

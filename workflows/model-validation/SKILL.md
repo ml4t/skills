@@ -9,7 +9,7 @@ metadata:
 ---
 # Model Validation Workflow
 
-A model that passes a single train/test split proves nothing. Rigorous validation requires combinatorial CV, overfitting probability, deflated statistics, feature attribution, and out-of-time holdout — all before any backtest.
+A model that passes a single train/test split proves nothing. Rigorous validation requires combinatorial CV, overfitting probability, deflated statistics, feature attribution, and out-of-time holdout - all before any backtest.
 
 ## The Problem
 
@@ -29,7 +29,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 model = lgb.LGBMRegressor().fit(X_train, y_train)
 score = model.score(X_test, y_test)
-print(f"R2: {score:.3f}")  # 0.15 — good enough, deploy
+print(f"R2: {score:.3f}")  # 0.15 - good enough, deploy
 ```
 
 ### CORRECT
@@ -39,7 +39,7 @@ print(f"R2: {score:.3f}")  # 0.15 — good enough, deploy
 import numpy as np
 import lightgbm as lgb
 
-# Gate 1: CPCV — multiple train/test paths, not one split (see ml4t-cpcv)
+# Gate 1: CPCV - multiple train/test paths, not one split (see ml4t-cpcv)
 cv_sharpes = []
 for train_idx, test_idx in time_aware_cv_splits:  # C(10,2) = 45 paths
     model = lgb.LGBMRegressor(n_estimators=100, random_state=42)
@@ -48,23 +48,23 @@ for train_idx, test_idx in time_aware_cv_splits:  # C(10,2) = 45 paths
     sharpe = np.mean(preds * y[test_idx]) / np.std(preds * y[test_idx]) * np.sqrt(252)
     cv_sharpes.append(sharpe)
 
-# Gate 2: PBO — fraction of paths with negative OOS Sharpe (see ml4t-backtest-overfitting)
+# Gate 2: PBO - fraction of paths with negative OOS Sharpe (see ml4t-backtest-overfitting)
 pbo = np.mean([s < 0 for s in cv_sharpes])
-assert pbo < 0.50, f"PBO {pbo:.0%} — model is likely overfit"
+assert pbo < 0.50, f"PBO {pbo:.0%} - model is likely overfit"
 
-# Gate 3: Deflated Sharpe — adjust for number of trials (see ml4t-deflated-sharpe)
+# Gate 3: Deflated Sharpe - adjust for number of trials (see ml4t-deflated-sharpe)
 expected_max = np.sqrt(2 * np.log(len(cv_sharpes)))
 dsr = (max(cv_sharpes) - expected_max) / (np.std(cv_sharpes) / np.sqrt(len(cv_sharpes)))
 
-# Gate 4: SHAP — verify features match hypothesis (see ml4t-shap-analysis)
+# Gate 4: SHAP - verify features match hypothesis (see ml4t-shap-analysis)
 import shap
 shap_values = shap.TreeExplainer(model).shap_values(X[test_idx])
 
-# Gate 5: OOS holdout — data never seen in any CV fold
+# Gate 5: OOS holdout - data never seen in any CV fold
 oos_sharpe = (np.mean(model.predict(X_holdout) * y_holdout)
               / np.std(model.predict(X_holdout) * y_holdout) * np.sqrt(252))
 degradation = (np.mean(cv_sharpes) - oos_sharpe) / np.mean(cv_sharpes)
-assert degradation < 0.30, f"OOS degradation {degradation:.0%} — too high"
+assert degradation < 0.30, f"OOS degradation {degradation:.0%} - too high"
 ```
 
 ## Gate Summary
@@ -75,7 +75,7 @@ assert degradation < 0.30, f"OOS degradation {degradation:.0%} — too high"
 | 2 | PBO | < 50% of paths have negative Sharpe | Reduce model complexity |
 | 3 | Deflated Sharpe | Significant after trial adjustment | Fewer hyperparameter trials |
 | 4 | SHAP | Top features match economic hypothesis | Remove noise features |
-| 5 | OOS holdout | Degradation < 30% from in-sample | Model memorized regime — redesign |
+| 5 | OOS holdout | Degradation < 30% from in-sample | Model memorized regime - redesign |
 
 Gates are sequential. Do not skip to Gate 5 hoping a good holdout compensates for a bad PBO.
 
@@ -83,7 +83,7 @@ Gates are sequential. Do not skip to Gate 5 hoping a good holdout compensates fo
 
 - If PBO > 50%, adding more features or complexity will make it worse, not better
 - If SHAP shows the model relies on a single feature for > 40% of predictions, the model is fragile
-- If OOS degradation is < 5%, be suspicious — it often means data leakage, not a great model
+- If OOS degradation is < 5%, be suspicious - it often means data leakage, not a great model
 - If CV Sharpe variance across folds is > 1.0, the signal is unstable across regimes
 
 ## Production Implementation

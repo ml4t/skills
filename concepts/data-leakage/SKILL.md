@@ -15,11 +15,11 @@ Leakage lets test-set information influence training, producing models that look
 
 Three distinct failure modes inflate backtest performance:
 
-1. **Target leakage** -- features computed from the target variable (e.g., future returns embedded in a "sentiment score" that was derived from price changes).
-2. **Train-test contamination** -- fitting a scaler, encoder, or selector on the full dataset before splitting, so test statistics leak into training transforms.
-3. **Temporal leakage** -- using future data in features (overlaps with lookahead bias, but here the mechanism is the train/test split itself, not the feature formula).
+1. **Target leakage** - features computed from the target variable (e.g., future returns embedded in a "sentiment score" that was derived from price changes).
+2. **Train-test contamination** - fitting a scaler, encoder, or selector on the full dataset before splitting, so test statistics leak into training transforms.
+3. **Temporal leakage** - using future data in features (overlaps with lookahead bias, but here the mechanism is the train/test split itself, not the feature formula).
 
-A pipeline that fits a `StandardScaler` on the full matrix before splitting commonly inflates Sharpe by 0.2--0.5 on daily data. The model learns the test set's distribution.
+A pipeline that fits a `StandardScaler` on the full matrix before splitting commonly inflates Sharpe by 0.2-0.5 on daily data. The model learns the test set's distribution.
 
 ## The Pattern
 
@@ -68,10 +68,10 @@ print(pipe.score(X_test, y_test))             # honest R^2
 
 ## Guardrails
 
-- Search codebase for `fit_transform` calls that precede `train_test_split` -- each one is a leak candidate.
-- Distinguish fit-requiring steps (scalers, encoders, selectors — must see train only) from stateless steps (column drops, type casts — safe on full data).
+- Search codebase for `fit_transform` calls that precede `train_test_split` - each one is a leak candidate.
+- Distinguish fit-requiring steps (scalers, encoders, selectors - must see train only) from stateless steps (column drops, type casts - safe on full data).
 - Compute feature-target correlation on the training fold only; correlation > 0.3 warrants investigation.
-- Any `SelectKBest` or `mutual_info_classif` call on the full dataset is leakage -- wrap in a pipeline.
+- Any `SelectKBest` or `mutual_info_classif` call on the full dataset is leakage - wrap in a pipeline.
 - Time-series splits must respect temporal order: no shuffled k-fold on sequential data.
 
 ## Production Implementation
