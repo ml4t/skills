@@ -106,7 +106,7 @@ pbo = np.mean(np.array(ranks) > 0.5)  # how often the IS winner is below median
 from ml4t.diagnostic.evaluation.stats import compute_pbo, benjamini_hochberg_fdr
 from ml4t.diagnostic.splitters import CombinatorialCV
 
-cpcv = CombinatorialCV(n_groups=8, n_test_groups=2, embargo_size=5)
+cpcv = CombinatorialCV(n_groups=8, n_test_groups=4, embargo_size=5)  # halves, as above
 pbo = compute_pbo(np.array(is_sharpes), np.array(oos_sharpes))
 rejected = benjamini_hochberg_fdr(p_values, alpha=0.05)
 ```

@@ -33,7 +33,8 @@ import numpy as np
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import TimeSeriesSplit
 
-# Stage 1: Primary signal (direction), itself produced out of fold
+# Stage 1: primary signal (direction). These have to BE out-of-fold predictions
+# already - a primary fitted on X leaks its training rows into the meta-model.
 signal = primary_model.predict(X)  # 1=buy, -1=sell, 0=hold
 
 # Stage 2: Meta-model filters which signals to act on
@@ -43,7 +44,7 @@ X_meta, y_meta = X[fired], outcomes[fired]  # outcomes: 1=profitable, 0=not
 # The meta-model has to score rows it did not fit. Fitting and predicting on
 # the same samples grades the filter on its own training set.
 prob_win = np.full(len(fired), np.nan)
-for train, test in TimeSeriesSplit(n_splits=5).split(X_meta):
+for train, test in TimeSeriesSplit(n_splits=5).split(X_meta):  # purge: ml4t-purging-embargo
     meta_model = GradientBoostingClassifier(n_estimators=100, max_depth=3)
     meta_model.fit(X_meta[train], y_meta[train])
     prob_win[test] = meta_model.predict_proba(X_meta[test])[:, 1]
@@ -78,18 +79,17 @@ meta_features = np.column_stack([
 Meta-label probabilities naturally map to position sizes:
 
 ```python
-# Kelly-inspired sizing: size proportional to edge
-prob = meta_model.predict_proba(X_meta)[:, 1]
-edge = 2 * prob - 1  # Maps [0.5, 1.0] → [0, 1]
+# Kelly-inspired sizing: size proportional to edge. Size history from the
+# out-of-fold prob_win above; the last fold's model is for future rows only.
+edge = 2 * np.nan_to_num(prob_win, nan=0.5) - 1  # unscored rows get zero size
 position_size = base_size * np.clip(edge, 0, 1)
 ```
 
 ## Guardrails
 
+- **Meta-model never overrides direction** - it only decides whether to act, and how much
 - **Separate CV for primary and meta** - meta-model must not see primary's test data
-- **Meta-model never overrides direction** - it only decides whether to act and how much
 - **Requires sufficient primary signals** - if primary fires <100 times, meta-model will overfit
-- **Primary must have fold-stable IC** - meta-labels cannot rescue a sign-flipping primary signal; validate IC stability across walk-forward folds before adding meta layer
 
 ## Production Implementation
 
