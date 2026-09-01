@@ -26,8 +26,7 @@ import time
 while True:
     pnl = get_daily_pnl()
     if pnl < -10000:
-        print("WARNING: large loss")  # prints to a log nobody reads at 3am
-        send_email("Loss alert")      # email arrives 5 min later
+        send_email("Loss alert")  # arrives 5 min later, read at 9am
     time.sleep(60)
 # Meanwhile, the algo keeps trading during the 60s sleep
 ```
@@ -37,22 +36,23 @@ while True:
 class KillSwitch:
     """Hard-coded risk limits. Automatic trigger, manual reset only."""
 
-    THRESHOLDS = {
-        "max_daily_loss": -0.03,     # -3% daily P&L
-        "max_drawdown": -0.15,       # -15% from peak
-        "max_gross_leverage": 2.0,   # 200% gross
-        "max_position_pct": 0.15,    # 15% in single name
-    }
+    # -3% daily P&L, -15% from peak, 200% gross, 15% in a single name
+    THRESHOLDS = {"max_daily_loss": -0.03, "max_drawdown": -0.15,
+                  "max_gross_leverage": 2.0, "max_position_pct": 0.15}
 
-    def __init__(self, reset_code):
+    def __init__(self, reset_code, on_breach):
         self.triggered = False
         self.trigger_reason = None
         self.reset_code = reset_code  # from your secret store, not from source
+        self.on_breach = on_breach    # cancel open orders, flatten, page on-call
 
-    def check(self, daily_pnl, drawdown, gross_lev, max_pos, reducing=False):
-        """Called BEFORE every order. False = block. Reducing risk still passes."""
+    def check(self, daily_pnl, drawdown, gross_lev, max_pos, position=0.0, qty=0.0):
+        """Called BEFORE every order. False = block. Only reset() clears a latch."""
+        # Derive risk reduction from the order. A caller-supplied `reducing`
+        # flag is a claim, and one mislabelled order defeats the whole switch.
+        reducing = qty * position < 0 and abs(qty) <= abs(position)  # no zero cross
         if self.triggered:
-            return reducing  # latched: nothing but reset() clears this
+            return reducing
         checks = {
             "max_daily_loss": daily_pnl > self.THRESHOLDS["max_daily_loss"],
             "max_drawdown": drawdown > self.THRESHOLDS["max_drawdown"],
@@ -63,7 +63,8 @@ class KillSwitch:
             if not passed:
                 self.triggered = True
                 self.trigger_reason = f"{name}: threshold breached"
-                return reducing  # block new risk, still allow flattening
+                self.on_breach(name)  # flattening happens here, not on the next order
+                return reducing
         return True  # safe to proceed
 
     def reset(self, manual_approval_code: str):
@@ -89,7 +90,6 @@ def risk_level(drawdown, realized_vol, target_vol=0.10):
 ## Guardrails
 
 - Thresholds must be set BEFORE deployment, not adjusted during a drawdown
-- Checks run BEFORE order submission, and a trigger latches until manual reset
 - A latched switch must still pass risk-reducing orders, or you cannot flatten
 - Data feed failure is a trigger - no data means no trading, not "use stale prices"
 
@@ -107,8 +107,8 @@ config = LiveRiskConfig(
     max_position_value=50_000.0,
 )
 broker = SafeBroker(AlpacaBroker(api_key, secret_key), config)
-# A breach latches the switch and blocks risk-increasing orders. Flattening is
-# a separate call: await broker.close_all_positions()
+# A breach latches and blocks risk-increasing orders; flatten with
+# await broker.close_all_positions() from your own breach handler.
 ```
 
 ## Checklist

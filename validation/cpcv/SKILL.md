@@ -43,13 +43,15 @@ from itertools import combinations
 # Manual CPCV with purging using standard tools
 n_groups, n_test, horizon, embargo = 8, 2, 5, 2
 n_samples = len(X)
-group_size = n_samples // n_groups
+# array_split, not n_samples // n_groups: fixed-width groups leave the
+# remainder outside every test group, so those rows are never tested.
+groups = np.array_split(np.arange(n_samples), n_groups)
 scores = []
 
 for test_groups in combinations(range(n_groups), n_test):
     test_mask = np.zeros(n_samples, dtype=bool)
     for g in test_groups:
-        test_mask[g * group_size:(g + 1) * group_size] = True
+        test_mask[groups[g]] = True
 
     # Purge: remove training samples within horizon of test boundaries
     train_mask = ~test_mask.copy()

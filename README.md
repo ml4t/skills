@@ -238,7 +238,9 @@ CI enforces all of the above, checks every `ml4t.*` name and every direct call
 to one in a Production Implementation snippet against the published packages,
 and rejects a stale [SKILL_CHAPTER_MAP.md](SKILL_CHAPTER_MAP.md). That check is
 static and does not reach methods called on an instance; see
-[CONTRIBUTING.md](CONTRIBUTING.md) for what it does and does not cover.
+[CONTRIBUTING.md](CONTRIBUTING.md) for what it does and does not cover. A
+further job executes the numerical examples out of the Markdown and checks the
+numbers they produce.
 
 Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 Security problems go through [SECURITY.md](SECURITY.md), not a public issue.

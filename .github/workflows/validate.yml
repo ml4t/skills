@@ -63,3 +63,24 @@ jobs:
 
       - name: Check Production Implementation snippets against the library APIs
         run: python scripts/validate_skills.py --library-root library-src
+
+  skill-examples:
+    # The other jobs read the skills as text. This one runs the numerical
+    # `### CORRECT` blocks out of the Markdown and checks what they produce, so
+    # a boundary error or a call that cannot execute at all fails the build.
+    # Third-party libraries only: no `ml4t-*` package is involved.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the libraries the examples are written in
+        run: python -m pip install --quiet numpy scipy polars scikit-learn
+
+      - name: Run the numerical examples
+        run: python -m unittest tests.test_skill_examples -v

@@ -63,7 +63,7 @@ hypothesis = {
 | Hypothesis | Documented mechanism, kill criteria, capacity estimate | Do not start coding |
 | Data | No gaps > 2 days, point-in-time correct, survivorship-free | Fix data pipeline |
 | Features | IC > 0.02 (HAC-adjusted), stable across subperiods | Drop factor or redesign |
-| Model | PBO < 50%, deflated Sharpe significant | Simplify model or revisit features |
+| Model | Loss rate < 50%, best config clears the selection bound | Simplify model or revisit features |
 | Backtest | Sharpe > 0.5 net of costs, max DD < 20% | Revise sizing or cost assumptions |
 | Paper trade | Fills within expected slippage, no execution anomalies | Fix execution logic |
 
@@ -101,8 +101,8 @@ asyncio.run(trade_live())
 - [ ] Hypothesis documented in term sheet before any code
 - [ ] Data validated for gaps, survivorship bias, point-in-time correctness
 - [ ] Features pass IC significance test with HAC standard errors
-- [ ] Model validated via CPCV with PBO < 50%
+- [ ] Model validated via CPCV; loss rate < 50% (PBO: ml4t-backtest-overfitting)
 - [ ] Backtest includes realistic transaction costs
-- [ ] Deflated Sharpe ratio computed across all trials
+- [ ] Deflated Sharpe computed across all trials (ml4t-deflated-sharpe)
 - [ ] Paper trading completed for minimum 4 weeks
 - [ ] Kill criteria defined and monitoring configured before going live

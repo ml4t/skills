@@ -77,6 +77,14 @@ at the directory holding the `ml4t-*` repositories.
   is not checked at all. Run a snippet before you trust it.
 - `dependencies` naming skills that exist, with no cycles.
 
+A separate `skill-examples` job executes the numerical `### CORRECT` blocks
+straight out of the Markdown and asserts what they produce - bar boundaries,
+the purge cutoff, PSI tails, NaN handling, the kill-switch latch. Nothing else
+in CI runs the code it ships, and a block once shipped for months calling
+`datetime64[Q]`, a unit numpy does not have. If you add or change a numerical
+example, add a case to `tests/test_skill_examples.py` with a small input whose
+answer you can state.
+
 ## Library versions
 
 Skills target the current published `ml4t-*` releases, and the `api-accuracy`

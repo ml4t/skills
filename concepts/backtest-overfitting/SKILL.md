@@ -13,7 +13,7 @@ Testing many strategies on the same data guarantees finding one that looks profi
 
 ## The Problem
 
-Every parameter you tune, every feature you try, and every universe filter you adjust is an implicit trial. A researcher who reports a Sharpe ratio of 2.0 after exploring 200 configurations has not found alpha - they have found the luckiest draw from a noise distribution. The Deflated Sharpe Ratio corrects for this by penalizing for the number of trials conducted. Without it, most published backtests are statistically meaningless.
+Every parameter you tune, every feature you try, and every universe filter you adjust is an implicit trial. A researcher who reports a Sharpe ratio of 2.0 after exploring 200 configurations has not found alpha - they have found the luckiest draw from a noise distribution. Correcting for the number of trials, by haircut here and by Deflated Sharpe Ratio in `ml4t-deflated-sharpe`, is what separates the two. Without it, most published backtests are statistically meaningless.
 
 ## The Pattern
 
@@ -45,7 +45,7 @@ for lookback in [5, 10, 21, 63, 126, 252]:
         result = backtest(lookback=lookback, top_k=top_k)
         results.append(result["sharpe"])
 
-# Deflated Sharpe Ratio (Bailey & Lopez de Prado, 2014)
+# Sharpe haircut: subtract the selection bound (Bailey & Lopez de Prado).
 n_trials = len(results)
 best_sharpe = max(results)
 sharpe_std = np.std(results)
@@ -53,8 +53,10 @@ expected_max = sharpe_std * (
     (1 - np.euler_gamma) * norm.ppf(1 - 1 / n_trials)
     + np.euler_gamma * norm.ppf(1 - 1 / (n_trials * np.e))
 )
-deflated_sharpe = best_sharpe - expected_max
-print(f"Observed: {best_sharpe:.2f}, Deflated: {deflated_sharpe:.2f}, Trials: {n_trials}")
+# This is NOT the Deflated Sharpe Ratio, which is a probability that also
+# takes sample size, skew and kurtosis: see ml4t-deflated-sharpe.
+haircut = best_sharpe - expected_max
+print(f"Observed: {best_sharpe:.2f}, After haircut: {haircut:.2f}, Trials: {n_trials}")
 ```
 
 ## Probability of Backtest Overfitting (PBO)
@@ -93,10 +95,8 @@ pbo = np.mean(np.array(ranks) > 0.5)  # how often the IS winner is below median
 
 - Document total configurations tested - each is a trial. Separate exploration from confirmation.
 - Pre-register hypothesis and success threshold in version control before any backtest.
-- Reserve a true holdout set that is touched exactly once, at the very end.
 - Minimum 5 years daily data (~1,250 observations) for Sharpe estimation.
-- If deflated Sharpe is negative, the strategy has no statistical evidence of alpha.
-- Apply Holm-Bonferroni or Benjamini-Hochberg when comparing multiple strategies.
+- If the haircut Sharpe is negative, the strategy has no statistical evidence of alpha.
 
 ## Production Implementation
 
@@ -115,6 +115,6 @@ rejected = benjamini_hochberg_fdr(p_values, alpha=0.05)
 
 - [ ] Strategy hypothesis committed to git BEFORE any backtest
 - [ ] Total trials documented (including informal exploration); multiple-testing correction applied
-- [ ] Deflated Sharpe Ratio computed and reported alongside observed Sharpe
+- [ ] Sharpe haircut applied, and DSR from ml4t-deflated-sharpe reported with it
 - [ ] PBO calculated from combinatorial CV folds (PBO < 0.50 required)
 - [ ] True holdout set preserved and used exactly once
