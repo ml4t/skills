@@ -38,26 +38,24 @@ import polars as pl
 import numpy as np
 
 def panama_canal_adjust(
-    contracts: pl.DataFrame,
-    roll_dates: list[str],
+    front: pl.DataFrame,                    # timestamp, close: stitched front month
+    rolls: list[tuple[str, float, float]],  # (roll_date, old_close, new_close)
 ) -> pl.DataFrame:
-    """Back-adjust prices using Panama Canal (additive) method.
+    """Back-adjust prices using the Panama Canal (additive) method.
 
-    At each roll, shift all prior history by the gap between old and
-    new contract so that returns across the roll boundary are real.
+    The gap is the spread between the outgoing and incoming contract quoted on
+    the SAME day, which is why both prices have to be passed in. Differencing
+    adjacent rows of the stitched series instead measures the old contract's
+    overnight move on top of the spread.
     """
-    df = contracts.sort("timestamp")
+    df = front.sort("timestamp")
+    ts = df["timestamp"].to_numpy()
     adj = df["close"].to_numpy().copy().astype(np.float64)
 
-    for roll_date in sorted(roll_dates, reverse=True):
-        mask = df["timestamp"].to_numpy() < np.datetime64(roll_date)
-        # Gap = new contract close - old contract close on roll date
-        roll_idx = np.searchsorted(df["timestamp"].to_numpy(), np.datetime64(roll_date))
-        if roll_idx == 0 or roll_idx >= len(adj):
-            continue
-        gap = adj[roll_idx] - adj[roll_idx - 1]
-        # Subtract gap from all prior prices (Panama canal back-adjustment)
-        adj[mask] -= gap
+    for roll_date, old_close, new_close in sorted(rolls, reverse=True):
+        # Lift prior history so the roll nets to zero return. Subtracting the
+        # gap instead doubles the jump: a 5% roll artifact becomes 10.5%.
+        adj[ts < np.datetime64(roll_date)] += new_close - old_close
 
     return df.with_columns(adj_close=pl.Series("adj_close", adj))
 ```

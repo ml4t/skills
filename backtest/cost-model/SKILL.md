@@ -33,34 +33,36 @@ sharpe = gross_returns.mean() / gross_returns.std() * np.sqrt(252)  # overstated
 import numpy as np
 
 def net_returns_with_costs(
-    positions: np.ndarray,
+    weights: np.ndarray,     # portfolio weight per bar, not share counts
     asset_returns: np.ndarray,
     prices: np.ndarray,
-    volume: np.ndarray,
+    adv_shares: np.ndarray,  # average daily volume in shares
+    daily_vol: np.ndarray,   # daily return volatility per asset
+    nav: float,
     commission_bps: float = 1.0,
     spread_bps: float = 5.0,
     impact_coeff: float = 0.1,
 ) -> np.ndarray:
-    """Compute net returns with multi-component cost model."""
-    gross = positions * asset_returns
-    trades = np.abs(np.diff(positions, prepend=0))
+    """Net returns after commission, spread and impact, all fractions of NAV."""
+    gross = weights * asset_returns
+    traded_w = np.abs(np.diff(weights, prepend=0.0))  # traded fraction of NAV
 
-    # Fixed costs: commission + half-spread per side
-    fixed_cost = trades * (commission_bps + spread_bps / 2) / 10_000
+    # Fixed costs: commission + half-spread on the traded notional
+    fixed_cost = traded_w * (commission_bps + spread_bps / 2) / 10_000
 
-    # Market impact: square-root model, scales with participation rate
-    participation = np.where(volume > 0, trades * prices / volume, 0)
-    impact = impact_coeff * np.sqrt(np.clip(participation, 0, 1))
+    # Impact eta*sigma*sqrt(Q/ADV) as written below: Q is in shares, so take
+    # the weight change through NAV and price before comparing it to ADV.
+    participation = np.where(adv_shares > 0, traded_w * nav / prices / adv_shares, 0.0)
+    impact_pct = impact_coeff * daily_vol * np.sqrt(np.clip(participation, 0, 1))
+    impact = impact_pct * traded_w  # a price move costs only what you traded
 
     return gross - fixed_cost - impact
 
 
-# Capacity: AUM where net Sharpe = 0.5 (minimum viable)
 def estimate_capacity(gross_sharpe, turnover, cost_bps_per_turn):
-    """Rough capacity = AUM where costs consume alpha down to threshold."""
+    """Rough capacity: the AUM at which costs consume alpha down to threshold."""
     alpha_bps = gross_sharpe * 100 / np.sqrt(252)  # daily alpha in bps (approx)
     cost_drag = turnover * cost_bps_per_turn / 252
-    # Capacity is limited by market impact scaling - not a fixed formula
     return f"Gross alpha ~{alpha_bps:.1f} bps/day, cost drag ~{cost_drag:.1f} bps/day"
 ```
 
