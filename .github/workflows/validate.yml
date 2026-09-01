@@ -34,9 +34,11 @@ jobs:
 
   api-accuracy:
     # Every `## Production Implementation` snippet has to name something the
-    # published libraries actually export. Wheels are unpacked rather than
-    # installed: the check reads source with ast and never imports, so the
-    # libraries' own dependencies are irrelevant here.
+    # published libraries export, and call it with arguments its signature
+    # accepts. Wheels are unpacked rather than installed: the check reads source
+    # with ast and never imports, so the libraries' own dependencies are
+    # irrelevant here. Always the latest release, so this job is what tells us a
+    # library moved out from under the skills.
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -54,6 +56,10 @@ jobs:
             ml4t-data ml4t-engineer ml4t-backtest ml4t-diagnostic ml4t-live
           mkdir -p library-src
           for wheel in wheels/*.whl; do python -m zipfile -e "$wheel" library-src; done
+          # Name the versions, so a failure here says which library moved.
+          { echo "### Checked against"; echo;
+            for wheel in wheels/*.whl; do echo "- $(basename "$wheel")"; done
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check Production Implementation snippets against the library APIs
         run: python scripts/validate_skills.py --library-root library-src

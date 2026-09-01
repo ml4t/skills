@@ -73,6 +73,15 @@ at the directory holding the `ml4t-*` repositories.
   then raises on a value it was given.
 - `dependencies` naming skills that exist, with no cycles.
 
+## Library versions
+
+Skills target the current published `ml4t-*` releases, and the `api-accuracy`
+job resolves the latest wheels on every run rather than pinning them. A tagged
+skills release is therefore a snapshot of what was accurate on that day, not a
+promise about a particular library version: if a library changes an API, the
+job fails on the next push and the skill is corrected. The versions each run
+checked against are listed in that job's summary.
+
 ## Style
 
 - Write descriptions in the third person: what the skill does, then when to
