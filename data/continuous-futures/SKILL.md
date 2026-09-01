@@ -87,7 +87,7 @@ carry = front.join(back, on=["product", "timestamp"], suffix="_back").with_colum
 
 ## Guardrails
 
-- Never build returns or features from raw `close`, which jumps at every roll - `close` is for the current quote only
+- Never take a return off raw `close` of a stitched series, which jumps at every roll; per-contract raw prices are correct for term-structure work like the carry above
 - Roll dates vary by product: energy rolls monthly, equity index rolls quarterly
 - Panama adjustment changes historical price levels - do not use adjusted prices for margin calculations
 - Match the adjustment to the unit you trade: additive `adj_close` for absolute price changes, ratio adjustment for percentage returns, which Panama distorts early in the history

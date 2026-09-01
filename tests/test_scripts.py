@@ -214,6 +214,18 @@ class InstallerFlattensCategories(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((target / "ml4t-data-leakage").is_symlink())
 
+    def test_switching_an_install_from_symlinks_to_copies_takes_effect(self):
+        target = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        run = __import__("subprocess").run
+        run(["bash", str(self.SCRIPT), str(target)], capture_output=True, text=True, check=True)
+        result = run(["bash", str(self.SCRIPT), str(target), "--copy"],
+                     capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("61 replaced", result.stdout)
+        skill = target / "ml4t-data-leakage"
+        self.assertFalse(skill.is_symlink())
+        self.assertTrue((skill / ".ml4t-installed").is_file())
+
     def test_a_hand_copied_skill_is_never_deleted(self):
         # Same directory name, same `name:` frontmatter, plus local edits and no
         # installer marker. Only the marker may authorise a delete.

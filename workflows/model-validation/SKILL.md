@@ -55,8 +55,9 @@ assert loss_rate < 0.50, f"{loss_rate:.0%} of paths negative - likely overfit"
 
 # Gate 3: the bound applies to the CONFIGURATIONS you chose between, not to
 # CPCV paths of one model - those are correlated estimates of the same number.
-# trial_sharpes: one CPCV median per configuration tried, failures included.
+trial_sharpes = [np.median(paths) for paths in cv_sharpes_per_config]  # ALL tried
 n = len(trial_sharpes)
+assert n > 1, "a selection bound needs more than one trial"
 expected_max = np.std(trial_sharpes) * (
     (1 - np.euler_gamma) * norm.ppf(1 - 1 / n)
     + np.euler_gamma * norm.ppf(1 - 1 / (n * np.e))
@@ -95,8 +96,7 @@ Gates are sequential. Do not skip to Gate 5 hoping a good holdout compensates fo
 
 ## Production Implementation
 
-`ml4t-diagnostic` provides validated CPCV splitting with fold-level Sharpe
-tracking and built-in DSR evaluation:
+`ml4t-diagnostic` provides CPCV splitting with fold Sharpes and DSR:
 
 ```python
 from ml4t.diagnostic.api import ValidatedCrossValidation

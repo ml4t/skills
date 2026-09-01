@@ -61,14 +61,17 @@ for skill in "${skills[@]}"; do
     dest="$TARGET/$name"
 
     if [ -e "$dest" ] || [ -L "$dest" ]; then
+        # Two ways a destination can be ours: a symlink already pointing at this
+        # checkout, or a copy carrying the marker this script wrote. Matching on
+        # the SKILL.md contents instead would delete a skill someone copied in by
+        # hand and edited, since that file carries the same `name:`.
         if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$dir")" ]; then
-            current=$((current + 1))
-            continue
-        fi
-        # A marker this script wrote is the only proof a copy is ours. Matching
-        # on the SKILL.md contents instead would delete a skill someone copied
-        # in by hand and edited, since that file carries the same `name:`.
-        if [ ! -L "$dest" ] && [ -f "$dest/$MARKER" ]; then
+            if [ "$COPY" -eq 0 ]; then
+                current=$((current + 1))     # same mode, same target: nothing to do
+                continue
+            fi
+            replaced=$((replaced + 1))       # switching this install to copies
+        elif [ ! -L "$dest" ] && [ -f "$dest/$MARKER" ]; then
             replaced=$((replaced + 1))
         else
             # Not ours: leave it alone, but this skill is now missing from the
@@ -89,11 +92,22 @@ for skill in "${skills[@]}"; do
         if [ -e "$dest" ]; then
             mv "$dest" "$staging/previous"
         fi
-        mv "$staging/$name" "$dest"
+        # No POSIX call swaps two directories atomically, so put the previous
+        # install back if the second move fails rather than leaving nothing.
+        mv "$staging/$name" "$dest" || {
+            [ -e "$staging/previous" ] && mv "$staging/previous" "$dest"
+            echo "failed to install $name; previous install restored" >&2
+            exit 1
+        }
         rm -rf "$staging"
     else
-        rm -rf "$dest"       # only ever a marked copy of ours; see above
-        ln -s "$dir" "$dest"
+        # Swapping a symlink over a symlink is atomic, so the old one is never
+        # removed first. mv -T refuses a directory target, so a marked copy
+        # being converted to a symlink has to go first.
+        if [ -d "$dest" ] && [ ! -L "$dest" ]; then
+            rm -rf "$dest"
+        fi
+        ln -sfn "$dir" "$dest.new" && mv -T "$dest.new" "$dest"
     fi
     installed=$((installed + 1))
 done

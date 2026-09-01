@@ -75,8 +75,8 @@ def ic_decay(feature: np.ndarray, returns: np.ndarray, horizons: list[int]) -> d
     gaps = np.r_[0, np.cumsum(np.isnan(returns))]  # missing returns so far
     cum = np.r_[1.0, np.cumprod(1.0 + np.nan_to_num(returns))]
     for h in horizons:
-        if h >= n:
-            decay[h] = np.nan  # no forward window fits in the sample
+        if not 0 < h < n:
+            decay[h] = np.nan  # no forward window of this length fits
             continue
         # Compounded t+1..t+h. np.roll wrapped the sample start into the tail,
         # and a plain cumprod let one missing return poison every later window.
