@@ -11,7 +11,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_LIBRARIES = {
     "",
@@ -142,7 +141,8 @@ def validate_skill(path: Path, skill_names: set[str], errors: list[Error]) -> No
     if re.search(r"^(from|import)\s+ml4t\.", before_production, flags=re.MULTILINE):
         fail(errors, path, "ml4t import appears before Production Implementation")
 
-    for index, block in enumerate(re.findall(r"```python\n(.*?)```", body, flags=re.DOTALL), start=1):
+    blocks = re.findall(r"```python\n(.*?)```", body, flags=re.DOTALL)
+    for index, block in enumerate(blocks, start=1):
         try:
             ast.parse(block)
         except SyntaxError as exc:
@@ -150,6 +150,33 @@ def validate_skill(path: Path, skill_names: set[str], errors: list[Error]) -> No
 
     if SECRET_PATTERNS.search(text):
         fail(errors, path, "potential secret-like token found")
+
+
+def validate_dependency_graph(skills: list[Path], errors: list[Error]) -> None:
+    """Reject cycles: an agent resolving `dependencies` transitively must terminate."""
+    graph: dict[str, list[str]] = {}
+    for path in skills:
+        fields, _ = parse_frontmatter(path, path.read_text(encoding="utf-8"), [])
+        graph[path.parent.name] = parse_dependencies(fields.get("dependencies", "[]"))
+
+    state: dict[str, int] = {}
+    reported: set[tuple[str, ...]] = set()
+
+    def visit(node: str, stack: list[str]) -> None:
+        state[node] = 1
+        for child in graph.get(node, []):
+            if state.get(child, 0) == 1:
+                cycle = stack[stack.index(child):] + [child]
+                if tuple(sorted(set(cycle))) not in reported:
+                    reported.add(tuple(sorted(set(cycle))))
+                    fail(errors, node, f"dependency cycle: {' -> '.join(cycle)}")
+            elif state.get(child, 0) == 0 and child in graph:
+                visit(child, stack + [child])
+        state[node] = 2
+
+    for name in sorted(graph):
+        if state.get(name, 0) == 0:
+            visit(name, [name])
 
 
 def validate_readme(skill_count: int, errors: list[Error]) -> None:
@@ -227,11 +254,27 @@ def exported_names(path: Path) -> set[str]:
     return names
 
 
-def validate_ml4t_imports(skills: list[Path], library_root: Path, errors: list[Error]) -> None:
+def discover_ml4t_modules(library_root: Path) -> dict[str, Path]:
+    """Map `ml4t.*` module names to source files under `library_root`.
+
+    Two layouts are supported: a directory of `ml4t-*/src` checkouts, which is
+    what a local development tree looks like, and a directory that holds the
+    installed `ml4t/` namespace package directly, which is what CI gets from
+    unpacking the published wheels.
+    """
+    roots = [(src, src) for src in sorted(library_root.glob("ml4t-*/src"))]
+    if not roots and (library_root / "ml4t").is_dir():
+        roots = [(library_root, library_root / "ml4t")]
+
     module_files: dict[str, Path] = {}
-    for package_root in library_root.glob("ml4t-*/src"):
-        for path in package_root.rglob("*.py"):
-            module_files[module_name(package_root, path)] = path
+    for import_root, tree in roots:
+        for path in sorted(tree.rglob("*.py")):
+            module_files.setdefault(module_name(import_root, path), path)
+    return module_files
+
+
+def validate_ml4t_imports(skills: list[Path], library_root: Path, errors: list[Error]) -> None:
+    module_files = discover_ml4t_modules(library_root)
 
     if not module_files:
         fail(errors, library_root, "no ml4t package source files found")
@@ -241,9 +284,15 @@ def validate_ml4t_imports(skills: list[Path], library_root: Path, errors: list[E
     for skill in skills:
         text = skill.read_text(encoding="utf-8")
         for block in re.findall(r"```python\n(.*?)```", text, flags=re.DOTALL):
-            tree = ast.parse(block)
+            try:
+                tree = ast.parse(block)
+            except SyntaxError:
+                continue  # already reported against this file by validate_skill
             for node in ast.walk(tree):
-                if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("ml4t"):
+                is_from_ml4t = isinstance(node, ast.ImportFrom) and (node.module or "").startswith(
+                    "ml4t"
+                )
+                if is_from_ml4t:
                     if node.module not in module_files:
                         fail(errors, skill, f"unknown ml4t module: {node.module}")
                         continue
@@ -261,8 +310,11 @@ def main() -> int:
     parser.add_argument(
         "--library-root",
         type=Path,
-        default=Path(os.environ["ML4T_LIBRARY_ROOT"]) if "ML4T_LIBRARY_ROOT" in os.environ else None,
-        help="Optional path containing local ml4t-* library checkouts for production import checks.",
+        default=(
+            Path(os.environ["ML4T_LIBRARY_ROOT"]) if "ML4T_LIBRARY_ROOT" in os.environ else None
+        ),
+        help="Path holding the ml4t library sources: either ml4t-*/src checkouts or an "
+        "unpacked ml4t/ package. Enables the Production Implementation API check.",
     )
     args = parser.parse_args()
 
@@ -279,6 +331,7 @@ def main() -> int:
     for path in skills:
         validate_skill(path, skill_names, errors)
 
+    validate_dependency_graph(skills, errors)
     validate_readme(len(skills), errors)
     validate_git_tracked_files(errors)
     if args.library_root is not None:

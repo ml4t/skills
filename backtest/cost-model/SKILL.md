@@ -2,7 +2,7 @@
 name: ml4t-cost-model
 description: "Commission, slippage, and market-impact cost models for realistic strategy simulation. Use when backtesting to ensure P&L accounts for transaction costs."
 when_to_use: "Use when wiring realistic execution costs into a simulation after a strategy has already cleared basic cost-feasibility screening"
-dependencies: [transaction-costs, run-backtest]
+dependencies: [transaction-costs]
 metadata:
   book_chapters: "18"
   library: "ml4t-backtest"

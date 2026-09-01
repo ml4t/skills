@@ -53,6 +53,34 @@ NEXT_DATA_RE = re.compile(
     r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.S
 )
 
+# Everything below comes off a page this repository does not control and is
+# committed without a human reading it first, so a title carrying `](` or a
+# pipe would silently rewrite the link or the table cell around it, and a slug
+# carrying `/` or `?` would build a URL pointing somewhere else. Titles are
+# escaped; slugs are rejected outright, because there is no correct way to
+# repair one.
+MD_UNSAFE_RE = re.compile(r"[\\\[\]|<>]")
+SLUG_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
+def text(value: object) -> str:
+    """Collapse whitespace and neutralise the Markdown that breaks a table link."""
+    return MD_UNSAFE_RE.sub(lambda m: "\\" + m.group(0), " ".join(str(value).split()))
+
+
+def slug(value: object, field: str) -> str:
+    """Return a scraped path segment, or refuse to build a URL out of it."""
+    if not isinstance(value, str) or not SLUG_RE.fullmatch(value):
+        raise SystemExit(f"refusing to build a URL from {field}={value!r}")
+    return value
+
+
+def minutes(value: object) -> int | None:
+    """Durations render into prose, so accept only a plausible whole number."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return int(value) if 0 < value <= 24 * 60 else None
+
 # One-line positioning per offering, keyed by Maven course slug. The profile's
 # own course_description is marketing-page prose, too long for a table row.
 BLURBS = {
@@ -105,10 +133,10 @@ def collect(props: dict, now: datetime) -> tuple[list[dict], list[dict]]:
             continue
         lessons.append(
             {
-                "title": item["title"],
-                "url": f"https://maven.com/p/{item['slug']}",
+                "title": text(item["title"]),
+                "url": f"https://maven.com/p/{slug(item.get('slug'), 'free_items[].slug')}",
                 "start": start,
-                "minutes": item.get("duration_minutes"),
+                "minutes": minutes(item.get("duration_minutes")),
             }
         )
 
@@ -118,11 +146,12 @@ def collect(props: dict, now: datetime) -> tuple[list[dict], list[dict]]:
         start = parse_instant(cohort.get("start_date"))
         if start is None or start <= now:
             continue
+        course_slug = slug(course.get("course_slug"), "courses[].course_slug")
         cohorts.append(
             {
-                "title": course["course_name"],
-                "slug": course["course_slug"],
-                "url": f"https://maven.com/stefan-jansen/{course['course_slug']}",
+                "title": text(course["course_name"]),
+                "slug": course_slug,
+                "url": f"https://maven.com/stefan-jansen/{course_slug}",
                 "start": start,
                 "end": parse_instant(cohort.get("end_date")),
                 "format": course.get("course_format"),

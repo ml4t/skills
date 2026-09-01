@@ -1,0 +1,7 @@
+# The repository ships Markdown, not a Python package. This configures the
+# linter for the handful of maintenance scripts and their tests, nothing else.
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

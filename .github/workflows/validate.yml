@@ -8,17 +8,57 @@ on:
 permissions:
   contents: read
 
+env:
+  # Renovate/Dependabot bump the pinned SHAs; the comment records the tag.
+  CHECKOUT: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  SETUP_PYTHON: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Validate skill structure and hygiene
         run: python scripts/validate_skills.py
+
+      - name: Check the chapter map is regenerated
+        run: python scripts/generate_chapter_map.py --check
+
+      - name: Test the repository scripts
+        run: python -m unittest discover -s tests -v
+
+      - name: Lint the repository scripts
+        run: pipx run ruff check .
+
+  api-accuracy:
+    # Every `## Production Implementation` snippet has to name something the
+    # published libraries actually export. Wheels are unpacked rather than
+    # installed: the check reads source with ast and never imports, so the
+    # libraries' own dependencies are irrelevant here.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Unpack the published ml4t library wheels
+        run: |
+          set -euo pipefail
+          python -m pip download --quiet --no-deps --only-binary=:all: --dest wheels \
+            ml4t-data ml4t-engineer ml4t-backtest ml4t-diagnostic ml4t-live
+          mkdir -p library-src
+          for wheel in wheels/*.whl; do python -m zipfile -e "$wheel" library-src; done
+
+      - name: Check Production Implementation snippets against the library APIs
+        run: python scripts/validate_skills.py --library-root library-src
