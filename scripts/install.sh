@@ -10,9 +10,16 @@
 #   ./scripts/install.sh .agents/skills       # a different target
 #   ./scripts/install.sh --copy               # default target, copies
 #   ./scripts/install.sh ~/.claude/skills --copy
+#   ./scripts/install.sh --prune              # also remove skills we no longer ship
+#   ./scripts/install.sh --uninstall          # remove every skill we installed
 #
 # Symlinks are the default so that `git pull` updates every installed skill.
 # Use --copy when the target must not depend on this checkout.
+#
+# Renaming or dropping a skill leaves the old install behind, because a plain
+# run only ever writes the names it is shipping now. --prune deletes those
+# leftovers, and --uninstall deletes the whole install. Both refuse to touch
+# anything this script did not create.
 
 set -euo pipefail
 shopt -s nullglob
@@ -21,14 +28,19 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MARKER=".ml4t-installed"   # written into every copy, so a rerun knows it is ours
 TARGET=""
 COPY=0
+PRUNE=0
+UNINSTALL=0
 
 # --copy is a flag, not a positional, so that `install.sh --copy` does not
 # quietly create a directory named "--copy".
 for arg in "$@"; do
     case "$arg" in
         --copy) COPY=1 ;;
+        --prune) PRUNE=1 ;;
+        --uninstall) UNINSTALL=1 ;;
         -h|--help)
-            sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' \
+                "${BASH_SOURCE[0]}"
             exit 0
             ;;
         -*) echo "unknown option: $arg" >&2; exit 2 ;;
@@ -49,6 +61,53 @@ if [ ${#skills[@]} -eq 0 ]; then
     exit 1
 fi
 
+wanted=()
+for skill in "${skills[@]}"; do
+    wanted+=("ml4t-$(basename "$(dirname "$skill")")")
+done
+
+shipping() {
+    local name
+    for name in "${wanted[@]}"; do
+        [ "$name" = "$1" ] && return 0
+    done
+    return 1
+}
+
+# Two ways a destination can be ours: a symlink into this checkout, or a copy
+# carrying the marker this script wrote. Matching on the SKILL.md contents
+# instead would claim a skill someone copied in by hand and edited, since that
+# file carries the same `name:`. Nothing else is ever replaced or deleted.
+owned() {
+    local dest="$1"
+    if [ -L "$dest" ]; then
+        # The raw target first, so a link left behind by a renamed or deleted
+        # skill is still recognised as ours; readlink -f needs the path to exist.
+        case "$(readlink "$dest")" in "$REPO"/*) return 0 ;; esac
+        case "$(readlink -f "$dest" 2>/dev/null)" in "$REPO"/*) return 0 ;; esac
+        return 1
+    fi
+    [ -f "$dest/$MARKER" ]
+}
+
+removed=0
+if [ "$PRUNE" -eq 1 ] || [ "$UNINSTALL" -eq 1 ]; then
+    for dest in "$TARGET"/ml4t-*; do
+        name="$(basename "$dest")"
+        if [ "$UNINSTALL" -eq 0 ] && shipping "$name"; then
+            continue    # still shipped, so the install loop below will refresh it
+        fi
+        owned "$dest" || continue
+        rm -rf -- "$dest"
+        removed=$((removed + 1))
+    done
+fi
+
+if [ "$UNINSTALL" -eq 1 ]; then
+    echo "removed $removed skills from $TARGET"
+    exit 0
+fi
+
 mkdir -p "$TARGET"
 
 installed=0
@@ -61,25 +120,19 @@ for skill in "${skills[@]}"; do
     dest="$TARGET/$name"
 
     if [ -e "$dest" ] || [ -L "$dest" ]; then
-        # Two ways a destination can be ours: a symlink already pointing at this
-        # checkout, or a copy carrying the marker this script wrote. Matching on
-        # the SKILL.md contents instead would delete a skill someone copied in by
-        # hand and edited, since that file carries the same `name:`.
-        if [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$dir")" ]; then
-            if [ "$COPY" -eq 0 ]; then
-                current=$((current + 1))     # same mode, same target: nothing to do
-                continue
-            fi
-            replaced=$((replaced + 1))       # switching this install to copies
-        elif [ ! -L "$dest" ] && [ -f "$dest/$MARKER" ]; then
-            replaced=$((replaced + 1))
-        else
+        if ! owned "$dest"; then
             # Not ours: leave it alone, but this skill is now missing from the
             # install, so the run must not report success.
             echo "conflict: $name already exists at $dest and is not ours" >&2
             conflicts=$((conflicts + 1))
             continue
         fi
+        if [ "$COPY" -eq 0 ] && [ -L "$dest" ] \
+           && [ "$(readlink -f "$dest")" = "$(readlink -f "$dir")" ]; then
+            current=$((current + 1))     # same mode, same target: nothing to do
+            continue
+        fi
+        replaced=$((replaced + 1))
     fi
 
     if [ "$COPY" -eq 1 ]; then
@@ -121,7 +174,11 @@ for skill in "${skills[@]}"; do
     installed=$((installed + 1))
 done
 
-echo "installed $installed skills into $TARGET ($current already current, $replaced replaced)"
+summary="installed $installed skills into $TARGET ($current already current, $replaced replaced"
+if [ "$PRUNE" -eq 1 ]; then
+    summary="$summary, $removed pruned"
+fi
+echo "$summary)"
 echo "each is available as ml4t-<skill-name>, for example /ml4t-data-leakage"
 
 if [ "$conflicts" -gt 0 ]; then

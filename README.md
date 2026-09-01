@@ -34,9 +34,14 @@ cd ~/.ml4t-skills
 ./scripts/install.sh                    # ~/.claude/skills, the default
 ./scripts/install.sh .agents/skills     # Codex, project-local
 ./scripts/install.sh ~/.claude/skills --copy   # copies instead of symlinking
+
+./scripts/install.sh --prune            # also drop skills this repo no longer ships
+./scripts/install.sh --uninstall        # remove every skill it installed
 ```
 
 The script symlinks each skill in as `ml4t-<skill-name>`, so `git pull` updates every installed skill at once, and the `ml4t-` prefix keeps them from colliding with skills you already have. It is idempotent and never overwrites a directory it did not create: a copy install carries a `.ml4t-installed` marker, and only a marked directory is ever replaced. Pass `--copy` when the install must not depend on the checkout.
+
+A plain run only writes the skills being shipped now, so a skill that is renamed or dropped upstream stays installed until you say otherwise. `--prune` removes those leftovers as part of the install, and `--uninstall` removes the whole install. Both delete only what the script created, by the same symlink-or-marker test, and leave anything else in the directory alone.
 
 Copying by hand works too. Move each of the 61 skill directories, not the category directories, into your agent's skills directory.
 

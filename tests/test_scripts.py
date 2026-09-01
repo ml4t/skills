@@ -485,3 +485,90 @@ class ReadmeCatalogListsEverySkill(unittest.TestCase):
         validate.validate_readme([*sorted(ROOT.glob("*/*/SKILL.md")), missing], errors)
         self.assertTrue(any("not-in-readme" in e.message for e in errors),
                         [e.message for e in errors])
+
+
+class StaleInstallsAreOnlyRemovedOnRequest(unittest.TestCase):
+    """A renamed or dropped skill leaves an install behind that no rerun rewrites."""
+
+    SCRIPT = ROOT / "scripts" / "install.sh"
+
+    def target(self) -> Path:
+        return Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+
+    def install(self, target: Path, *args):
+        return __import__("subprocess").run(
+            ["bash", str(self.SCRIPT), str(target), *args], capture_output=True, text=True)
+
+    def stale(self, target: Path) -> tuple[list[Path], Path, Path]:
+        """One leftover of each kind we own, plus one directory we do not."""
+        links = [target / "ml4t-renamed-away", target / "ml4t-whole-category-gone"]
+        # Neither target still exists, and the second lost its parent directory
+        # too, so `readlink -f` cannot resolve it at all.
+        links[0].symlink_to(ROOT / "concepts" / "renamed-away")
+        links[1].symlink_to(ROOT / "retired" / "whole-category-gone")
+        copied = target / "ml4t-dropped"
+        copied.mkdir(parents=True)
+        (copied / "SKILL.md").write_text("name: ml4t-dropped\n")
+        (copied / ".ml4t-installed").write_text("installed by an older checkout\n")
+        theirs = target / "ml4t-someone-elses"
+        theirs.mkdir()
+        (theirs / "SKILL.md").write_text("name: ml4t-someone-elses\n")
+        return links, copied, theirs
+
+    def test_a_plain_rerun_leaves_stale_installs_in_place(self):
+        target = self.target()
+        links, copied, theirs = self.stale(target)
+        result = self.install(target)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("pruned", result.stdout)
+        for leftover in (*links, copied, theirs):
+            self.assertTrue(leftover.exists() or leftover.is_symlink(), leftover)
+
+    def test_prune_removes_our_stale_installs_and_keeps_the_current_ones(self):
+        target = self.target()
+        links, copied, theirs = self.stale(target)
+        result = self.install(target, "--prune")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("3 pruned", result.stdout)
+        for link in links:
+            self.assertFalse(link.is_symlink(), link)
+        self.assertFalse(copied.exists())
+        self.assertTrue(theirs.exists())  # no marker, no link: not ours to delete
+        expected = {f"ml4t-{p.parent.name}" for p in ROOT.glob("*/*/SKILL.md")}
+        self.assertEqual({d.name for d in target.iterdir()} - {theirs.name}, expected)
+
+    def test_prune_never_touches_a_directory_outside_our_namespace(self):
+        target = self.target()
+        other = target / "unrelated-skill"
+        other.mkdir(parents=True)
+        (other / "SKILL.md").write_text("name: unrelated-skill\n")
+        self.assertEqual(self.install(target, "--prune").returncode, 0)
+        self.assertTrue((other / "SKILL.md").is_file())
+
+    def test_uninstall_removes_every_skill_we_installed_and_nothing_else(self):
+        target = self.target()
+        self.install(target)
+        _, _, theirs = self.stale(target)
+        result = self.install(target, "--uninstall")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("removed 64 skills", result.stdout)  # 61 shipped plus 3 stale
+        self.assertEqual({d.name for d in target.iterdir()}, {theirs.name})
+
+    def test_uninstall_after_a_copy_install_removes_the_copies_too(self):
+        target = self.target()
+        self.install(target, "--copy")
+        self.assertEqual(self.install(target, "--uninstall").returncode, 0)
+        self.assertEqual(list(target.iterdir()), [])
+
+    def test_uninstalling_from_a_directory_we_never_touched_removes_nothing(self):
+        target = self.target()
+        result = self.install(target, "--uninstall")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("removed 0 skills", result.stdout)
+
+    def test_help_lists_every_documented_flag(self):
+        result = __import__("subprocess").run(
+            ["bash", str(self.SCRIPT), "--help"], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for flag in ("--copy", "--prune", "--uninstall"):
+            self.assertIn(flag, result.stdout)
