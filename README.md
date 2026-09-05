@@ -9,7 +9,7 @@ This repository turns the book's quant research discipline into runtime guidance
 Each skill is a plain `SKILL.md` file with YAML frontmatter and concise procedural guidance. Installing them means putting each individual skill directory where your agent looks for skills, which `scripts/install.sh` does from a clone or from an unpacked [release archive](https://github.com/ml4t/skills/releases).
 
 <!-- offerings:next start -->
-> **Next free session:** [Managing Your Strategy Research Process](https://maven.com/p/bc9fd4), a 30-minute live session on **Wednesday, September 2, 2026, 12:00 PM ET / 16:00 UTC**. [All courses, workshops, and free lessons](https://ml4trading.io/courses/?utm_source=github&utm_medium=readme&utm_campaign=skills&utm_content=offerings).
+> **Next free session:** [How to Engineer a Multi-Agent System](https://maven.com/p/c7565e), a 30-minute live session on **Wednesday, September 9, 2026, 12:00 PM ET / 16:00 UTC**. [All courses, workshops, and free lessons](https://ml4trading.io/courses/?utm_source=github&utm_medium=readme&utm_campaign=skills&utm_content=offerings).
 <!-- offerings:next end -->
 
 ## Why Use These Skills
@@ -209,15 +209,14 @@ The method in these files is also taught live, worked through on a real strategy
 
 | Starts | Offering | What you leave with |
 |--------|----------|---------------------|
-| Sep 16 – Dec 2, 2026 | [Machine Learning for Trading: From Research to Production](https://maven.com/stefan-jansen/research-to-production) | Take one research idea from a question to a costed, monitored strategy, with the evidence trail that makes the result checkable. |
-| Sep 19, 2026 | [Engineering a Multi-Agent Forecasting System](https://maven.com/stefan-jansen/agent-engineering) | Build a multi-agent forecasting system whose reasoning is auditable end to end. |
+| Sep 16 – Dec 2, 2026 | [ML for Trading: From Research to Production](https://maven.com/stefan-jansen/research-to-production) | Take one research idea from a question to a costed, monitored strategy, with the evidence trail that makes the result checkable. |
+| Sep 26, 2026 | [Engineering a Multi-Agent Forecasting System](https://maven.com/stefan-jansen/agent-engineering) | Build a multi-agent forecasting system whose reasoning is auditable end to end. |
 | Oct 10, 2026 | [Loop Engineering: Reliable Work From Coding Agents](https://maven.com/stefan-jansen/loop-engineering) | Get reliable work out of coding agents: harness design, verification, and recovery from a bad run. |
 
 **Free live sessions.** Thirty minutes to an hour, no cost, recording sent to everyone who registers.
 
 | When | Session |
 |------|---------|
-| Wed, Sep 2, 12:00 PM ET / 16:00 UTC | [Managing Your Strategy Research Process](https://maven.com/p/bc9fd4) |
 | Wed, Sep 9, 12:00 PM ET / 16:00 UTC | [How to Engineer a Multi-Agent System](https://maven.com/p/c7565e) |
 | Wed, Sep 30, 12:00 PM ET / 16:00 UTC | [How to Be Productive with Coding Agents, Beyond Code](https://maven.com/p/efe730) |
 | Wed, Nov 4, 12:00 PM ET / 17:00 UTC | [Why Multi-Agent Systems Break, and How To Fix It](https://maven.com/p/393eee) |
