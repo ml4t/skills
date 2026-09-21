@@ -88,6 +88,8 @@ BLURBS = {
     "monitored strategy, with the evidence trail that makes the result checkable.",
     "agent-engineering": "Build a multi-agent forecasting system whose reasoning is "
     "auditable end to end.",
+    "ml4t-ai-agents": "Build an agent-driven trading-research workflow with explicit data, "
+    "validation, and deployment evidence.",
     "loop-engineering": "Get reliable work out of coding agents: harness design, "
     "verification, and recovery from a bad run.",
 }
@@ -191,7 +193,9 @@ def render_all(lessons: list[dict], cohorts: list[dict]) -> str:
             "|--------|----------|---------------------|",
         ]
         for c in cohorts:
-            blurb = BLURBS.get(c["slug"], "")
+            blurb = BLURBS.get(c["slug"])
+            if blurb is None:
+                raise SystemExit(f"missing README blurb for Maven course {c['slug']!r}")
             out.append(f"| {span(c['start'], c['end'])} | [{c['title']}]({c['url']}) | {blurb} |")
         out.append("")
 

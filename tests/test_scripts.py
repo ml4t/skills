@@ -85,6 +85,17 @@ class ScrapedFieldsAreNeutralised(unittest.TestCase):
         self.assertEqual(row.count("]("), 1)  # exactly one live link, ours
         self.assertIn("](https://maven.com/p/abc123)", row)
 
+    def test_an_unclassified_course_cannot_publish_an_empty_description(self):
+        cohort = {
+            "title": "Unreviewed course",
+            "slug": "unreviewed-course",
+            "url": "https://maven.com/stefan-jansen/unreviewed-course",
+            "start": datetime(2030, 1, 2, 17, 0, tzinfo=UTC),
+            "end": None,
+        }
+        with self.assertRaisesRegex(SystemExit, "missing README blurb"):
+            offerings.render_all([], [cohort])
+
 
 class SplicePreservesEscaping(unittest.TestCase):
     """render() escapes, but splice() is what actually reaches the README."""
