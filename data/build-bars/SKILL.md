@@ -5,7 +5,7 @@ when_to_use: "Use when working with trade-level data and need OHLCV bars with un
 dependencies: [fetch-data]
 metadata:
   book_chapters: "3"
-  library: ""
+  library: "ml4t-engineer"
 paths: ["**/*data*.py", "**/*fetch*.py", "**/*bars*.py", "**/*universe*.py", "**/*calendar*.py", "**/*futures*.py", "**/*export*.py", "**/*synthetic*.py"]
 ---
 # Build Bars
@@ -75,20 +75,12 @@ def build_dollar_bars(trades: pl.DataFrame, threshold: float) -> pl.DataFrame:
         .sort("bar_idx")
     )
 
-# Threshold: target ~same number of bars as time bars over the day
 bars = build_dollar_bars(trades, threshold=1_000_000)  # $1M per bar
 ```
 
 ## Choosing the Threshold
 
-Calibrate so dollar bars produce roughly the same number of bars as time bars over the same period.
-
-```python
-# Estimate: total dollar volume / desired number of bars
-total_dollar_vol = (trades["price"] * trades["size"]).sum()
-n_time_bars = 78  # 6.5 hours * 12 five-minute bars
-threshold = total_dollar_vol / n_time_bars
-```
+Calibrate the threshold as total dollar volume divided by the desired bar count.
 
 ## Bar Type Comparison
 
@@ -108,12 +100,21 @@ threshold = total_dollar_vol / n_time_bars
 
 ## Production Implementation
 
-No `ml4t-*` library covers bar construction. Use `ml4t-data` to fetch tick data, then apply the dollar-bar logic above. The canonical schema (`timestamp`, `open`, `high`, `low`, `close`, `volume`) from `ml4t-data` applies to the output bars.
+`ml4t-engineer` provides vectorized tick, volume, dollar, imbalance, and run-bar samplers:
+
+```python
+from ml4t.engineer.bars import DollarBarSampler
+
+bars = DollarBarSampler(dollars_per_bar=1_000_000).sample(trades.rename({"size": "volume"}))
+```
+
+Package-level names use vectorized implementations; compatibility implementations retain the
+`Original` suffix. Volume and imbalance samplers require a signed `side` column. Instantiate a
+concrete sampler with its class-specific threshold keyword, not the abstract `BarSampler`.
 
 ## Checklist
 
 - [ ] Tick data available with timestamp, price, and size columns
 - [ ] Threshold calibrated to produce reasonable bar count (~same as time bars)
 - [ ] Bars include OHLCV, dollar volume, and trade count
-- [ ] Overnight/session boundaries handled
 - [ ] Returns closer to normal verified (Jarque-Bera test or QQ plot)
