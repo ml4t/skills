@@ -218,6 +218,7 @@ The method in these files is also taught live, worked through on a real strategy
 | When | Session |
 |------|---------|
 | Wed, Sep 30, 11:00 AM ET / 15:00 UTC | [How to Be Productive with Coding Agents, Beyond Code](https://maven.com/p/efe730) |
+| Thu, Oct 1, 11:00 AM ET / 15:00 UTC | [Can AI agents improve themselves?](https://maven.com/p/cf1c90) |
 | Wed, Oct 7, 11:00 AM ET / 15:00 UTC | [How AI Agents Change the ML for Trading Workflow](https://maven.com/p/222e36) |
 | Wed, Nov 4, 11:00 AM ET / 16:00 UTC | [Why Multi-Agent Systems Break, and How To Fix It](https://maven.com/p/393eee) |
 
