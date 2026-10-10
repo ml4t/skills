@@ -9,7 +9,7 @@ This repository turns the book's quant research discipline into runtime guidance
 Each skill is a plain `SKILL.md` file with YAML frontmatter and concise procedural guidance. Installing them means putting each individual skill directory where your agent looks for skills, which `scripts/install.sh` does from a clone or from an unpacked [release archive](https://github.com/ml4t/skills/releases).
 
 <!-- offerings:next start -->
-> **Next free session:** [How to Be Productive with Coding Agents, Beyond Code](https://maven.com/p/efe730), a 30-minute live session on **Wednesday, September 30, 2026, 11:00 AM ET / 15:00 UTC**. [All courses, workshops, and free lessons](https://ml4trading.io/courses/?utm_source=github&utm_medium=readme&utm_campaign=skills&utm_content=offerings).
+> **Next free session:** [Getting better results from coding agents](https://maven.com/p/166231), a 30-minute live session on **Wednesday, October 21, 2026, 11:00 AM ET / 15:00 UTC**. [All courses, workshops, and free lessons](https://ml4trading.io/courses/?utm_source=github&utm_medium=readme&utm_campaign=skills&utm_content=offerings).
 <!-- offerings:next end -->
 
 ## Why Use These Skills
@@ -209,17 +209,19 @@ The method in these files is also taught live, worked through on a real strategy
 
 | Starts | Offering | What you leave with |
 |--------|----------|---------------------|
-| Oct 3, 2026 | [Engineering a Multi-Agent Forecasting System](https://maven.com/stefan-jansen/agent-engineering) | Build a multi-agent forecasting system whose reasoning is auditable end to end. |
 | Oct 10, 2026 | [ML for Trading in the Age of AI Agents](https://maven.com/stefan-jansen/ml4t-ai-agents) | Build an agent-driven trading-research workflow with explicit data, validation, and deployment evidence. |
-| Oct 24, 2026 | [Loop Engineering: Reliable Work From Coding Agents](https://maven.com/stefan-jansen/loop-engineering) | Get reliable work out of coding agents: harness design, verification, and recovery from a bad run. |
+| Oct 24, 2026 | [Stop Micromanaging Your Coding Agent](https://maven.com/stefan-jansen/loop-engineering) | Get reliable work out of coding agents: harness design, verification, and recovery from a bad run. |
+| Nov 21, 2026 | [Agent Engineering: Build, Evaluate, and Deploy AI Agents](https://maven.com/stefan-jansen/agent-engineering) | Build a multi-agent forecasting system whose reasoning is auditable end to end. |
+| Dec 3 – Feb 18, 2027 | [ML for Trading: From Research to Production](https://maven.com/stefan-jansen/research-to-production) | Take one research idea from a question to a costed, monitored strategy, with the evidence trail that makes the result checkable. |
 
 **Free live sessions.** Thirty minutes to an hour, no cost, recording sent to everyone who registers.
 
 | When | Session |
 |------|---------|
-| Wed, Sep 30, 11:00 AM ET / 15:00 UTC | [How to Be Productive with Coding Agents, Beyond Code](https://maven.com/p/efe730) |
-| Wed, Oct 7, 11:00 AM ET / 15:00 UTC | [How AI Agents Change the ML for Trading Workflow](https://maven.com/p/222e36) |
-| Wed, Nov 4, 11:00 AM ET / 16:00 UTC | [Why Multi-Agent Systems Break, and How To Fix It](https://maven.com/p/393eee) |
+| Wed, Oct 21, 11:00 AM ET / 15:00 UTC | [Getting better results from coding agents](https://maven.com/p/166231) |
+| Wed, Oct 28, 11:00 AM ET / 15:00 UTC | [Machine learning for trading: choosing the next experiment](https://maven.com/p/b146f5) |
+| Wed, Nov 11, 11:00 AM ET / 16:00 UTC | [Multi-Agent AI Systems: When They Help and How to Build Them](https://maven.com/p/393eee) |
+| Wed, Nov 25, 11:00 AM ET / 16:00 UTC | [Anatomy of a machine learning for trading case study](https://maven.com/p/bb56cd) |
 
 *Between cohorts, the [**Insights** newsletter](https://insights.ml4trading.io/) covers the same ground weekly, source by source.*
 <!-- offerings:all end -->
