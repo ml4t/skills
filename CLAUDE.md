@@ -1,8 +1,6 @@
 # ML4T Skills - Agent Entry Point
 
-This repository's authoritative agent guidance lives in:
-
-- `AGENTS.md` for repo-wide authoring rules and current project goals
+@AGENTS.md
 
 Current project state:
 
