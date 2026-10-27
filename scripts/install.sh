@@ -78,13 +78,26 @@ shipping() {
 # carrying the marker this script wrote. Matching on the SKILL.md contents
 # instead would claim a skill someone copied in by hand and edited, since that
 # file carries the same `name:`. Nothing else is ever replaced or deleted.
+# Print a symlink's target as an absolute path. One level is all this script has
+# to inspect: `readlink -f` would also canonicalise, but it is GNU-only, and the
+# only thing that needs it here is a relative target, which is resolved against
+# the link's own directory. Prints nothing, and fails, for a non-link.
+link_target() {
+    local link="$1" target
+    target="$(readlink "$link" 2>/dev/null)" || return 1
+    [ -n "$target" ] || return 1
+    case "$target" in
+        /*) printf '%s\n' "$target" ;;
+        *) printf '%s\n' "$(cd "$(dirname "$link")" 2>/dev/null && pwd)/$target" ;;
+    esac
+}
+
 owned() {
     local dest="$1"
     if [ -L "$dest" ]; then
-        # The raw target first, so a link left behind by a renamed or deleted
-        # skill is still recognised as ours; readlink -f needs the path to exist.
-        case "$(readlink "$dest")" in "$REPO"/*) return 0 ;; esac
-        case "$(readlink -f "$dest" 2>/dev/null)" in "$REPO"/*) return 0 ;; esac
+        # The target is read raw, so a link left behind by a renamed or deleted
+        # skill is still recognised as ours even though it resolves to nothing.
+        case "$(link_target "$dest")" in "$REPO"/*) return 0 ;; esac
         return 1
     fi
     [ -f "$dest/$MARKER" ]
@@ -128,7 +141,7 @@ for skill in "${skills[@]}"; do
             continue
         fi
         if [ "$COPY" -eq 0 ] && [ -L "$dest" ] \
-           && [ "$(readlink -f "$dest")" = "$(readlink -f "$dir")" ]; then
+           && [ "$(link_target "$dest")" = "$dir" ]; then
             current=$((current + 1))     # same mode, same target: nothing to do
             continue
         fi
@@ -154,18 +167,20 @@ for skill in "${skills[@]}"; do
         }
         rm -rf "$staging"
     else
-        # Stage the link, then swap. Over a symlink that swap is atomic; over a
-        # marked copy it cannot be, because mv -T refuses a directory target, so
-        # the copy is moved aside and put back if the swap fails.
-        ln -sfn "$dir" "$dest.new"
+        # A real directory has to be moved aside first, because `ln -s` into an
+        # existing directory creates the link inside it rather than replacing it.
+        # What is left at $dest is then either nothing or a symlink, and `ln -sfn`
+        # handles both: `mv` would follow a symlink pointing at a directory and
+        # move the new link into its target, and `mv -T`, which avoids that, is
+        # GNU coreutils only. The copy is put back if the swap fails.
         backup=""
         if [ -d "$dest" ] && [ ! -L "$dest" ]; then
             backup="$(mktemp -d "$TARGET/.staging-$name.XXXXXX")"
             mv "$dest" "$backup/previous"
         fi
-        if ! mv -T "$dest.new" "$dest"; then
+        if ! ln -sfn "$dir" "$dest"; then
             [ -n "$backup" ] && mv "$backup/previous" "$dest"
-            rm -rf "$dest.new" "$backup"
+            rm -rf "$backup"
             echo "failed to install $name; previous install restored" >&2
             exit 1
         fi
