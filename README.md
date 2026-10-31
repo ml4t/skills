@@ -9,7 +9,7 @@ This repository turns the book's quant research discipline into runtime guidance
 Each skill is a plain `SKILL.md` file with YAML frontmatter and concise procedural guidance. Installing them means putting each individual skill directory where your agent looks for skills, which `scripts/install.sh` does from a clone or from an unpacked [release archive](https://github.com/ml4t/skills/releases).
 
 <!-- offerings:next start -->
-> **Next free session:** [How to use AI Agents for Trading Strategy Research](https://maven.com/p/b146f5), a 30-minute live session on **Wednesday, October 28, 2026, 11:00 AM ET / 15:00 UTC**. [All courses, workshops, and free lessons](https://ml4trading.io/courses/?utm_source=github&utm_medium=readme&utm_campaign=skills&utm_content=offerings).
+> **Next free session:** [From ML Predictions to Trading Results](https://maven.com/p/f68a50), a 30-minute live session on **Wednesday, November 4, 2026, 11:00 AM ET / 16:00 UTC**. [All courses, workshops, and free lessons](https://ml4trading.io/courses/?utm_source=github&utm_medium=readme&utm_campaign=skills&utm_content=offerings).
 <!-- offerings:next end -->
 
 ## Why Use These Skills
@@ -217,12 +217,12 @@ The method in these files is also taught live, worked through on a real strategy
 
 | When | Session |
 |------|---------|
-| Wed, Oct 28, 11:00 AM ET / 15:00 UTC | [How to use AI Agents for Trading Strategy Research](https://maven.com/p/b146f5) |
 | Wed, Nov 4, 11:00 AM ET / 16:00 UTC | [From ML Predictions to Trading Results](https://maven.com/p/f68a50) |
 | Wed, Nov 11, 11:00 AM ET / 16:00 UTC | [Multi-Agent AI Systems: When They Help and How to Build Them](https://maven.com/p/393eee) |
 | Thu, Nov 12, 11:00 AM ET / 16:00 UTC | [Trace an ML Trading Strategy from Data to Backtest](https://maven.com/p/cf69b8) |
 | Wed, Nov 18, 11:00 AM ET / 16:00 UTC | [Build an ML for Trading Research Workflow with AI Agents](https://maven.com/p/b7d06f) |
 | Wed, Nov 25, 11:00 AM ET / 16:00 UTC | [Open-Source Tools for ML Trading Research](https://maven.com/p/bb56cd) |
+| Thu, Dec 10, 11:00 AM ET / 16:00 UTC | [How to Evaluate AI Agents: From Traces to Release Decisions](https://maven.com/p/1829d6) |
 
 *Between cohorts, the [**Insights** newsletter](https://insights.ml4trading.io/) covers the same ground weekly, source by source.*
 <!-- offerings:all end -->
