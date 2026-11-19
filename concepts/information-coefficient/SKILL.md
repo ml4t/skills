@@ -46,11 +46,13 @@ ic_mean = ic_series.mean()
 ic_std = ic_series.std()
 ic_ir = ic_mean / ic_std
 
-# Newey-West HAC standard error for significance
+# Newey-West HAC standard error for significance. Forward returns over `horizon`
+# periods overlap for horizon - 1 periods, so the lag window covers at least that many.
 from statsmodels.regression.linear_model import OLS
 from statsmodels.tools import add_constant
+horizon = 21  # periods in the forward-return label
 ols = OLS(ic_series, add_constant(np.ones(len(ic_series)))).fit(
-    cov_type="HAC", cov_kwds={"maxlags": 5}
+    cov_type="HAC", cov_kwds={"maxlags": horizon - 1}
 )
 t_stat = ols.tvalues[0]
 
@@ -81,6 +83,7 @@ Overlapping return labels (e.g., 21-day forward returns sampled daily) reduce ef
 - Always use Rank IC (Spearman) for cross-sectional signals - Pearson is sensitive to outliers.
 - Report IC_IR (mean/std), not just mean IC - consistency matters more than magnitude.
 - Use HAC (Newey-West) standard errors, not naive t-tests - IC series are autocorrelated.
+- Set the HAC lags to at least the label horizon minus one. A 21-day forward return sampled daily needs 20 lags; fewer lags overstate the t-statistic.
 - Plot IC over time: a decaying IC trend means the signal is crowding or the regime has changed.
 
 ## Production Implementation
@@ -99,7 +102,9 @@ ic = cross_sectional_ic_series(
     entity_col="symbol",
     method="spearman",
 )
-stats = compute_ic_hac_stats(ic, maxlags=5)
+# label_horizon is the forward-return horizon in periods; the HAC lags then cover
+# at least label_horizon - 1 periods of overlap.
+stats = compute_ic_hac_stats(ic, label_horizon=21)
 # stats["mean_ic"], stats["t_stat"], stats["p_value"]
 ```
 
